@@ -173,6 +173,35 @@ model Bug {
   tags        Tag[]
   comments    Comment[]
   activity    ActivityEvent[]
+
+  relationshipsAsSource BugRelationship[] @relation("RelationshipSource")
+  relationshipsAsTarget BugRelationship[] @relation("RelationshipTarget")
+}
+
+enum RelationshipType {
+  DUPLICATE
+  BLOCKS
+  RELATED
+  REGRESSION_OF
+  CAUSED_BY
+}
+
+// Stored as one directional edge per link. sourceBug is the bug the
+// relationship reads "from" (e.g. for BLOCKS, sourceBug is the blocker);
+// the inverse label shown on targetBug's page is derived, never stored, so
+// the two sides can never drift out of sync.
+model BugRelationship {
+  id        String           @id @default(cuid())
+  type      RelationshipType
+  createdAt DateTime         @default(now())
+
+  sourceBugId String
+  sourceBug   Bug    @relation("RelationshipSource", fields: [sourceBugId], references: [id], onDelete: Cascade)
+
+  targetBugId String
+  targetBug   Bug    @relation("RelationshipTarget", fields: [targetBugId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceBugId, targetBugId, type])
 }
 
 model Comment {

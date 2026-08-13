@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, RotateCcw } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity } from "@/lib/data";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships } from "@/lib/data";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl } from "@/components/bugs/bug-field-controls";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
+import { BugRelationships } from "@/components/bugs/bug-relationships";
 
 function parseSteps(raw: string): string[] {
   return raw
@@ -34,11 +35,12 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
     getBugActivity(id),
+    getBugRelationships(id),
   ]);
 
   return (
@@ -168,6 +170,11 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </section>
       )}
+
+      <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
+        <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Relationships</h2>
+        <BugRelationships bugId={bug.id} relationships={relationships} />
+      </section>
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
         <CommentSection bugId={bug.id} comments={comments} testers={testers} currentUserId={currentUser.id} />

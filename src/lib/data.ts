@@ -6,6 +6,7 @@ import { BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
 import { computeQualityScore, qualityBand, type QualityBand } from "@/lib/quality-score";
 import { formatReleaseDate } from "@/lib/utils";
 import type { TrendRangeDays } from "@/lib/trend-range";
+import { resolveRelationships } from "@/lib/relationships";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -318,7 +319,7 @@ export async function getBugFilterOptions(gameSlug: string | undefined) {
 // since it's fully determined by createdAt and cheap to recompute for the
 // small volumes this app deals with, and it stays stable across sorting
 // because it's assigned before any display sort/filter is applied.
-async function getBugNumberMap(): Promise<Map<string, number>> {
+export async function getBugNumberMap(): Promise<Map<string, number>> {
   const allBugs = await prisma.bug.findMany({
     orderBy: { createdAt: "asc" },
     select: { id: true },
@@ -504,6 +505,22 @@ export async function getBugComments(bugId: string): Promise<CommentNode[]> {
     else roots.push(node);
   }
   return roots;
+}
+
+export async function getBugRelationships(bugId: string) {
+  const [rows, numberMap] = await Promise.all([
+    prisma.bugRelationship.findMany({
+      where: { OR: [{ sourceBugId: bugId }, { targetBugId: bugId }] },
+      orderBy: { createdAt: "desc" },
+      include: {
+        sourceBug: { select: { id: true, title: true, status: true } },
+        targetBug: { select: { id: true, title: true, status: true } },
+      },
+    }),
+    getBugNumberMap(),
+  ]);
+
+  return resolveRelationships(bugId, rows, (id) => numberMap.get(id) ?? 0);
 }
 
 export async function getBugActivity(bugId: string) {
