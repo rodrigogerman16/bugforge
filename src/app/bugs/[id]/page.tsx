@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, RotateCcw } from "lucide-react";
-import { getBugDetail } from "@/lib/data";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser } from "@/lib/data";
 import { SEVERITY_META } from "@/lib/severity";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { PriorityBadge } from "@/components/priority-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { formatRelativeTime } from "@/lib/relative-time";
+import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
+import { CommentSection } from "@/components/comments/comment-section";
 
 function parseSteps(raw: string): string[] {
   return raw
@@ -32,6 +34,12 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const { id } = await params;
   const bug = await getBugDetail(id);
   if (!bug) notFound();
+
+  const [comments, testers, currentUser] = await Promise.all([
+    getBugComments(id),
+    getTesters(),
+    getCurrentUser(),
+  ]);
 
   const severityMeta = SEVERITY_META[bug.severity];
 
@@ -141,6 +149,13 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         </section>
       )}
 
+      {bug.evidence.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Evidence</h2>
+          <EvidenceGallery items={bug.evidence} />
+        </section>
+      )}
+
       {bug.tags.length > 0 && (
         <section>
           <h2 className="mb-2 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Tags</h2>
@@ -160,6 +175,10 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           </div>
         </section>
       )}
+
+      <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
+        <CommentSection bugId={bug.id} comments={comments} testers={testers} currentUserId={currentUser.id} />
+      </section>
     </div>
   );
 }

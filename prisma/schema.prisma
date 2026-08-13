@@ -126,6 +126,10 @@ model Tester {
   reportedBugs Bug[]     @relation("ReportedBy")
   assignedBugs Bug[]     @relation("AssignedTo")
   testRuns     TestRun[]
+
+  authoredComments Comment[]  @relation("CommentAuthor")
+  mentionedIn      Comment[]  @relation("CommentMentions")
+  reactions        Reaction[]
 }
 
 model Bug {
@@ -164,6 +168,56 @@ model Bug {
 
   evidence    Evidence[]
   tags        Tag[]
+  comments    Comment[]
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  body      String
+  createdAt DateTime  @default(now())
+  editedAt  DateTime?
+
+  bugId String
+  bug   Bug    @relation(fields: [bugId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   Tester @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  // Self-relation for threaded replies — a null parentId is a top-level comment.
+  parentId String?
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  mentions    Tester[]            @relation("CommentMentions")
+  reactions   Reaction[]
+  attachments CommentAttachment[]
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  createdAt DateTime @default(now())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  testerId String
+  tester   Tester @relation(fields: [testerId], references: [id], onDelete: Cascade)
+
+  // One reaction per emoji per person — toggling re-clicks the same emoji.
+  @@unique([commentId, testerId, emoji])
+}
+
+model CommentAttachment {
+  id            String       @id @default(cuid())
+  type          EvidenceType
+  url           String
+  fileName      String?
+  fileSizeBytes Int?
+  createdAt     DateTime     @default(now())
+
+  commentId String
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
 model Tag {
@@ -174,15 +228,27 @@ model Tag {
   bugs  Bug[]
 }
 
+enum EvidenceType {
+  IMAGE
+  VIDEO
+  LOG
+  ATTACHMENT
+}
+
 model Evidence {
-  id        String   @id @default(cuid())
-  type      String   // "image" | "video" | "log"
+  id        String       @id @default(cuid())
+  type      EvidenceType
   url       String
+  // Inline text for LOG/ATTACHMENT items — lets the viewer render and
+  // download real content without a separate file store.
+  content   String?
+  fileName  String?
+  fileSizeBytes Int?
   caption   String?
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
   bugId     String
-  bug       Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  bug       Bug          @relation(fields: [bugId], references: [id], onDelete: Cascade)
 }
 
 model TestCase {

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, Platform, SessionStatus, TesterRole } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL ?? "file:./dev.db",
@@ -256,6 +256,143 @@ const GAME_MODES = ["Team Deathmatch", "Extraction", "Free-for-All", "Campaign M
 
 const PC_OS_POOL = ["Windows 11", "Windows 10"];
 const PC_GPU_POOL = ["RTX 4070", "RTX 4080", "RTX 3060", "RTX 4090", "RX 7800 XT", "RX 6700 XT"];
+
+// Matches the severity colors defined in src/app/globals.css — this script
+// runs outside the browser, so the CSS custom properties aren't reachable.
+const SEVERITY_COLOR: Record<BugSeverity, string> = {
+  BLOCKER: "#8b1e1e",
+  CRITICAL: "#d03b3b",
+  HIGH: "#f2762e",
+  MEDIUM: "#fab219",
+  LOW: "#898781",
+};
+
+function truncate(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function escapeXml(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// A self-contained, deterministically generated "capture" — no external image
+// service or binary asset needed. Reads as a stylized debug screenshot rather
+// than pretending to be an actual in-game render.
+function screenshotSvgDataUri({
+  title,
+  area,
+  severity,
+  buildVersion,
+  poster,
+}: {
+  title: string;
+  area: string;
+  severity: BugSeverity;
+  buildVersion: string;
+  poster?: boolean;
+}): string {
+  const color = SEVERITY_COLOR[severity];
+  const centerGlyph = poster
+    ? `<circle cx="480" cy="270" r="54" fill="#0d0d0d" opacity="0.55"/>
+       <path d="M462 244 L462 296 L510 270 Z" fill="${color}"/>`
+    : `<path d="M480 190 L540 300 L420 300 Z" fill="${color}" opacity="0.16" stroke="${color}" stroke-width="2" stroke-opacity="0.4"/>
+       <line x1="480" y1="228" x2="480" y2="264" stroke="${color}" stroke-width="4" stroke-opacity="0.55" stroke-linecap="round"/>
+       <circle cx="480" cy="282" r="3" fill="${color}" opacity="0.55"/>`;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#17171a"/>
+        <stop offset="100%" stop-color="${color}" stop-opacity="0.18"/>
+      </linearGradient>
+      <pattern id="lines" width="28" height="28" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="28" stroke="#ffffff" stroke-opacity="0.03" stroke-width="8"/>
+      </pattern>
+    </defs>
+    <rect width="960" height="540" fill="url(#bg)"/>
+    <rect width="960" height="540" fill="url(#lines)"/>
+    ${centerGlyph}
+    <text x="40" y="52" font-family="system-ui, sans-serif" font-size="12" letter-spacing="2" fill="${color}" font-weight="700">${poster ? "VIDEO CAPTURE" : "SCREENSHOT"}</text>
+    <circle cx="900" cy="46" r="5" fill="${color}"/>
+    <text x="886" y="51" text-anchor="end" font-family="system-ui, sans-serif" font-size="12" fill="#c3c2b7">${severity}</text>
+    <text x="40" y="472" font-family="system-ui, sans-serif" font-size="26" font-weight="700" fill="#ffffff">${escapeXml(truncate(title, 46))}</text>
+    <text x="40" y="500" font-family="system-ui, sans-serif" font-size="14" fill="#898781">Build ${escapeXml(buildVersion)} · ${escapeXml(area)}</text>
+  </svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function generateLogContent({
+  gameName,
+  buildVersion,
+  area,
+  severity,
+  actual,
+}: {
+  gameName: string;
+  buildVersion: string;
+  area: string;
+  severity: BugSeverity;
+  actual: string;
+}): string {
+  const now = Date.now();
+  const ts = (msAgo: number) => new Date(now - msAgo).toISOString();
+  const handler = area.replace(/[^A-Za-z]/g, "");
+  return [
+    `[${ts(5200)}] INFO  GameSession: loaded ${gameName} build ${buildVersion}`,
+    `[${ts(4600)}] INFO  Area: ${area}`,
+    `[${ts(3800)}] DEBUG PlayerController: state=Active`,
+    `[${ts(2600)}] WARN  ${handler}System: unexpected state transition detected`,
+    `[${ts(1400)}] ERROR ${handler}System: ${actual}`,
+    `[${ts(700)}] ERROR StackTrace: at ${handler}Handler.Process() line ${100 + Math.floor(Math.random() * 400)}`,
+    `[${ts(50)}] FATAL Crash report generated. severity=${severity}`,
+  ].join("\n");
+}
+
+function generateDeviceReport({
+  buildVersion,
+  platform,
+  os,
+  gpu,
+  map,
+  gameMode,
+}: {
+  buildVersion: string;
+  platform: string;
+  os: string | null;
+  gpu: string | null;
+  map: string;
+  gameMode: string;
+}): string {
+  return JSON.stringify(
+    {
+      build: buildVersion,
+      platform,
+      os: os ?? "n/a",
+      gpu: gpu ?? "n/a",
+      map,
+      gameMode,
+      capturedAt: new Date().toISOString(),
+    },
+    null,
+    2
+  );
+}
+
+// Real, small, CC0-licensed clips hosted by Mozilla for their own <video>
+// element documentation examples — verified reachable, not a guessed URL.
+const SAMPLE_VIDEO_POOL = [
+  {
+    url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+    fileName: "repro-capture-1.mp4",
+    fileSizeBytes: 1128375,
+  },
+  {
+    url: "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/friday.mp4",
+    fileName: "repro-capture-2.mp4",
+    fileSizeBytes: 515198,
+  },
+];
 
 const TEST_CASE_TEMPLATES: Record<
   string,
@@ -556,6 +693,77 @@ async function main() {
       // fixed once before, reopened after breaking again.
       const isRegression = earlyPipelineStatuses.includes(status) && Math.random() < 0.15;
 
+      const environmentOS = isPC ? pick(PC_OS_POOL) : null;
+      const environmentGpu = isPC ? pick(PC_GPU_POOL) : null;
+
+      // Not every bug report includes evidence — roughly half do, with
+      // screenshots most common, logs and attachments less so, and video
+      // (the rarest and most effortful to capture) rarest of all.
+      const evidenceCreates: {
+        type: EvidenceType;
+        url: string;
+        content?: string;
+        fileName?: string;
+        fileSizeBytes?: number;
+        caption?: string;
+      }[] = [];
+      if (Math.random() < 0.55) {
+        const screenshotCount = 1 + (Math.random() < 0.3 ? 1 : 0);
+        for (let s = 0; s < screenshotCount; s++) {
+          evidenceCreates.push({
+            type: EvidenceType.IMAGE,
+            url: screenshotSvgDataUri({ title: bugDef.title, area, severity, buildVersion: build.version }),
+            caption: s === 0 ? "Repro screenshot" : `Repro screenshot ${s + 1}`,
+            fileName: `screenshot-${s + 1}.svg`,
+          });
+        }
+        if (Math.random() < 0.4) {
+          const logContent = generateLogContent({
+            gameName: game.name,
+            buildVersion: build.version,
+            area,
+            severity,
+            actual: bugDef.actual,
+          });
+          evidenceCreates.push({
+            type: EvidenceType.LOG,
+            url: "",
+            content: logContent,
+            fileName: "session.log",
+            fileSizeBytes: Buffer.byteLength(logContent),
+            caption: "Console log",
+          });
+        }
+        if (Math.random() < 0.25) {
+          const reportContent = generateDeviceReport({
+            buildVersion: build.version,
+            platform: game.platform,
+            os: environmentOS,
+            gpu: environmentGpu,
+            map,
+            gameMode,
+          });
+          evidenceCreates.push({
+            type: EvidenceType.ATTACHMENT,
+            url: "",
+            content: reportContent,
+            fileName: "device_report.json",
+            fileSizeBytes: Buffer.byteLength(reportContent),
+            caption: "Device report",
+          });
+        }
+        if (Math.random() < 0.08) {
+          const video = pick(SAMPLE_VIDEO_POOL);
+          evidenceCreates.push({
+            type: EvidenceType.VIDEO,
+            url: video.url,
+            fileName: video.fileName,
+            fileSizeBytes: video.fileSizeBytes,
+            caption: "Sample capture (placeholder repro clip)",
+          });
+        }
+      }
+
       await prisma.bug.create({
         data: {
           gameId: game.id,
@@ -573,8 +781,8 @@ async function main() {
           actualResult: bugDef.actual,
           map,
           gameMode,
-          environmentOS: isPC ? pick(PC_OS_POOL) : null,
-          environmentGpu: isPC ? pick(PC_GPU_POOL) : null,
+          environmentOS,
+          environmentGpu,
           severity,
           priority,
           status,
@@ -583,6 +791,7 @@ async function main() {
           reportedById: pick(testers).id,
           assignedToId: Math.random() > 0.3 ? pick(testers).id : null,
           tags: { connect: pickSome(tags, 2).map((t) => ({ id: t.id })) },
+          evidence: { create: evidenceCreates },
           createdAt: daysAgo(discoveredDaysAgo),
           updatedAt: daysAgo(resolvedDaysAgo),
         },

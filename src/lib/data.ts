@@ -440,7 +440,18 @@ export async function getBugDetail(id: string) {
         reportedBy: { select: { id: true, name: true, email: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
         tags: { select: { id: true, name: true, color: true } },
-        evidence: { select: { id: true, type: true, url: true, caption: true } },
+        evidence: {
+          select: {
+            id: true,
+            type: true,
+            url: true,
+            content: true,
+            fileName: true,
+            fileSizeBytes: true,
+            caption: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
     }),
     getBugNumberMap(),
@@ -448,4 +459,49 @@ export async function getBugDetail(id: string) {
 
   if (!bug) return null;
   return { ...bug, number: numberMap.get(bug.id) ?? 0 };
+}
+
+export async function getTesters() {
+  return prisma.tester.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true, role: true },
+  });
+}
+
+type FlatComment = Awaited<ReturnType<typeof fetchFlatComments>>[number];
+export type CommentNode = FlatComment & { replies: CommentNode[] };
+
+async function fetchFlatComments(bugId: string) {
+  return prisma.comment.findMany({
+    where: { bugId },
+    orderBy: { createdAt: "asc" },
+    include: {
+      author: { select: { id: true, name: true, role: true } },
+      mentions: { select: { id: true, name: true } },
+      reactions: {
+        select: { id: true, emoji: true, testerId: true, tester: { select: { name: true } } },
+      },
+      attachments: {
+        select: { id: true, type: true, url: true, fileName: true, fileSizeBytes: true },
+      },
+    },
+  });
+}
+
+// Comments are fetched flat (a self-relation can't be fetched pre-nested in
+// one query) and assembled into a reply tree here.
+export async function getBugComments(bugId: string): Promise<CommentNode[]> {
+  const flat = await fetchFlatComments(bugId);
+
+  const byId = new Map<string, CommentNode>();
+  for (const c of flat) byId.set(c.id, { ...c, replies: [] });
+
+  const roots: CommentNode[] = [];
+  for (const c of flat) {
+    const node = byId.get(c.id)!;
+    const parent = c.parentId ? byId.get(c.parentId) : undefined;
+    if (parent) parent.replies.push(node);
+    else roots.push(node);
+  }
+  return roots;
 }
