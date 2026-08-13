@@ -274,7 +274,14 @@ export function BugTable({
                   <td className="whitespace-nowrap px-2 py-3 font-mono text-[12px] text-[color:var(--bf-ink-muted)]">
                     BUG-{bug.number}
                   </td>
-                  <td className="px-4 py-3 text-[color:var(--bf-ink-primary)]">{bug.title}</td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/bugs/${bug.id}`}
+                      className="text-[color:var(--bf-ink-primary)] hover:text-[color:var(--bf-brand)] hover:underline"
+                    >
+                      {bug.title}
+                    </Link>
+                  </td>
                   {showGameColumn && (
                     <td className="whitespace-nowrap px-4 py-3">
                       <span className="flex items-center gap-1.5 text-[color:var(--bf-ink-secondary)]">

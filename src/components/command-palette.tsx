@@ -227,7 +227,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
       enabled: true,
       icon: Bug,
       iconColor: SEVERITY_META[bug.severity].color,
-      run: () => router.push(`/?game=${bug.game.slug}`),
+      run: () => router.push(`/bugs/${bug.id}`),
     }));
 
     const testCaseItems: PaletteItem[] = results.testCases.map((tc) => ({

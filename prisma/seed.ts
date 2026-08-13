@@ -38,58 +38,224 @@ function daysAgo(days: number): Date {
   return new Date(Date.now() - days * 86_400_000);
 }
 
-const BUG_TITLES: Record<string, string[]> = {
+type BugDef = { title: string; expected: string; actual: string; trigger: string };
+
+const BUG_DEFS: Record<string, BugDef[]> = {
   Combat: [
-    "Weapon damage not applied after parry",
-    "Player stuck in attack animation after death",
-    "Critical hits dealing zero damage vs shielded enemies",
+    {
+      title: "Weapon damage not applied after parry",
+      expected: "Weapon damage applies normally to the enemy after a successful parry.",
+      actual: "No damage is registered on the follow-up hit after parrying.",
+      trigger: "Parry an incoming melee attack, then immediately land a hit on the attacker.",
+    },
+    {
+      title: "Player stuck in attack animation after death",
+      expected: "Player character transitions to the death/ragdoll state immediately upon dying.",
+      actual: "Player remains locked in the attack animation for several seconds after dying.",
+      trigger: "Start a melee attack animation, then take fatal damage mid-swing.",
+    },
+    {
+      title: "Critical hits dealing zero damage vs shielded enemies",
+      expected: "Critical hits deal bonus damage that carries through an enemy's shield.",
+      actual: "Critical hits against shielded enemies register as 0 damage.",
+      trigger: "Land a critical hit on an enemy that has an active shield.",
+    },
   ],
   "UI/HUD": [
-    "Health bar desyncs from actual HP after respawn",
-    "Inventory tooltip clips off-screen at 21:9 resolution",
-    "Objective marker points to wrong coordinates",
+    {
+      title: "Health bar desyncs from actual HP after respawn",
+      expected: "Health bar reflects full HP immediately on respawn.",
+      actual: "Health bar shows the pre-death HP value for a few seconds after respawning.",
+      trigger: "Take damage, die, and respawn.",
+    },
+    {
+      title: "Inventory tooltip clips off-screen at 21:9 resolution",
+      expected: "Inventory tooltip stays fully within the visible screen area at any supported resolution.",
+      actual: "At 21:9, the tooltip renders partially off the right edge of the screen.",
+      trigger: "Switch display resolution to 21:9, then open the inventory and hover an item.",
+    },
+    {
+      title: "Objective marker points to wrong coordinates",
+      expected: "Objective marker points to the actual objective location.",
+      actual: "Objective marker points to a location roughly 40m from the real objective.",
+      trigger: "Accept a new objective and check the HUD marker against the real objective location.",
+    },
   ],
   Networking: [
-    "Client desync causes duplicate loot drops",
-    "Players rubberbanding on host migration",
-    "Voice chat drops after 10 minutes in session",
+    {
+      title: "Client desync causes duplicate loot drops",
+      expected: "Each loot drop is granted exactly once per client.",
+      actual: "Under a brief desync, the same loot drop is granted twice to the same client.",
+      trigger: "Join a session with 2+ clients, force a brief network hiccup, then trigger a loot drop.",
+    },
+    {
+      title: "Players rubberbanding on host migration",
+      expected: "Player movement stays smooth through a host migration.",
+      actual: "Players visibly rubberband for several seconds during and after host migration.",
+      trigger: "Have the host disconnect mid-match and observe the migration to a new host.",
+    },
+    {
+      title: "Voice chat drops after 10 minutes in session",
+      expected: "Voice chat remains connected for the full session.",
+      actual: "Voice chat silently disconnects roughly 10 minutes into a session.",
+      trigger: "Stay in a voice-enabled session for roughly 10 minutes.",
+    },
   ],
   Physics: [
-    "Ragdoll clips through terrain on steep slopes",
-    "Vehicle flips uncontrollably on minor collision",
-    "Player falls through elevator floor",
+    {
+      title: "Ragdoll clips through terrain on steep slopes",
+      expected: "Ragdolls settle on top of the terrain surface.",
+      actual: "On steep slopes, ragdolls clip through the terrain and fall out of the level.",
+      trigger: "Defeat an enemy while standing on a steep slope.",
+    },
+    {
+      title: "Vehicle flips uncontrollably on minor collision",
+      expected: "Vehicles absorb minor collisions without flipping.",
+      actual: "A minor collision at low speed causes the vehicle to flip end-over-end.",
+      trigger: "Drive a vehicle into a small obstacle at low speed.",
+    },
+    {
+      title: "Player falls through elevator floor",
+      expected: "Player stands safely on the elevator floor while it moves.",
+      actual: "Player falls through the elevator floor partway through its movement.",
+      trigger: "Ride an elevator from bottom to top without moving.",
+    },
   ],
   Audio: [
-    "Footstep audio missing on metal surfaces",
-    "Music loop has audible pop at loop point",
-    "Explosion SFX plays twice on kill",
+    {
+      title: "Footstep audio missing on metal surfaces",
+      expected: "Footstep audio plays on every surface type, including metal.",
+      actual: "No footstep audio plays while walking on metal surfaces.",
+      trigger: "Walk across a metal surface.",
+    },
+    {
+      title: "Music loop has audible pop at loop point",
+      expected: "Background music loops seamlessly with no audible artifact.",
+      actual: "An audible pop is heard every time the music track loops.",
+      trigger: "Let the background music track play through a full loop.",
+    },
+    {
+      title: "Explosion SFX plays twice on kill",
+      expected: "Explosion sound effect plays once per explosion.",
+      actual: "The explosion SFX plays twice in rapid succession on a kill.",
+      trigger: "Get an explosive kill on an enemy.",
+    },
   ],
   "AI/Enemies": [
-    "Enemies stuck pathing around destructible cover",
-    "Boss skips second phase transition",
-    "Allies stop taking cover under fire",
+    {
+      title: "Enemies stuck pathing around destructible cover",
+      expected: "Enemies path around or through destructible cover without getting stuck.",
+      actual: "Enemies repeatedly path back and forth against destructible cover and never reach the player.",
+      trigger: "Aggro an enemy from behind a piece of destructible cover.",
+    },
+    {
+      title: "Boss skips second phase transition",
+      expected: "Boss plays its phase-2 transition and enters phase 2 at the HP threshold.",
+      actual: "Boss HP drops through the phase-2 threshold with no transition and no phase-2 behavior.",
+      trigger: "Reduce the boss's HP quickly through the phase-2 threshold.",
+    },
+    {
+      title: "Allies stop taking cover under fire",
+      expected: "Ally NPCs take cover when under sustained fire.",
+      actual: "Allies stand in the open under fire instead of moving to nearby cover.",
+      trigger: "Take an ally into sustained enemy fire.",
+    },
   ],
   Progression: [
-    "XP not saved if game closes during loading screen",
-    "Skill tree points reset after prestige",
-    "Daily challenge progress not tracked",
+    {
+      title: "XP not saved if game closes during loading screen",
+      expected: "XP earned before a loading screen is persisted regardless of when the game closes.",
+      actual: "XP earned in the previous match is lost if the game is closed during the next loading screen.",
+      trigger: "Finish a match, then force-quit during the next loading screen.",
+    },
+    {
+      title: "Skill tree points reset after prestige",
+      expected: "Skill tree points behave per the documented prestige rules, with no unintended loss.",
+      actual: "All allocated skill tree points are reset to zero immediately after prestiging, beyond what's intended.",
+      trigger: "Allocate skill tree points, then prestige.",
+    },
+    {
+      title: "Daily challenge progress not tracked",
+      expected: "Progress toward the active daily challenge updates as qualifying actions are performed.",
+      actual: "Daily challenge progress stays at 0% regardless of completed qualifying actions.",
+      trigger: "Perform the actions required by the active daily challenge.",
+    },
   ],
   Rendering: [
-    "Texture flickering on distant foliage",
-    "Shadow popping when rotating camera near buildings",
-    "Particle effects cause frame drop below 30fps",
+    {
+      title: "Texture flickering on distant foliage",
+      expected: "Distant foliage renders stably with no flicker.",
+      actual: "Foliage at a distance flickers between two LOD states while the camera is static.",
+      trigger: "Stand still and look at a foliage cluster in the distance.",
+    },
+    {
+      title: "Shadow popping when rotating camera near buildings",
+      expected: "Shadows transition smoothly as the camera rotates near buildings.",
+      actual: "Shadows visibly pop between resolutions when the camera rotates near buildings.",
+      trigger: "Rotate the camera near a building at close range.",
+    },
+    {
+      title: "Particle effects cause frame drop below 30fps",
+      expected: "Frame rate stays at or above 30fps during large particle effects.",
+      actual: "Frame rate drops below 30fps whenever a large particle effect (e.g. an explosion) is on-screen.",
+      trigger: "Trigger a large particle effect such as an explosion.",
+    },
   ],
   "Save/Load": [
-    "Save file corrupts after quitting during autosave",
-    "Loadout not restored correctly on continue",
-    "Cloud save conflicts overwrite local progress",
+    {
+      title: "Save file corrupts after quitting during autosave",
+      expected: "Save file remains valid even if the game quits during an autosave.",
+      actual: "Force-quitting during an autosave corrupts the save file, and it fails to load.",
+      trigger: "Force-quit the game while an autosave is in progress.",
+    },
+    {
+      title: "Loadout not restored correctly on continue",
+      expected: "Loadout matches exactly what was equipped before quitting.",
+      actual: "Continuing a save restores a different loadout than what was equipped before quitting.",
+      trigger: "Equip a custom loadout, quit to the main menu, then continue the save.",
+    },
+    {
+      title: "Cloud save conflicts overwrite local progress",
+      expected: "Cloud sync resolves conflicts without silently discarding progress.",
+      actual: "A cloud sync conflict silently overwrites more recent local progress with an older cloud save.",
+      trigger: "Play offline on two devices, then reconnect both to cloud sync.",
+    },
   ],
   Matchmaking: [
-    "Matchmaking hangs indefinitely on party of 3",
-    "Skill rating not updated after ranked match",
-    "Region lock ignored, causing high ping matches",
+    {
+      title: "Matchmaking hangs indefinitely on party of 3",
+      expected: "Matchmaking completes within the expected time window for any party size.",
+      actual: "Queuing as a party of exactly 3 causes matchmaking to hang indefinitely with no match found.",
+      trigger: "Form a party of exactly 3 players and queue for matchmaking.",
+    },
+    {
+      title: "Skill rating not updated after ranked match",
+      expected: "Skill rating updates according to the match result immediately after a ranked match ends.",
+      actual: "Skill rating stays unchanged after completing a ranked match.",
+      trigger: "Complete a ranked match through to its result screen.",
+    },
+    {
+      title: "Region lock ignored, causing high ping matches",
+      expected: "Matchmaking respects the configured region lock.",
+      actual: "Players are matched into servers outside their region lock, resulting in high ping.",
+      trigger: "Queue for matchmaking with region lock enabled.",
+    },
   ],
 };
+
+const MAPS = [
+  "Industrial District",
+  "Frostbite Canyon",
+  "Skyline Rooftops",
+  "Underground Vault",
+  "Coastal Outpost",
+  "Sunken Ruins",
+];
+
+const GAME_MODES = ["Team Deathmatch", "Extraction", "Free-for-All", "Campaign Mission", "Survival"];
+
+const PC_OS_POOL = ["Windows 11", "Windows 10"];
+const PC_GPU_POOL = ["RTX 4070", "RTX 4080", "RTX 3060", "RTX 4090", "RX 7800 XT", "RX 6700 XT"];
 
 const TEST_CASE_TEMPLATES: Record<
   string,
@@ -366,12 +532,15 @@ async function main() {
     const bugCount = 60 + Math.floor(Math.random() * 20);
     for (let i = 0; i < bugCount; i++) {
       const area = pick(AREAS);
-      const title = pick(BUG_TITLES[area]);
+      const bugDef = pick(BUG_DEFS[area]);
       const severity = pick(weightedPool);
       const priority = pick(priorityPool);
       const build = pick(builds);
       const session = pick(sessions);
       const status = pick(statusPool);
+      const map = pick(MAPS);
+      const gameMode = pick(GAME_MODES);
+      const isPC = game.platform === Platform.PC;
 
       // Spread discovery over the last ~6.5 weeks so weekly metrics (bugs
       // discovered/fixed this week) have real, non-uniform data to compute from.
@@ -392,9 +561,20 @@ async function main() {
           gameId: game.id,
           buildId: build.id,
           sessionId: session.id,
-          title,
+          title: bugDef.title,
           description: `Observed in ${area} while testing ${game.name} on build ${build.version}. Needs triage confirmation.`,
-          stepsToReproduce: "1. Load into a live match\n2. Trigger the affected system\n3. Observe unexpected behavior",
+          stepsToReproduce: [
+            `1. Start ${gameMode}`,
+            `2. Enter ${map}`,
+            `3. ${bugDef.trigger}`,
+            `4. ${bugDef.actual}`,
+          ].join("\n"),
+          expectedResult: bugDef.expected,
+          actualResult: bugDef.actual,
+          map,
+          gameMode,
+          environmentOS: isPC ? pick(PC_OS_POOL) : null,
+          environmentGpu: isPC ? pick(PC_GPU_POOL) : null,
           severity,
           priority,
           status,

@@ -428,3 +428,24 @@ export async function getBugList(options: BugListOptions) {
 
   return { bugs: pageBugs, totalCount, page: safePage, pageCount };
 }
+
+export async function getBugDetail(id: string) {
+  const [bug, numberMap] = await Promise.all([
+    prisma.bug.findUnique({
+      where: { id },
+      include: {
+        game: { select: { name: true, slug: true, coverColor: true, platform: true } },
+        build: { select: { version: true, branch: true } },
+        session: { select: { name: true } },
+        reportedBy: { select: { id: true, name: true, email: true } },
+        assignedTo: { select: { id: true, name: true, email: true } },
+        tags: { select: { id: true, name: true, color: true } },
+        evidence: { select: { id: true, type: true, url: true, caption: true } },
+      },
+    }),
+    getBugNumberMap(),
+  ]);
+
+  if (!bug) return null;
+  return { ...bug, number: numberMap.get(bug.id) ?? 0 };
+}
