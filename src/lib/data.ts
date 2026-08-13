@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BugStatus, type BugPriority, type BugSeverity, type Platform } from "@/generated/prisma/enums";
+import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus } from "@/generated/prisma/enums";
 import { emptySeverityCounts, SEVERITY_ORDER, type SeverityCounts } from "@/lib/severity";
 import { PRIORITY_ORDER } from "@/lib/priority";
 import { BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
@@ -67,6 +67,84 @@ export async function getShellGames() {
       qualityScore,
       qualityBand: qualityBand(qualityScore),
       releaseDateLabel: formatReleaseDate(game.releaseDate),
+    };
+  });
+}
+
+export type BuildSummary = {
+  id: string;
+  version: string;
+  branch: string;
+  status: BuildStatus;
+  releasedAt: Date;
+  notes: string | null;
+  game: { id: string; name: string; slug: string; platform: Platform; coverColor: string };
+  bugTotal: number;
+  criticalOpenCount: number;
+  qualityScore: number;
+  qualityBand: QualityBand;
+  testPassRate: number | null;
+};
+
+export async function getBuilds(gameSlug?: string): Promise<BuildSummary[]> {
+  const builds = await prisma.build.findMany({
+    where: gameSlug && gameSlug !== "all" ? { game: { slug: gameSlug } } : undefined,
+    orderBy: { releasedAt: "desc" },
+    select: {
+      id: true,
+      version: true,
+      branch: true,
+      status: true,
+      releasedAt: true,
+      notes: true,
+      game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+      bugs: { select: { severity: true, status: true } },
+    },
+  });
+
+  // TestRun has no direct buildId — it only reaches a build transitively via
+  // its session, so pass/fail counts are bucketed by session.buildId here.
+  const testRuns = await prisma.testRun.findMany({
+    where: { session: { buildId: { in: builds.map((b) => b.id) } } },
+    select: { result: true, session: { select: { buildId: true } } },
+  });
+  const passFailByBuild = new Map<string, { pass: number; fail: number }>();
+  for (const run of testRuns) {
+    const buildId = run.session.buildId;
+    const bucket = passFailByBuild.get(buildId) ?? { pass: 0, fail: 0 };
+    if (run.result === "PASS") bucket.pass++;
+    else if (run.result === "FAIL") bucket.fail++;
+    passFailByBuild.set(buildId, bucket);
+  }
+
+  return builds.map((build) => {
+    // Same "still a release risk" definition as everywhere else in the app —
+    // a build's QA status reflects its own open bugs, not its full history.
+    const openCounts = emptySeverityCounts();
+    for (const bug of build.bugs) {
+      if (OPEN_STATUSES.includes(bug.status)) openCounts[bug.severity]++;
+    }
+    const qualityScore = computeQualityScore(openCounts);
+
+    const passFail = passFailByBuild.get(build.id);
+    const testPassRate =
+      passFail && passFail.pass + passFail.fail > 0
+        ? Math.round((passFail.pass / (passFail.pass + passFail.fail)) * 1000) / 10
+        : null;
+
+    return {
+      id: build.id,
+      version: build.version,
+      branch: build.branch,
+      status: build.status,
+      releasedAt: build.releasedAt,
+      notes: build.notes,
+      game: build.game,
+      bugTotal: build.bugs.length,
+      criticalOpenCount: openCounts.CRITICAL,
+      qualityScore,
+      qualityBand: qualityBand(qualityScore),
+      testPassRate,
     };
   });
 }

@@ -34,7 +34,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Bugs", icon: Bug, href: "/bugs", enabled: true },
       { label: "Test Cases", icon: ListChecks, href: "/test-cases", enabled: false },
-      { label: "Builds", icon: Package, href: "/builds", enabled: false },
+      { label: "Builds", icon: Package, href: "/builds", enabled: true },
       { label: "Test Sessions", icon: ClipboardList, href: "/sessions", enabled: false },
     ],
   },

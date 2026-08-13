@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
@@ -696,8 +696,17 @@ async function main() {
     }),
   ]);
 
-  for (const game of games) {
+  // Rotated per game so every BuildStatus value shows up somewhere in the
+  // seeded data, not just a single hardcoded triple.
+  const buildStatusProgressions: BuildStatus[][] = [
+    [BuildStatus.DEPRECATED, BuildStatus.RELEASED, BuildStatus.BETA],
+    [BuildStatus.RELEASED, BuildStatus.RELEASE_CANDIDATE, BuildStatus.QA],
+    [BuildStatus.DEPRECATED, BuildStatus.QA, BuildStatus.INTERNAL],
+  ];
+
+  for (const [gameIndex, game] of games.entries()) {
     const buildVersions = ["0.9.10-beta", "0.9.12-beta", "0.9.14-beta"];
+    const statusProgression = buildStatusProgressions[gameIndex % buildStatusProgressions.length];
     const builds = await Promise.all(
       buildVersions.map((version, i) =>
         prisma.build.create({
@@ -705,6 +714,7 @@ async function main() {
             gameId: game.id,
             version,
             branch: i === buildVersions.length - 1 ? "release/beta" : "main",
+            status: statusProgression[i],
             notes: `Automated seed build ${version}`,
             releasedAt: randomDateOnDay((buildVersions.length - 1 - i) * 10 + 1),
           },

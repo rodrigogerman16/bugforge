@@ -81,15 +81,25 @@ model Game {
   testCases   TestCase[]
 }
 
+enum BuildStatus {
+  INTERNAL
+  QA
+  BETA
+  RELEASE_CANDIDATE
+  RELEASED
+  DEPRECATED
+}
+
 model Build {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   version     String
-  branch      String   @default("main")
+  branch      String      @default("main")
+  status      BuildStatus @default(INTERNAL)
   notes       String?
-  releasedAt  DateTime @default(now())
+  releasedAt  DateTime    @default(now())
 
   gameId      String
-  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  game        Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   sessions    QASession[]
   bugs        Bug[]
