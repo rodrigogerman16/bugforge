@@ -523,6 +523,27 @@ export async function getBugRelationships(bugId: string) {
   return resolveRelationships(bugId, rows, (id) => numberMap.get(id) ?? 0);
 }
 
+export async function getRegressionInfo(bugId: string) {
+  const relationship = await prisma.bugRelationship.findFirst({
+    where: { sourceBugId: bugId, type: "REGRESSION_OF" },
+    orderBy: { createdAt: "asc" },
+    include: {
+      sourceBug: { select: { build: { select: { version: true } } } },
+      targetBug: { select: { id: true, title: true, build: { select: { version: true } } } },
+    },
+  });
+  if (!relationship) return null;
+
+  const numberMap = await getBugNumberMap();
+  return {
+    originalBugId: relationship.targetBug.id,
+    originalBugTitle: relationship.targetBug.title,
+    originalBugNumber: numberMap.get(relationship.targetBug.id) ?? 0,
+    previouslyFixedBuild: relationship.targetBug.build.version,
+    reproducedBuild: relationship.sourceBug.build.version,
+  };
+}
+
 export async function getBugActivity(bugId: string) {
   return prisma.activityEvent.findMany({
     where: { bugId },

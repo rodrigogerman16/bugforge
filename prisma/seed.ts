@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType } from "../src/generated/prisma/client";
+import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL ?? "file:./dev.db",
@@ -77,6 +78,73 @@ const STATUS_MAIN_PATH: BugStatus[] = [
   BugStatus.VERIFIED,
   BugStatus.CLOSED,
 ];
+
+type SeedActivityEvent = {
+  type: ActivityEventType;
+  fromValue?: string;
+  toValue?: string;
+  actorId?: string | null;
+  targetTesterId?: string | null;
+  createdAt: Date;
+};
+
+// Backfills a plausible activity history from a bug's own final status/
+// assignee — every row is real DB data driving the timeline, not fabricated
+// display text. Shared by both the main per-bug seed loop and the dedicated
+// regression bugs, which need the same status-transition backfill.
+function buildActivityEvents({
+  bug,
+  status,
+  reportedById,
+  assignedToId,
+  leadTesterId,
+}: {
+  bug: { id: string; createdAt: Date; updatedAt: Date };
+  status: BugStatus;
+  reportedById: string;
+  assignedToId: string | null;
+  leadTesterId: string;
+}): SeedActivityEvent[] {
+  const activityEvents: SeedActivityEvent[] = [
+    { type: ActivityEventType.BUG_CREATED, actorId: reportedById, createdAt: bug.createdAt },
+  ];
+
+  const mainIndex = STATUS_MAIN_PATH.indexOf(status);
+  const statusPath: BugStatus[] =
+    mainIndex >= 0
+      ? STATUS_MAIN_PATH.slice(0, mainIndex + 1)
+      : Math.random() < 0.7
+        ? [BugStatus.NEW, BugStatus.CONFIRMED, status]
+        : [BugStatus.NEW, status];
+
+  const statusTransitions = statusPath.slice(1);
+  if (statusTransitions.length > 0) {
+    const timestamps = interpolateTimestamps(bug.createdAt, bug.updatedAt, statusTransitions.length);
+    const statusActorId = assignedToId ?? reportedById;
+    statusTransitions.forEach((toStatus, i) => {
+      activityEvents.push({
+        type: ActivityEventType.STATUS_CHANGED,
+        fromValue: statusPath[i],
+        toValue: toStatus,
+        actorId: statusActorId,
+        createdAt: timestamps[i],
+      });
+    });
+  }
+
+  if (assignedToId) {
+    const assignedAt = new Date(bug.createdAt.getTime() + 30 * 60_000 + Math.random() * 6 * 3_600_000);
+    activityEvents.push({
+      type: ActivityEventType.ASSIGNED,
+      targetTesterId: assignedToId,
+      actorId: leadTesterId,
+      createdAt: assignedAt,
+    });
+  }
+
+  activityEvents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+  return activityEvents;
+}
 
 type BugDef = { title: string; expected: string; actual: string; trigger: string };
 
@@ -706,6 +774,7 @@ async function main() {
       BugStatus.IN_PROGRESS,
     ];
 
+    const gameBugs: Bug[] = [];
     const bugCount = 60 + Math.floor(Math.random() * 20);
     for (let i = 0; i < bugCount; i++) {
       const area = pick(AREAS);
@@ -728,10 +797,6 @@ async function main() {
       const resolvedDaysAgo = isResolved
         ? Math.floor(Math.random() * (discoveredDaysAgo + 1))
         : discoveredDaysAgo;
-
-      // A small slice of bugs still in the early pipeline are regressions —
-      // fixed once before, reopened after breaking again.
-      const isRegression = earlyPipelineStatuses.includes(status) && Math.random() < 0.15;
 
       const environmentOS = isPC ? pick(PC_OS_POOL) : null;
       const environmentGpu = isPC ? pick(PC_GPU_POOL) : null;
@@ -829,7 +894,7 @@ async function main() {
           severity,
           priority,
           status,
-          isRegression,
+          isRegression: false,
           area,
           reportedById,
           assignedToId,
@@ -839,56 +904,98 @@ async function main() {
           updatedAt: daysAgo(resolvedDaysAgo),
         },
       });
-
-      // Backfill a plausible activity history from this bug's own final
-      // status/assignee — every row is real DB data driving the timeline,
-      // not fabricated display text.
-      const activityEvents: {
-        type: ActivityEventType;
-        fromValue?: string;
-        toValue?: string;
-        actorId?: string | null;
-        targetTesterId?: string | null;
-        createdAt: Date;
-      }[] = [{ type: ActivityEventType.BUG_CREATED, actorId: reportedById, createdAt: bug.createdAt }];
-
-      const mainIndex = STATUS_MAIN_PATH.indexOf(status);
-      const statusPath: BugStatus[] =
-        mainIndex >= 0
-          ? STATUS_MAIN_PATH.slice(0, mainIndex + 1)
-          : Math.random() < 0.7
-            ? [BugStatus.NEW, BugStatus.CONFIRMED, status]
-            : [BugStatus.NEW, status];
-
-      const statusTransitions = statusPath.slice(1);
-      if (statusTransitions.length > 0) {
-        const timestamps = interpolateTimestamps(bug.createdAt, bug.updatedAt, statusTransitions.length);
-        const statusActorId = assignedToId ?? reportedById;
-        statusTransitions.forEach((toStatus, i) => {
-          activityEvents.push({
-            type: ActivityEventType.STATUS_CHANGED,
-            fromValue: statusPath[i],
-            toValue: toStatus,
-            actorId: statusActorId,
-            createdAt: timestamps[i],
-          });
-        });
-      }
-
-      if (assignedToId) {
-        const assignedAt = new Date(bug.createdAt.getTime() + 30 * 60_000 + Math.random() * 6 * 3_600_000);
-        activityEvents.push({
-          type: ActivityEventType.ASSIGNED,
-          targetTesterId: assignedToId,
-          actorId: testers[0].id,
-          createdAt: assignedAt,
-        });
-      }
-
-      activityEvents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      gameBugs.push(bug);
 
       await prisma.activityEvent.createMany({
-        data: activityEvents.map((e) => ({ ...e, bugId: bug.id })),
+        data: buildActivityEvents({ bug, status, reportedById, assignedToId, leadTesterId: testers[0].id }).map(
+          (e) => ({ ...e, bugId: bug.id })
+        ),
+      });
+    }
+
+    // A handful of confirmed regressions per game — a bug previously fixed
+    // (FIXED/VERIFIED/CLOSED) that reproduces again in a later build. Backed
+    // by a real REGRESSION_OF relationship rather than a freestanding flag,
+    // so the detail page's regression banner has a real "fixed in / found
+    // again in" build pair to show, not fabricated text.
+    const fixedStatuses: BugStatus[] = [BugStatus.FIXED, BugStatus.VERIFIED, BugStatus.CLOSED];
+    const fixedCandidates = gameBugs.filter((b) => {
+      const buildIndex = builds.findIndex((bl) => bl.id === b.buildId);
+      return fixedStatuses.includes(b.status) && buildIndex >= 0 && buildIndex < builds.length - 1;
+    });
+    const regressionCount = Math.min(fixedCandidates.length, 2 + Math.floor(Math.random() * 3));
+    const regressionOrigins = [...fixedCandidates].sort(() => Math.random() - 0.5).slice(0, regressionCount);
+
+    for (const original of regressionOrigins) {
+      const originalBuildIndex = builds.findIndex((bl) => bl.id === original.buildId);
+      const laterBuilds = builds.slice(originalBuildIndex + 1);
+      const regressionBuild = pick(laterBuilds);
+      const regressionSession = sessions[builds.indexOf(regressionBuild)] ?? pick(sessions);
+
+      const reportedById = pick(testers).id;
+      const assignedToId = Math.random() > 0.3 ? pick(testers).id : null;
+      const regressionStatus = pick(earlyPipelineStatuses);
+
+      // Must reproduce sometime after the original bug was marked fixed.
+      const originalResolvedDaysAgo = Math.max(
+        0,
+        Math.floor((Date.now() - original.updatedAt.getTime()) / 86_400_000)
+      );
+      const regressionDaysAgo = Math.floor(Math.random() * originalResolvedDaysAgo);
+
+      const regressionBug = await prisma.bug.create({
+        data: {
+          gameId: game.id,
+          buildId: regressionBuild.id,
+          sessionId: regressionSession.id,
+          title: original.title,
+          description: `Regression: previously fixed in build ${builds[originalBuildIndex].version}, now reproducing again in build ${regressionBuild.version}.`,
+          stepsToReproduce: original.stepsToReproduce,
+          expectedResult: original.expectedResult,
+          actualResult: original.actualResult,
+          map: original.map,
+          gameMode: original.gameMode,
+          environmentOS: original.environmentOS,
+          environmentGpu: original.environmentGpu,
+          severity: original.severity,
+          priority: original.priority,
+          status: regressionStatus,
+          isRegression: true,
+          area: original.area,
+          reportedById,
+          assignedToId,
+          evidence: {
+            create: [
+              {
+                type: EvidenceType.IMAGE,
+                url: screenshotSvgDataUri({
+                  title: original.title,
+                  area: original.area ?? "",
+                  severity: original.severity,
+                  buildVersion: regressionBuild.version,
+                }),
+                caption: "Repro screenshot",
+                fileName: "screenshot-1.svg",
+              },
+            ],
+          },
+          createdAt: daysAgo(regressionDaysAgo),
+          updatedAt: daysAgo(regressionDaysAgo),
+        },
+      });
+
+      await prisma.bugRelationship.create({
+        data: { type: RelationshipType.REGRESSION_OF, sourceBugId: regressionBug.id, targetBugId: original.id },
+      });
+
+      await prisma.activityEvent.createMany({
+        data: buildActivityEvents({
+          bug: regressionBug,
+          status: regressionStatus,
+          reportedById,
+          assignedToId,
+          leadTesterId: testers[0].id,
+        }).map((e) => ({ ...e, bugId: regressionBug.id })),
       });
     }
 

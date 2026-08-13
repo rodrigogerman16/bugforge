@@ -30,6 +30,14 @@ export async function createRelationship({
     data: { sourceBugId, targetBugId: targetId, type: option.type },
   });
 
+  // A bug is only ever "the regression" when it has a real REGRESSION_OF
+  // link — isRegression is a denormalized mirror of that, kept in sync here
+  // rather than a freestanding flag, so the regression banner always has a
+  // real original bug to point at.
+  if (option.type === "REGRESSION_OF") {
+    await prisma.bug.update({ where: { id: sourceBugId }, data: { isRegression: true } });
+  }
+
   revalidatePath(`/bugs/${currentBugId}`);
   revalidatePath(`/bugs/${targetBugId}`);
 }
@@ -37,6 +45,15 @@ export async function createRelationship({
 export async function deleteRelationship({ id, currentBugId }: { id: string; currentBugId: string }) {
   const relationship = await prisma.bugRelationship.delete({ where: { id } }).catch(() => null);
   if (!relationship) return;
+
+  if (relationship.type === "REGRESSION_OF") {
+    const remaining = await prisma.bugRelationship.count({
+      where: { sourceBugId: relationship.sourceBugId, type: "REGRESSION_OF" },
+    });
+    if (remaining === 0) {
+      await prisma.bug.update({ where: { id: relationship.sourceBugId }, data: { isRegression: false } });
+    }
+  }
 
   revalidatePath(`/bugs/${currentBugId}`);
   revalidatePath(`/bugs/${relationship.sourceBugId}`);

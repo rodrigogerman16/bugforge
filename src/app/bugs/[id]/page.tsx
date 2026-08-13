@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, RotateCcw } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships } from "@/lib/data";
+import { ArrowLeft } from "lucide-react";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo } from "@/lib/data";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
@@ -9,6 +9,7 @@ import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl } from "@/components/bugs/bug-field-controls";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
+import { RegressionBanner } from "@/components/bugs/regression-banner";
 
 function parseSteps(raw: string): string[] {
   return raw
@@ -35,12 +36,13 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity, relationships] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships, regressionInfo] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
     getBugActivity(id),
     getBugRelationships(id),
+    bug.isRegression ? getRegressionInfo(id) : Promise.resolve(null),
   ]);
 
   return (
@@ -53,21 +55,21 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         Back to bugs
       </Link>
 
+      {regressionInfo && (
+        <RegressionBanner
+          originalBugId={regressionInfo.originalBugId}
+          originalBugNumber={regressionInfo.originalBugNumber}
+          previouslyFixedBuild={regressionInfo.previouslyFixedBuild}
+          reproducedBuild={regressionInfo.reproducedBuild}
+        />
+      )}
+
       <header className="mb-6">
         <p className="font-mono text-[12px] text-[color:var(--bf-ink-muted)]">BUG-{bug.number}</p>
         <h1 className="mt-1 text-2xl font-bold text-[color:var(--bf-ink-primary)]">{bug.title}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <BugFieldControls bugId={bug.id} status={bug.status} priority={bug.priority} severity={bug.severity} />
-          {bug.isRegression && (
-            <span
-              title="Previously fixed, reopened after regressing"
-              className="flex items-center gap-1 text-[11px] text-[color:var(--bf-status-warning)]"
-            >
-              <RotateCcw size={11} />
-              Regressed
-            </span>
-          )}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-[color:var(--bf-border)] py-3 text-[13px] text-[color:var(--bf-ink-muted)]">
