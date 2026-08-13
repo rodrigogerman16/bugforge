@@ -29,16 +29,21 @@ export async function createComment({
   if (!trimmed) return;
   const user = await getCurrentUser();
 
-  await prisma.comment.create({
-    data: {
-      bugId,
-      body: trimmed,
-      parentId: parentId || null,
-      authorId: user.id,
-      mentions: mentionIds.length ? { connect: mentionIds.map((id) => ({ id })) } : undefined,
-      attachments: attachments.length ? { create: attachments } : undefined,
-    },
-  });
+  await prisma.$transaction([
+    prisma.comment.create({
+      data: {
+        bugId,
+        body: trimmed,
+        parentId: parentId || null,
+        authorId: user.id,
+        mentions: mentionIds.length ? { connect: mentionIds.map((id) => ({ id })) } : undefined,
+        attachments: attachments.length ? { create: attachments } : undefined,
+      },
+    }),
+    prisma.activityEvent.create({
+      data: { type: "COMMENT_ADDED", bugId, actorId: user.id },
+    }),
+  ]);
 
   revalidatePath(`/bugs/${bugId}`);
 }

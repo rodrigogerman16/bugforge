@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, RotateCcw } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser } from "@/lib/data";
-import { SEVERITY_META } from "@/lib/severity";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity } from "@/lib/data";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { PriorityBadge } from "@/components/priority-badge";
-import { StatusBadge } from "@/components/status-badge";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { CommentSection } from "@/components/comments/comment-section";
+import { BugFieldControls, BugAssigneeControl } from "@/components/bugs/bug-field-controls";
+import { ActivityTimeline } from "@/components/activity/activity-timeline";
 
 function parseSteps(raw: string): string[] {
   return raw
@@ -35,13 +34,12 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser] = await Promise.all([
+  const [comments, testers, currentUser, activity] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
+    getBugActivity(id),
   ]);
-
-  const severityMeta = SEVERITY_META[bug.severity];
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-8">
@@ -58,14 +56,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         <h1 className="mt-1 text-2xl font-bold text-[color:var(--bf-ink-primary)]">{bug.title}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-sm font-medium" style={{ color: severityMeta.color }}>
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: severityMeta.color }} />
-            {severityMeta.label}
-          </span>
-          <span className="text-[color:var(--bf-ink-muted)]">·</span>
-          <PriorityBadge priority={bug.priority} />
-          <span className="text-[color:var(--bf-ink-muted)]">·</span>
-          <StatusBadge status={bug.status} />
+          <BugFieldControls bugId={bug.id} status={bug.status} priority={bug.priority} severity={bug.severity} />
           {bug.isRegression && (
             <span
               title="Previously fixed, reopened after regressing"
@@ -83,7 +74,9 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
             {bug.game.name}
           </span>
           <span>Reported by {bug.reportedBy?.name ?? "Unknown"}</span>
-          <span>Assigned to {bug.assignedTo?.name ?? "Unassigned"}</span>
+          <span className="flex items-center gap-1">
+            Assigned to <BugAssigneeControl bugId={bug.id} assignedToId={bug.assignedToId} testers={testers} />
+          </span>
           {bug.session && <span>{bug.session.name}</span>}
           <span>Updated {formatRelativeTime(bug.updatedAt)} · {updatedFormatter.format(bug.createdAt)} reported</span>
         </div>
@@ -178,6 +171,11 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
         <CommentSection bugId={bug.id} comments={comments} testers={testers} currentUserId={currentUser.id} />
+      </section>
+
+      <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
+        <h2 className="mb-4 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Activity</h2>
+        <ActivityTimeline events={activity} />
       </section>
     </div>
   );

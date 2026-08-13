@@ -130,6 +130,9 @@ model Tester {
   authoredComments Comment[]  @relation("CommentAuthor")
   mentionedIn      Comment[]  @relation("CommentMentions")
   reactions        Reaction[]
+
+  activityAsActor  ActivityEvent[] @relation("ActivityActor")
+  activityAsTarget ActivityEvent[] @relation("ActivityTarget")
 }
 
 model Bug {
@@ -169,6 +172,7 @@ model Bug {
   evidence    Evidence[]
   tags        Tag[]
   comments    Comment[]
+  activity    ActivityEvent[]
 }
 
 model Comment {
@@ -218,6 +222,37 @@ model CommentAttachment {
 
   commentId String
   comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+}
+
+enum ActivityEventType {
+  BUG_CREATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  SEVERITY_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  COMMENT_ADDED
+}
+
+model ActivityEvent {
+  id        String            @id @default(cuid())
+  type      ActivityEventType
+  // For *_CHANGED events, the raw enum value strings (e.g. "IN_PROGRESS") —
+  // resolved to display labels client-side via the existing meta maps.
+  fromValue String?
+  toValue   String?
+  createdAt DateTime          @default(now())
+
+  bugId String
+  bug   Bug    @relation(fields: [bugId], references: [id], onDelete: Cascade)
+
+  // Who performed the action.
+  actorId String?
+  actor   Tester? @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  // For ASSIGNED/UNASSIGNED — the tester the bug was assigned to (or away from).
+  targetTesterId String?
+  targetTester   Tester? @relation("ActivityTarget", fields: [targetTesterId], references: [id], onDelete: SetNull)
 }
 
 model Tag {

@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL ?? "file:./dev.db",
@@ -37,6 +37,46 @@ function randomDateOnDay(daysAgo: number): Date {
 function daysAgo(days: number): Date {
   return new Date(Date.now() - days * 86_400_000);
 }
+
+// Spreads `count` strictly-increasing timestamps between start and end —
+// used to backfill a plausible activity history for seeded bugs.
+function interpolateTimestamps(start: Date, end: Date, count: number): Date[] {
+  const startMs = start.getTime();
+  const endMs = Math.max(end.getTime(), startMs);
+  const span = endMs - startMs;
+  const minGapMs = 60_000;
+
+  // Not enough span to interpolate meaningfully (e.g. a bug created and
+  // resolved the same day, so createdAt and updatedAt nearly coincide) — a
+  // clamped interpolation would collapse every point onto the same instant,
+  // so step forward a minute at a time from the start instead.
+  if (span <= count * minGapMs) {
+    return Array.from({ length: count }, (_, i) => new Date(startMs + (i + 1) * minGapMs));
+  }
+
+  const points: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const frac = (i + 1) / (count + 1);
+    const jitter = (Math.random() - 0.5) * (span / (count + 1)) * 0.6;
+    points.push(startMs + frac * span + jitter);
+  }
+  points.sort((a, b) => a - b);
+  for (let i = 0; i < points.length; i++) {
+    const min = i === 0 ? startMs + minGapMs : points[i - 1] + minGapMs;
+    points[i] = Math.min(Math.max(points[i], min), endMs);
+  }
+  return points.map((p) => new Date(p));
+}
+
+const STATUS_MAIN_PATH: BugStatus[] = [
+  BugStatus.NEW,
+  BugStatus.CONFIRMED,
+  BugStatus.IN_PROGRESS,
+  BugStatus.FIXED,
+  BugStatus.READY_FOR_QA,
+  BugStatus.VERIFIED,
+  BugStatus.CLOSED,
+];
 
 type BugDef = { title: string; expected: string; actual: string; trigger: string };
 
@@ -764,7 +804,10 @@ async function main() {
         }
       }
 
-      await prisma.bug.create({
+      const reportedById = pick(testers).id;
+      const assignedToId = Math.random() > 0.3 ? pick(testers).id : null;
+
+      const bug = await prisma.bug.create({
         data: {
           gameId: game.id,
           buildId: build.id,
@@ -788,13 +831,64 @@ async function main() {
           status,
           isRegression,
           area,
-          reportedById: pick(testers).id,
-          assignedToId: Math.random() > 0.3 ? pick(testers).id : null,
+          reportedById,
+          assignedToId,
           tags: { connect: pickSome(tags, 2).map((t) => ({ id: t.id })) },
           evidence: { create: evidenceCreates },
           createdAt: daysAgo(discoveredDaysAgo),
           updatedAt: daysAgo(resolvedDaysAgo),
         },
+      });
+
+      // Backfill a plausible activity history from this bug's own final
+      // status/assignee — every row is real DB data driving the timeline,
+      // not fabricated display text.
+      const activityEvents: {
+        type: ActivityEventType;
+        fromValue?: string;
+        toValue?: string;
+        actorId?: string | null;
+        targetTesterId?: string | null;
+        createdAt: Date;
+      }[] = [{ type: ActivityEventType.BUG_CREATED, actorId: reportedById, createdAt: bug.createdAt }];
+
+      const mainIndex = STATUS_MAIN_PATH.indexOf(status);
+      const statusPath: BugStatus[] =
+        mainIndex >= 0
+          ? STATUS_MAIN_PATH.slice(0, mainIndex + 1)
+          : Math.random() < 0.7
+            ? [BugStatus.NEW, BugStatus.CONFIRMED, status]
+            : [BugStatus.NEW, status];
+
+      const statusTransitions = statusPath.slice(1);
+      if (statusTransitions.length > 0) {
+        const timestamps = interpolateTimestamps(bug.createdAt, bug.updatedAt, statusTransitions.length);
+        const statusActorId = assignedToId ?? reportedById;
+        statusTransitions.forEach((toStatus, i) => {
+          activityEvents.push({
+            type: ActivityEventType.STATUS_CHANGED,
+            fromValue: statusPath[i],
+            toValue: toStatus,
+            actorId: statusActorId,
+            createdAt: timestamps[i],
+          });
+        });
+      }
+
+      if (assignedToId) {
+        const assignedAt = new Date(bug.createdAt.getTime() + 30 * 60_000 + Math.random() * 6 * 3_600_000);
+        activityEvents.push({
+          type: ActivityEventType.ASSIGNED,
+          targetTesterId: assignedToId,
+          actorId: testers[0].id,
+          createdAt: assignedAt,
+        });
+      }
+
+      activityEvents.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      await prisma.activityEvent.createMany({
+        data: activityEvents.map((e) => ({ ...e, bugId: bug.id })),
       });
     }
 

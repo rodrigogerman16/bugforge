@@ -505,3 +505,14 @@ export async function getBugComments(bugId: string): Promise<CommentNode[]> {
   }
   return roots;
 }
+
+export async function getBugActivity(bugId: string) {
+  return prisma.activityEvent.findMany({
+    where: { bugId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      actor: { select: { id: true, name: true, role: true } },
+      targetTester: { select: { id: true, name: true, role: true } },
+    },
+  });
+}
