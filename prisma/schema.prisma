@@ -1,0 +1,202 @@
+// BugForge core schema
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Platform {
+  PC
+  PLAYSTATION
+  XBOX
+  SWITCH
+  MOBILE
+  VR
+}
+
+enum BugSeverity {
+  BLOCKER
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+// Priority is deliberately a separate axis from BugSeverity: severity is the
+// technical impact of the bug, priority is how urgently it should be worked —
+// a Low-severity bug can be P0 (e.g. a typo on the store page) and a Blocker
+// can be P4 if it only hits an internal debug build. Never derive one from
+// the other.
+enum BugPriority {
+  P0
+  P1
+  P2
+  P3
+  P4
+}
+
+enum BugStatus {
+  NEW
+  CONFIRMED
+  IN_PROGRESS
+  FIXED
+  READY_FOR_QA
+  VERIFIED
+  CLOSED
+  REJECTED
+  DUPLICATE
+}
+
+enum SessionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+enum TesterRole {
+  QA_LEAD
+  QA_ENGINEER
+  DEVELOPER
+  PRODUCER
+}
+
+model Game {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  platform    Platform
+  coverColor  String    @default("#6366f1")
+  releaseDate DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  builds      Build[]
+  sessions    QASession[]
+  bugs        Bug[]
+  testCases   TestCase[]
+}
+
+model Build {
+  id          String   @id @default(cuid())
+  version     String
+  branch      String   @default("main")
+  notes       String?
+  releasedAt  DateTime @default(now())
+
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  sessions    QASession[]
+  bugs        Bug[]
+
+  @@unique([gameId, version])
+}
+
+model QASession {
+  id          String        @id @default(cuid())
+  name        String
+  status      SessionStatus @default(PLANNED)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime      @default(now())
+
+  gameId      String
+  game        Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  buildId     String
+  build       Build         @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  bugs        Bug[]
+  testRuns    TestRun[]
+}
+
+model Tester {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  role      TesterRole @default(QA_ENGINEER)
+  avatarUrl String?
+  createdAt DateTime   @default(now())
+
+  reportedBugs Bug[]     @relation("ReportedBy")
+  assignedBugs Bug[]     @relation("AssignedTo")
+  testRuns     TestRun[]
+}
+
+model Bug {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  severity    BugSeverity
+  priority    BugPriority @default(P2)
+  status      BugStatus   @default(NEW)
+  isRegression Boolean    @default(false)
+  area        String?
+  stepsToReproduce String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  gameId      String
+  game        Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  buildId     String
+  build       Build       @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  sessionId   String?
+  session     QASession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  reportedById String?
+  reportedBy   Tester?    @relation("ReportedBy", fields: [reportedById], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   Tester?    @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  evidence    Evidence[]
+}
+
+model Evidence {
+  id        String   @id @default(cuid())
+  type      String   // "image" | "video" | "log"
+  url       String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  bugId     String
+  bug       Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+}
+
+model TestCase {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  steps       String
+  expected    String
+  area        String?
+  createdAt   DateTime @default(now())
+
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  runs        TestRun[]
+}
+
+model TestRun {
+  id         String    @id @default(cuid())
+  result     String    // "PASS" | "FAIL" | "BLOCKED" | "SKIPPED"
+  notes      String?
+  runAt      DateTime  @default(now())
+
+  testCaseId String
+  testCase   TestCase  @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  sessionId  String
+  session    QASession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  testerId   String?
+  tester     Tester?   @relation(fields: [testerId], references: [id], onDelete: SetNull)
+}

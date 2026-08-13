@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+
+  --bf-page: #0d0d0d;
+  --bf-surface: #17171a;
+  --bf-surface-raised: #1c1c20;
+  --bf-border: rgba(255, 255, 255, 0.08);
+  --bf-border-strong: rgba(255, 255, 255, 0.14);
+
+  --bf-ink-primary: #ffffff;
+  --bf-ink-secondary: #c3c2b7;
+  --bf-ink-muted: #898781;
+
+  /* Primary accent: electric orange/amber — bugs, warnings, QA activity, important actions */
+  --bf-brand: #f2762e;
+  --bf-brand-soft: rgba(242, 118, 46, 0.14);
+
+  /* Semantic severity/status colors — used sparingly and consistently */
+  --bf-status-blocker: #8b1e1e; /* Blocker — deeper than Critical, reads as "worse" */
+  --bf-status-critical: #d03b3b; /* Critical */
+  --bf-status-warning: #fab219; /* Medium */
+  --bf-status-good: #0ca30c; /* Verified / Fixed / Healthy */
+  --bf-status-low: #898781; /* Low / informational */
+
+  --background: var(--bf-page);
+  --foreground: var(--bf-ink-primary);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
