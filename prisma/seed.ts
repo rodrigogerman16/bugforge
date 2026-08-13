@@ -13,6 +13,13 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Returns a random-length unique subset (0..max items) — used for tags, which
+// are applied independently of severity/priority/status, not derived from them.
+function pickSome<T>(arr: T[], max: number): T[] {
+  const count = Math.floor(Math.random() * (max + 1));
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
+}
+
 function randomDate(daysBack: number): Date {
   const now = Date.now();
   return new Date(now - Math.floor(Math.random() * daysBack) * 86_400_000);
@@ -221,6 +228,21 @@ async function main() {
   await prisma.build.deleteMany();
   await prisma.tester.deleteMany();
   await prisma.game.deleteMany();
+  await prisma.tag.deleteMany();
+
+  const tags = await Promise.all(
+    [
+      { name: "crash", color: "#d03b3b" },
+      { name: "performance", color: "#fab219" },
+      { name: "regression-risk", color: "#f2762e" },
+      { name: "needs-repro", color: "#898781" },
+      { name: "reproducible", color: "#0ca30c" },
+      { name: "release-blocker", color: "#8b1e1e" },
+      { name: "ui-polish", color: "#6366f1" },
+      { name: "networking", color: "#2a78d6" },
+      { name: "audio", color: "#d6409f" },
+    ].map((t) => prisma.tag.create({ data: t }))
+  );
 
   const testers = await Promise.all(
     [
@@ -380,6 +402,7 @@ async function main() {
           area,
           reportedById: pick(testers).id,
           assignedToId: Math.random() > 0.3 ? pick(testers).id : null,
+          tags: { connect: pickSome(tags, 2).map((t) => ({ id: t.id })) },
           createdAt: daysAgo(discoveredDaysAgo),
           updatedAt: daysAgo(resolvedDaysAgo),
         },

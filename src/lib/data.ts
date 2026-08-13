@@ -276,11 +276,42 @@ export type BugListOptions = {
   priority?: BugPriority;
   status?: BugStatus;
   area?: string;
+  build?: string;
+  platform?: Platform;
+  reporterId?: string;
+  /** A tester id, or the sentinel "unassigned" for assignedToId === null. */
+  assigneeId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  tagId?: string;
   q?: string;
   sort?: BugSortField;
   dir?: "asc" | "desc";
   page?: number;
 };
+
+export async function getBugFilterOptions(gameSlug: string | undefined) {
+  const showAll = gameSlug === "all";
+  const games = await prisma.game.findMany({
+    where: !showAll && gameSlug ? { slug: gameSlug } : undefined,
+    orderBy: { createdAt: "asc" },
+    take: !showAll && !gameSlug ? 1 : undefined,
+    select: {
+      platform: true,
+      builds: { select: { version: true }, orderBy: { releasedAt: "desc" } },
+    },
+  });
+
+  const builds = [...new Set(games.flatMap((g) => g.builds.map((b) => b.version)))];
+  const platforms = [...new Set(games.map((g) => g.platform))];
+
+  const [testers, tags] = await Promise.all([
+    prisma.tester.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, color: true } }),
+  ]);
+
+  return { builds, platforms, testers, tags };
+}
 
 // Every bug gets a stable, human-friendly ticket number (BUG-1, BUG-2, …)
 // derived from its creation order across the whole database — not stored,
@@ -296,7 +327,22 @@ async function getBugNumberMap(): Promise<Map<string, number>> {
 }
 
 export async function getBugList(options: BugListOptions) {
-  const { gameSlug, severity, priority, status, area, q, page = 1 } = options;
+  const {
+    gameSlug,
+    severity,
+    priority,
+    status,
+    area,
+    build,
+    platform,
+    reporterId,
+    assigneeId,
+    dateFrom,
+    dateTo,
+    tagId,
+    q,
+    page = 1,
+  } = options;
   const sort = options.sort ?? "updatedAt";
   const dir = options.dir ?? "desc";
 
@@ -317,6 +363,14 @@ export async function getBugList(options: BugListOptions) {
         ...(priority ? { priority } : {}),
         ...(status ? { status } : {}),
         ...(area ? { area } : {}),
+        ...(build ? { build: { version: build } } : {}),
+        ...(platform ? { game: { platform } } : {}),
+        ...(reporterId ? { reportedById: reporterId } : {}),
+        ...(assigneeId ? { assignedToId: assigneeId === "unassigned" ? null : assigneeId } : {}),
+        ...(tagId ? { tags: { some: { id: tagId } } } : {}),
+        ...(dateFrom || dateTo
+          ? { createdAt: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } }
+          : {}),
         ...(q
           ? {
               OR: [

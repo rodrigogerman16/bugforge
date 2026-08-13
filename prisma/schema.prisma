@@ -157,6 +157,15 @@ model Bug {
   assignedTo   Tester?    @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   evidence    Evidence[]
+  tags        Tag[]
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String @default("#898781")
+
+  bugs  Bug[]
 }
 
 model Evidence {

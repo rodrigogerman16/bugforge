@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { getBugList, isBugSortField, BUG_PAGE_SIZE } from "@/lib/data";
+import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE } from "@/lib/data";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";
+import { PLATFORM_LABEL } from "@/lib/platform";
 import { BugWorkflowLegend } from "@/components/bug-workflow-legend";
 import { BugToolbar } from "@/components/bugs/bug-toolbar";
 import { BugTable } from "@/components/bugs/bug-table";
-import { BugSeverity, BugPriority, BugStatus } from "@/generated/prisma/enums";
+import { BugSeverity, BugPriority, BugStatus, Platform } from "@/generated/prisma/enums";
 
 function isBugSeverity(value: string | undefined): value is BugSeverity {
   return !!value && (Object.values(BugSeverity) as string[]).includes(value);
@@ -18,6 +19,11 @@ function isBugPriority(value: string | undefined): value is BugPriority {
 function isBugStatus(value: string | undefined): value is BugStatus {
   return !!value && (Object.values(BugStatus) as string[]).includes(value);
 }
+function isPlatform(value: string | undefined): value is Platform {
+  return !!value && (Object.values(Platform) as string[]).includes(value);
+}
+
+const dateLabelFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 export default async function BugsPage({
   searchParams,
@@ -28,6 +34,13 @@ export default async function BugsPage({
     priority?: string;
     status?: string;
     area?: string;
+    build?: string;
+    platform?: string;
+    reporter?: string;
+    assignee?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    tag?: string;
     q?: string;
     sort?: string;
     dir?: string;
@@ -39,59 +52,105 @@ export default async function BugsPage({
   const priority = isBugPriority(params.priority) ? params.priority : undefined;
   const status = isBugStatus(params.status) ? params.status : undefined;
   const area = params.area || undefined;
+  const build = params.build || undefined;
+  const platform = isPlatform(params.platform) ? params.platform : undefined;
+  const reporterId = params.reporter || undefined;
+  const assigneeId = params.assignee || undefined;
+  const tagId = params.tag || undefined;
+  const dateFrom = params.dateFrom ? new Date(`${params.dateFrom}T00:00:00`) : undefined;
+  const dateTo = params.dateTo ? new Date(`${params.dateTo}T23:59:59.999`) : undefined;
   const q = params.q || undefined;
   const sort = isBugSortField(params.sort) ? params.sort : "updatedAt";
   const dir = params.dir === "asc" ? "asc" : "desc";
   const page = Number(params.page) > 0 ? Number(params.page) : 1;
 
-  const { bugs, totalCount, pageCount } = await getBugList({
-    gameSlug: params.game,
-    severity,
-    priority,
-    status,
-    area,
-    q,
-    sort,
-    dir,
-    page,
-  });
+  const [{ bugs, totalCount, pageCount }, filterOptions] = await Promise.all([
+    getBugList({
+      gameSlug: params.game,
+      severity,
+      priority,
+      status,
+      area,
+      build,
+      platform,
+      reporterId,
+      assigneeId,
+      dateFrom,
+      dateTo,
+      tagId,
+      q,
+      sort,
+      dir,
+      page,
+    }),
+    getBugFilterOptions(params.game),
+  ]);
 
   const showGameColumn = params.game === "all";
+
+  function buildHref(overrides: Record<string, string | undefined> = {}) {
+    const merged: Record<string, string | undefined> = {
+      game: params.game,
+      severity,
+      priority,
+      status,
+      area,
+      build,
+      platform,
+      reporter: reporterId,
+      assignee: assigneeId,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      tag: tagId,
+      q,
+      sort: sort !== "updatedAt" ? sort : undefined,
+      dir: dir !== "desc" ? dir : undefined,
+      ...overrides,
+    };
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(merged)) {
+      if (v) p.set(k, v);
+    }
+    return `/bugs${p.toString() ? `?${p.toString()}` : ""}`;
+  }
+
   const baseParams = new URLSearchParams();
   if (params.game) baseParams.set("game", params.game);
   const baseHref = `/bugs${baseParams.toString() ? `?${baseParams.toString()}` : ""}`;
-
-  function hrefWithout(key: string) {
-    const p = new URLSearchParams();
-    if (params.game) p.set("game", params.game);
-    if (severity && key !== "severity") p.set("severity", severity);
-    if (priority && key !== "priority") p.set("priority", priority);
-    if (status && key !== "status") p.set("status", status);
-    if (area && key !== "area") p.set("area", area);
-    if (q && key !== "q") p.set("q", q);
-    return `/bugs${p.toString() ? `?${p.toString()}` : ""}`;
-  }
-
-  function hrefForPage(target: number) {
-    const p = new URLSearchParams();
-    if (params.game) p.set("game", params.game);
-    if (severity) p.set("severity", severity);
-    if (priority) p.set("priority", priority);
-    if (status) p.set("status", status);
-    if (area) p.set("area", area);
-    if (q) p.set("q", q);
-    if (sort !== "updatedAt") p.set("sort", sort);
-    if (dir !== "desc") p.set("dir", dir);
-    if (target > 1) p.set("page", String(target));
-    return `/bugs${p.toString() ? `?${p.toString()}` : ""}`;
-  }
 
   const activeFilters: { key: string; label: string; color?: string }[] = [];
   if (severity) activeFilters.push({ key: "severity", label: SEVERITY_META[severity].label, color: SEVERITY_META[severity].color });
   if (priority) activeFilters.push({ key: "priority", label: `${PRIORITY_META[priority].code} — ${PRIORITY_META[priority].label}`, color: PRIORITY_META[priority].color });
   if (status) activeFilters.push({ key: "status", label: BUG_STATUS_META[status].label, color: BUG_STATUS_META[status].color });
   if (area) activeFilters.push({ key: "area", label: area });
+  if (build) activeFilters.push({ key: "build", label: build });
+  if (platform) activeFilters.push({ key: "platform", label: PLATFORM_LABEL[platform] });
+  if (reporterId) {
+    const tester = filterOptions.testers.find((t) => t.id === reporterId);
+    activeFilters.push({ key: "reporter", label: `Reported by ${tester?.name ?? "…"}` });
+  }
+  if (assigneeId) {
+    const label = assigneeId === "unassigned" ? "Unassigned" : filterOptions.testers.find((t) => t.id === assigneeId)?.name;
+    activeFilters.push({ key: "assignee", label: `Assigned to ${label ?? "…"}` });
+  }
+  if (tagId) {
+    const tag = filterOptions.tags.find((t) => t.id === tagId);
+    if (tag) activeFilters.push({ key: "tag", label: tag.name, color: tag.color });
+  }
+  if (dateFrom || dateTo) {
+    const label = dateFrom && dateTo
+      ? `${dateLabelFormatter.format(dateFrom)} – ${dateLabelFormatter.format(dateTo)}`
+      : dateFrom
+        ? `After ${dateLabelFormatter.format(dateFrom)}`
+        : `Before ${dateLabelFormatter.format(dateTo!)}`;
+    activeFilters.push({ key: "date", label });
+  }
   if (q) activeFilters.push({ key: "q", label: `"${q}"` });
+
+  function hrefWithout(key: string) {
+    if (key === "date") return buildHref({ dateFrom: undefined, dateTo: undefined });
+    return buildHref({ [key]: undefined });
+  }
 
   const rangeStart = totalCount === 0 ? 0 : (page - 1) * BUG_PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * BUG_PAGE_SIZE, totalCount);
@@ -107,7 +166,14 @@ export default async function BugsPage({
 
       <BugWorkflowLegend />
 
-      <BugToolbar initialQuery={q ?? ""} />
+      <BugToolbar
+        initialQuery={q ?? ""}
+        builds={filterOptions.builds}
+        platforms={filterOptions.platforms}
+        testers={filterOptions.testers}
+        tags={filterOptions.tags}
+        activeFilterCount={activeFilters.length - (q ? 1 : 0)}
+      />
 
       {activeFilters.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -137,7 +203,7 @@ export default async function BugsPage({
           </span>
           <div className="flex items-center gap-1">
             <Link
-              href={hrefForPage(Math.max(1, page - 1))}
+              href={buildHref({ page: page - 1 > 1 ? String(page - 1) : undefined })}
               aria-disabled={page <= 1}
               className={
                 page <= 1
@@ -152,7 +218,7 @@ export default async function BugsPage({
               Page {page} of {pageCount}
             </span>
             <Link
-              href={hrefForPage(Math.min(pageCount, page + 1))}
+              href={buildHref({ page: page + 1 > 1 ? String(Math.min(pageCount, page + 1)) : undefined })}
               aria-disabled={page >= pageCount}
               className={
                 page >= pageCount
