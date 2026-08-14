@@ -1,4 +1,4 @@
-import type { TestCasePriority } from "@/generated/prisma/enums";
+import type { TestCasePriority, BugSeverity, BugPriority } from "@/generated/prisma/enums";
 
 export const TEST_CASE_PRIORITY_ORDER: TestCasePriority[] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
@@ -42,4 +42,35 @@ export const TEST_RUN_RESULT_META: Record<string, { label: string; color: string
   FAIL: { label: "Fail", color: "var(--bf-status-critical)" },
   BLOCKED: { label: "Blocked", color: "var(--bf-status-warning)" },
   SKIPPED: { label: "Skipped", color: "var(--bf-ink-muted)" },
+};
+
+export const STEP_RESULT_OPTIONS = ["PASS", "FAIL", "BLOCKED", "SKIPPED"];
+
+// Worst-case wins when rolling per-step results up into one run result — a
+// single failed step fails the run even if every other step passed.
+const RESULT_SEVERITY_RANK: Record<string, number> = { FAIL: 3, BLOCKED: 2, SKIPPED: 1, PASS: 0 };
+
+export function computeOverallResult(stepResults: string[]): string {
+  if (stepResults.length === 0) return "SKIPPED";
+  return stepResults.reduce((worst, r) =>
+    (RESULT_SEVERITY_RANK[r] ?? 0) > (RESULT_SEVERITY_RANK[worst] ?? 0) ? r : worst
+  );
+}
+
+// A failed test execution auto-creates a bug — its severity/priority are
+// derived from the test case's own priority rather than guessed, so a
+// Critical-priority test case failing always files at least a High-severity
+// bug, and a Low-priority one never over-files as a Blocker.
+export const TEST_CASE_PRIORITY_TO_BUG_SEVERITY: Record<TestCasePriority, BugSeverity> = {
+  CRITICAL: "BLOCKER",
+  HIGH: "CRITICAL",
+  MEDIUM: "HIGH",
+  LOW: "MEDIUM",
+};
+
+export const TEST_CASE_PRIORITY_TO_BUG_PRIORITY: Record<TestCasePriority, BugPriority> = {
+  CRITICAL: "P0",
+  HIGH: "P1",
+  MEDIUM: "P2",
+  LOW: "P3",
 };

@@ -172,7 +172,7 @@ export async function getBuildOptions() {
 
 // TC-numbers are derived from creation order across the whole database, the
 // same convention used for BUG-numbers — not stored, cheap to recompute.
-async function getTestCaseNumberMap(): Promise<Map<string, number>> {
+export async function getTestCaseNumberMap(): Promise<Map<string, number>> {
   const all = await prisma.testCase.findMany({ orderBy: { createdAt: "asc" }, select: { id: true } });
   return new Map(all.map((tc, i) => [tc.id, i + 1]));
 }
@@ -221,7 +221,7 @@ export async function getTestCases(gameSlug?: string): Promise<TestCaseSummary[]
 }
 
 export async function getTestCaseDetail(id: string) {
-  const [testCase, numberMap] = await Promise.all([
+  const [testCase, numberMap, bugNumberMap] = await Promise.all([
     prisma.testCase.findUnique({
       where: { id },
       include: {
@@ -231,11 +231,13 @@ export async function getTestCaseDetail(id: string) {
           include: {
             tester: { select: { id: true, name: true } },
             session: { select: { id: true, name: true, build: { select: { version: true } } } },
+            createdBug: { select: { id: true, title: true } },
           },
         },
       },
     }),
     getTestCaseNumberMap(),
+    getBugNumberMap(),
   ]);
   if (!testCase) return null;
 
@@ -243,6 +245,36 @@ export async function getTestCaseDetail(id: string) {
     ...testCase,
     number: numberMap.get(testCase.id) ?? 0,
     status: deriveTestCaseStatus(testCase.runs[0]?.result),
+    runs: testCase.runs.map((run) => ({
+      ...run,
+      createdBug: run.createdBug
+        ? { ...run.createdBug, number: bugNumberMap.get(run.createdBug.id) ?? 0 }
+        : null,
+    })),
+  };
+}
+
+export async function getTestRunDetail(runId: string) {
+  const run = await prisma.testRun.findUnique({
+    where: { id: runId },
+    include: {
+      testCase: { select: { id: true, title: true, gameId: true } },
+      tester: { select: { id: true, name: true } },
+      session: { select: { id: true, name: true, build: { select: { version: true } } } },
+      stepResults: { orderBy: { stepIndex: "asc" } },
+      createdBug: { select: { id: true, title: true } },
+    },
+  });
+  if (!run) return null;
+
+  const [testCaseNumberMap, bugNumberMap] = await Promise.all([getTestCaseNumberMap(), getBugNumberMap()]);
+
+  return {
+    ...run,
+    testCase: { ...run.testCase, number: testCaseNumberMap.get(run.testCase.id) ?? 0 },
+    createdBug: run.createdBug
+      ? { ...run.createdBug, number: bugNumberMap.get(run.createdBug.id) ?? 0 }
+      : null,
   };
 }
 
@@ -636,13 +668,32 @@ export async function getBugDetail(id: string) {
           },
           orderBy: { createdAt: "asc" },
         },
+        // A bug auto-created from a failed test execution keeps a real link
+        // back to that run, so the origin is traceable, not just prose.
+        originatingTestRuns: {
+          take: 1,
+          select: { id: true, testCase: { select: { id: true, title: true } } },
+        },
       },
     }),
     getBugNumberMap(),
   ]);
 
   if (!bug) return null;
-  return { ...bug, number: numberMap.get(bug.id) ?? 0 };
+
+  const originatingRun = bug.originatingTestRuns[0];
+  let originatingTestCase: { id: string; number: number; title: string; runId: string } | null = null;
+  if (originatingRun) {
+    const testCaseNumberMap = await getTestCaseNumberMap();
+    originatingTestCase = {
+      id: originatingRun.testCase.id,
+      number: testCaseNumberMap.get(originatingRun.testCase.id) ?? 0,
+      title: originatingRun.testCase.title,
+      runId: originatingRun.id,
+    };
+  }
+
+  return { ...bug, number: numberMap.get(bug.id) ?? 0, originatingTestCase };
 }
 
 export async function getTesters() {

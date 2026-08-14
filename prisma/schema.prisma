@@ -186,6 +186,8 @@ model Bug {
 
   relationshipsAsSource BugRelationship[] @relation("RelationshipSource")
   relationshipsAsTarget BugRelationship[] @relation("RelationshipTarget")
+
+  originatingTestRuns TestRun[] @relation("TestRunCreatedBug")
 }
 
 enum RelationshipType {
@@ -352,7 +354,9 @@ model TestCase {
 
 model TestRun {
   id         String    @id @default(cuid())
-  result     String    // "PASS" | "FAIL" | "BLOCKED" | "SKIPPED"
+  result     String    // "PASS" | "FAIL" | "BLOCKED" | "SKIPPED" — for a
+                        // step-by-step execution this is derived (worst of
+                        // its TestStepResults), not independently editable.
   notes      String?
   runAt      DateTime  @default(now())
 
@@ -364,4 +368,24 @@ model TestRun {
 
   testerId   String?
   tester     Tester?   @relation(fields: [testerId], references: [id], onDelete: SetNull)
+
+  stepResults TestStepResult[]
+
+  // The bug this run auto-created on failure, if any — preserves the test
+  // execution context a failed run led to, as a real FK rather than prose.
+  createdBugId String?
+  createdBug   Bug?    @relation("TestRunCreatedBug", fields: [createdBugId], references: [id], onDelete: SetNull)
+}
+
+model TestStepResult {
+  id        String   @id @default(cuid())
+  stepIndex Int
+  // A snapshot of the step's wording at execution time, so editing the test
+  // case later never rewrites what a past execution actually tested.
+  stepText  String
+  result    String   // "PASS" | "FAIL" | "BLOCKED" | "SKIPPED"
+  notes     String?
+
+  testRunId String
+  testRun   TestRun @relation(fields: [testRunId], references: [id], onDelete: Cascade)
 }

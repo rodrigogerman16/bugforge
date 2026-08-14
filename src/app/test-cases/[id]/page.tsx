@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Play } from "lucide-react";
 import { getTestCaseDetail, getGameSessions } from "@/lib/data";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META, TEST_RUN_RESULT_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
@@ -55,6 +55,13 @@ export default async function TestCaseDetailPage({ params }: { params: Promise<{
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
+          <Link
+            href={`/test-cases/${testCase.id}/execute`}
+            className="flex items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+          >
+            <Play size={12} />
+            Execute
+          </Link>
           <Link
             href={`/test-cases/${testCase.id}/edit`}
             className="flex items-center gap-1.5 rounded-md border border-[color:var(--bf-border)] px-3 py-1.5 text-[12px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] hover:text-[color:var(--bf-ink-primary)]"
@@ -124,7 +131,7 @@ export default async function TestCaseDetailPage({ params }: { params: Promise<{
                   <th className="px-4 py-2.5 font-medium">Result</th>
                   <th className="px-4 py-2.5 font-medium">Session</th>
                   <th className="px-4 py-2.5 font-medium">Tester</th>
-                  <th className="px-4 py-2.5 font-medium">Notes</th>
+                  <th className="px-4 py-2.5 font-medium">Bug</th>
                   <th className="px-4 py-2.5 font-medium">When</th>
                 </tr>
               </thead>
@@ -132,17 +139,25 @@ export default async function TestCaseDetailPage({ params }: { params: Promise<{
                 {testCase.runs.map((run) => {
                   const resultMeta = TEST_RUN_RESULT_META[run.result] ?? { label: run.result, color: "var(--bf-ink-muted)" };
                   return (
-                    <tr key={run.id} className="border-b border-[color:var(--bf-border)] last:border-b-0">
+                    <tr key={run.id} className="border-b border-[color:var(--bf-border)] last:border-b-0 hover:bg-[color:var(--bf-surface)]">
                       <td className="px-4 py-3">
-                        <span className="font-medium" style={{ color: resultMeta.color }}>
+                        <Link href={`/test-cases/${testCase.id}/runs/${run.id}`} className="font-medium hover:underline" style={{ color: resultMeta.color }}>
                           {resultMeta.label}
-                        </span>
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">
                         {run.session.name} ({run.session.build.version})
                       </td>
                       <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{run.tester?.name ?? "Unknown"}</td>
-                      <td className="px-4 py-3 text-[color:var(--bf-ink-muted)]">{run.notes ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {run.createdBug ? (
+                          <Link href={`/bugs/${run.createdBug.id}`} className="text-[color:var(--bf-status-critical)] hover:underline">
+                            BUG-{run.createdBug.number}
+                          </Link>
+                        ) : (
+                          <span className="text-[color:var(--bf-ink-muted)]">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-[color:var(--bf-ink-muted)]">{formatRelativeTime(run.runAt)}</td>
                     </tr>
                   );

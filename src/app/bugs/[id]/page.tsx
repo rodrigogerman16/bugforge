@@ -64,6 +64,19 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         />
       )}
 
+      {bug.originatingTestCase && (
+        <div className="mb-6 rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface)] px-4 py-3 text-[13px] text-[color:var(--bf-ink-secondary)]">
+          Created automatically from a failed{" "}
+          <Link
+            href={`/test-cases/${bug.originatingTestCase.id}/runs/${bug.originatingTestCase.runId}`}
+            className="font-medium text-[color:var(--bf-brand)] hover:underline"
+          >
+            execution of TC-{String(bug.originatingTestCase.number).padStart(5, "0")}
+          </Link>{" "}
+          ({bug.originatingTestCase.title})
+        </div>
+      )}
+
       <header className="mb-6">
         <p className="font-mono text-[12px] text-[color:var(--bf-ink-muted)]">BUG-{bug.number}</p>
         <h1 className="mt-1 text-2xl font-bold text-[color:var(--bf-ink-primary)]">{bug.title}</h1>
