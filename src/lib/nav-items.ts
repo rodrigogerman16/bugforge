@@ -33,7 +33,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Quality",
     items: [
       { label: "Bugs", icon: Bug, href: "/bugs", enabled: true },
-      { label: "Test Cases", icon: ListChecks, href: "/test-cases", enabled: false },
+      { label: "Test Cases", icon: ListChecks, href: "/test-cases", enabled: true },
       { label: "Builds", icon: Package, href: "/builds", enabled: true },
       { label: "Test Sessions", icon: ClipboardList, href: "/sessions", enabled: false },
     ],

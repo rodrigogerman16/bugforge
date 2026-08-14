@@ -30,12 +30,12 @@ export async function GET(request: Request) {
         OR: [
           { title: { contains: q } },
           { description: { contains: q } },
-          { area: { contains: q } },
+          { category: { contains: q } },
         ],
       },
       orderBy: { createdAt: "desc" },
       take: RESULTS_PER_TYPE,
-      select: { id: true, title: true, area: true, game: gameSelect },
+      select: { id: true, title: true, category: true, game: gameSelect },
     }),
     prisma.build.findMany({
       where: {

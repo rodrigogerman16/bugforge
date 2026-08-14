@@ -325,19 +325,29 @@ model Evidence {
   bug       Bug          @relation(fields: [bugId], references: [id], onDelete: Cascade)
 }
 
+enum TestCasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model TestCase {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  steps       String
-  expected    String
-  area        String?
-  createdAt   DateTime @default(now())
+  id            String           @id @default(cuid())
+  title         String
+  description   String?
+  preconditions String?
+  steps         String
+  expected      String
+  category      String?
+  priority      TestCasePriority @default(MEDIUM)
+  platform      Platform         @default(PC)
+  createdAt     DateTime         @default(now())
 
-  gameId      String
-  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameId        String
+  game          Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  runs        TestRun[]
+  runs          TestRun[]
 }
 
 model TestRun {

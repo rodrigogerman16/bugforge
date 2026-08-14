@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaBetterSqlite3({
@@ -504,16 +504,18 @@ const SAMPLE_VIDEO_POOL = [
 
 const TEST_CASE_TEMPLATES: Record<
   string,
-  { title: string; steps: string; expected: string }[]
+  { title: string; preconditions: string; steps: string; expected: string }[]
 > = {
   Combat: [
     {
       title: "Melee weapon deals listed damage to an unshielded enemy",
+      preconditions: "Player is alive with a melee weapon equipped and an unshielded enemy is nearby.",
       steps: "1. Equip a melee weapon\n2. Engage an unshielded enemy\n3. Land a hit",
       expected: "Damage dealt matches the weapon's listed value",
     },
     {
       title: "Parry window blocks incoming melee damage",
+      preconditions: "Player is engaged with an enemy that has a telegraphed melee attack.",
       steps: "1. Face an attacking enemy\n2. Time a parry input on the incoming hit\n3. Confirm the outcome",
       expected: "Player takes zero damage and the enemy is staggered",
     },
@@ -521,11 +523,13 @@ const TEST_CASE_TEMPLATES: Record<
   "UI/HUD": [
     {
       title: "Health bar reflects current HP immediately after respawn",
+      preconditions: "Player is in an active match with respawns enabled.",
       steps: "1. Reduce HP\n2. Die and respawn\n3. Check the health bar",
       expected: "Health bar shows full HP with no desync",
     },
     {
       title: "Inventory tooltip stays fully on-screen at 21:9",
+      preconditions: "Display is configured for a 21:9 aspect ratio and the player has at least one item.",
       steps: "1. Switch display to 21:9\n2. Open inventory\n3. Hover an item",
       expected: "Tooltip renders fully within the visible screen area",
     },
@@ -533,11 +537,13 @@ const TEST_CASE_TEMPLATES: Record<
   Networking: [
     {
       title: "Loot drops are not duplicated after a client desync",
+      preconditions: "A multiplayer session with 2+ connected clients is active.",
       steps: "1. Start a session with 2+ clients\n2. Force a brief desync\n3. Trigger a loot drop",
       expected: "Exactly one loot instance is granted per drop",
     },
     {
       title: "Host migration completes without rubberbanding",
+      preconditions: "A multiplayer session is active with the current player as host.",
       steps: "1. Start a session as host\n2. Disconnect the host client\n3. Observe migration to a new host",
       expected: "Players continue moving smoothly with no rubberbanding",
     },
@@ -545,11 +551,13 @@ const TEST_CASE_TEMPLATES: Record<
   Physics: [
     {
       title: "Ragdolls stay above terrain on steep slopes",
+      preconditions: "Player is positioned near a steep slope with an enemy nearby.",
       steps: "1. Defeat an enemy on a steep slope\n2. Observe the ragdoll settle",
       expected: "Ragdoll rests on the terrain surface without clipping through",
     },
     {
       title: "Vehicles remain stable on minor collisions",
+      preconditions: "Player has access to a drivable vehicle and a small obstacle is nearby.",
       steps: "1. Drive a vehicle into a small obstacle at low speed\n2. Observe vehicle behavior",
       expected: "Vehicle absorbs the impact without flipping",
     },
@@ -557,11 +565,13 @@ const TEST_CASE_TEMPLATES: Record<
   Audio: [
     {
       title: "Footstep audio plays correctly on metal surfaces",
+      preconditions: "Player can walk onto a metal-surfaced area and audio output is enabled.",
       steps: "1. Walk onto a metal surface\n2. Listen for footstep audio",
       expected: "Metal-specific footstep audio plays on every step",
     },
     {
       title: "Music loop transitions without an audible pop",
+      preconditions: "Background music is enabled and audio output is enabled.",
       steps: "1. Let background music play through a full loop\n2. Listen at the loop point",
       expected: "Loop transition is seamless with no audible pop",
     },
@@ -569,11 +579,13 @@ const TEST_CASE_TEMPLATES: Record<
   "AI/Enemies": [
     {
       title: "Enemies path around destructible cover correctly",
+      preconditions: "Player has access to an enemy and destructible cover geometry.",
       steps: "1. Place destructible cover between player and enemy\n2. Aggro the enemy",
       expected: "Enemy paths around or through cover without getting stuck",
     },
     {
       title: "Boss completes its second phase transition",
+      preconditions: "Player is engaged in a boss encounter with a scripted phase-2 transition.",
       steps: "1. Reduce boss HP to the phase-2 threshold\n2. Observe the transition",
       expected: "Boss plays its phase-2 transition and enters phase 2",
     },
@@ -581,11 +593,13 @@ const TEST_CASE_TEMPLATES: Record<
   Progression: [
     {
       title: "XP earned is saved if the game closes mid-loading-screen",
+      preconditions: "Player has a valid save file and is signed in.",
       steps: "1. Earn XP\n2. Trigger a loading screen\n3. Force-quit during the load",
       expected: "XP earned before the quit is persisted on next launch",
     },
     {
       title: "Skill tree points persist across a prestige reset",
+      preconditions: "Player has unspent skill tree points and meets the prestige requirement.",
       steps: "1. Allocate skill tree points\n2. Prestige\n3. Check skill tree points",
       expected: "Points behave per the documented prestige rules with no silent loss",
     },
@@ -593,11 +607,13 @@ const TEST_CASE_TEMPLATES: Record<
   Rendering: [
     {
       title: "Distant foliage renders without flickering",
+      preconditions: "Player is in an outdoor area with foliage in the distance.",
       steps: "1. View foliage at a distance\n2. Pan the camera slowly",
       expected: "Foliage renders stably with no flicker",
     },
     {
       title: "Frame rate stays above 30fps during a large particle effect",
+      preconditions: "A frame rate counter is enabled and a large particle effect is available to trigger.",
       steps: "1. Trigger a large particle effect (e.g. an explosion)\n2. Monitor frame rate",
       expected: "Frame rate remains at or above 30fps",
     },
@@ -605,11 +621,13 @@ const TEST_CASE_TEMPLATES: Record<
   "Save/Load": [
     {
       title: "Save file remains valid if the game quits during autosave",
+      preconditions: "Autosave is enabled and player has progress worth saving.",
       steps: "1. Trigger an autosave\n2. Force-quit while it is in progress\n3. Relaunch",
       expected: "Save file loads without corruption",
     },
     {
       title: "Loadout is restored correctly on continue",
+      preconditions: "Player has a save file with a custom loadout equipped.",
       steps: "1. Set a custom loadout\n2. Quit to main menu\n3. Continue the save",
       expected: "Loadout matches what was equipped before quitting",
     },
@@ -617,11 +635,13 @@ const TEST_CASE_TEMPLATES: Record<
   Matchmaking: [
     {
       title: "Matchmaking completes for a party of 3",
+      preconditions: "Three players are available to form a party and matchmaking servers are reachable.",
       steps: "1. Form a party of 3\n2. Queue for matchmaking",
       expected: "A match is found within the expected time window",
     },
     {
       title: "Skill rating updates after a ranked match",
+      preconditions: "Player has an established skill rating and joins a ranked match.",
       steps: "1. Complete a ranked match\n2. Check skill rating",
       expected: "Skill rating updates according to the match result",
     },
@@ -1009,6 +1029,13 @@ async function main() {
       });
     }
 
+    const testCasePriorityPool: TestCasePriority[] = [
+      ...Array(2).fill(TestCasePriority.CRITICAL),
+      ...Array(6).fill(TestCasePriority.HIGH),
+      ...Array(9).fill(TestCasePriority.MEDIUM),
+      ...Array(3).fill(TestCasePriority.LOW),
+    ];
+
     const testCases = await Promise.all(
       AREAS.flatMap((area) =>
         TEST_CASE_TEMPLATES[area].map((tc) =>
@@ -1017,9 +1044,12 @@ async function main() {
               gameId: game.id,
               title: tc.title,
               description: `Regression check for ${area.toLowerCase()} systems.`,
+              preconditions: tc.preconditions,
               steps: tc.steps,
               expected: tc.expected,
-              area,
+              category: area,
+              priority: pick(testCasePriorityPool),
+              platform: game.platform,
             },
           })
         )
