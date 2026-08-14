@@ -113,6 +113,7 @@ model QASession {
   status      SessionStatus @default(PLANNED)
   startedAt   DateTime?
   endedAt     DateTime?
+  notes       String?
   createdAt   DateTime      @default(now())
 
   gameId      String

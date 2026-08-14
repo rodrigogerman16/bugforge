@@ -21,14 +21,10 @@ function pickSome<T>(arr: T[], max: number): T[] {
   return [...arr].sort(() => Math.random() - 0.5).slice(0, count);
 }
 
-function randomDate(daysBack: number): Date {
-  const now = Date.now();
-  return new Date(now - Math.floor(Math.random() * daysBack) * 86_400_000);
-}
-
 // Picks a random moment within the given day, `daysAgo` days back — callers pass
 // a strictly decreasing `daysAgo` per build so releasedAt order always matches
-// version order, unlike randomDate() whose overlapping ranges can invert it.
+// version order, unlike an independently-rolled random date whose overlapping
+// ranges could invert it.
 function randomDateOnDay(daysAgo: number): Date {
   const dayMs = 86_400_000;
   const now = Date.now();
@@ -749,18 +745,24 @@ async function main() {
         { name: "Beta Test #22", status: SessionStatus.COMPLETED, build: builds[0] },
         { name: "Beta Test #23", status: SessionStatus.COMPLETED, build: builds[1] },
         { name: "Beta Test #24", status: SessionStatus.ACTIVE, build: latestBuild },
-      ].map((s) =>
-        prisma.qASession.create({
+      ].map((s) => {
+        // A session starts sometime after its own build's release, not on
+        // some unrelated random day — and runs a believable 2-8 hours, not
+        // an arbitrary independently-rolled span that could even invert.
+        const startedAt = new Date(s.build.releasedAt.getTime() + Math.floor(Math.random() * 6 * 3_600_000));
+        const durationMs = (2 + Math.random() * 6) * 3_600_000;
+        const endedAt = s.status === SessionStatus.COMPLETED ? new Date(startedAt.getTime() + durationMs) : null;
+        return prisma.qASession.create({
           data: {
             gameId: game.id,
             buildId: s.build.id,
             name: s.name,
             status: s.status,
-            startedAt: randomDate(20),
-            endedAt: s.status === SessionStatus.COMPLETED ? randomDate(5) : null,
+            startedAt,
+            endedAt,
           },
-        })
-      )
+        });
+      })
     );
 
     const severityWeights: [BugSeverity, number][] = [
