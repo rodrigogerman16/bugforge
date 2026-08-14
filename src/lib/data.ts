@@ -11,6 +11,7 @@ import { deriveTestCaseStatus, type TestCaseStatus } from "@/lib/test-case";
 import { reproductionQualityPercent } from "@/lib/tester";
 import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
 import type { TesterRole } from "@/generated/prisma/enums";
+import { QA_DISCIPLINES, AREA_TO_DISCIPLINE, type QADiscipline } from "@/lib/coverage";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -533,6 +534,41 @@ export async function getTesterProfileDetail(id: string) {
   }));
 
   return { ...summary, activityByDay: groupActivityByDay(activity) };
+}
+
+export type DisciplineCoverage = {
+  discipline: QADiscipline;
+  totalTestCases: number;
+  executedTestCases: number;
+  coveragePercent: number | null;
+};
+
+export async function getCoverageByDiscipline(gameSlug?: string): Promise<DisciplineCoverage[]> {
+  const testCases = await prisma.testCase.findMany({
+    where: gameSlug && gameSlug !== "all" ? { game: { slug: gameSlug } } : undefined,
+    select: { category: true, _count: { select: { runs: true } } },
+  });
+
+  const buckets = new Map<QADiscipline, { total: number; executed: number }>();
+  for (const discipline of QA_DISCIPLINES) buckets.set(discipline, { total: 0, executed: 0 });
+
+  for (const testCase of testCases) {
+    const discipline = testCase.category ? AREA_TO_DISCIPLINE[testCase.category] : undefined;
+    if (!discipline) continue;
+    const bucket = buckets.get(discipline)!;
+    bucket.total++;
+    if (testCase._count.runs > 0) bucket.executed++;
+  }
+
+  return QA_DISCIPLINES.map((discipline) => {
+    const bucket = buckets.get(discipline)!;
+    return {
+      discipline,
+      totalTestCases: bucket.total,
+      executedTestCases: bucket.executed,
+      coveragePercent: bucket.total > 0 ? Math.round((bucket.executed / bucket.total) * 100) : null,
+    };
+  });
 }
 
 export async function getCurrentUser() {

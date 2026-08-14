@@ -10,6 +10,7 @@ import {
   Users,
   Code2,
   Settings,
+  PieChart,
 } from "lucide-react";
 
 export type NavItem = {
@@ -36,6 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Test Cases", icon: ListChecks, href: "/test-cases", enabled: true },
       { label: "Builds", icon: Package, href: "/builds", enabled: true },
       { label: "Test Sessions", icon: ClipboardList, href: "/sessions", enabled: true },
+      { label: "Coverage", icon: PieChart, href: "/coverage", enabled: true },
     ],
   },
   {
