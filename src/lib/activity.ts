@@ -38,13 +38,15 @@ function dayLabel(date: Date, now: Date): string {
   return date.getFullYear() === now.getFullYear() ? dayFormatter.format(date) : dayFormatterWithYear.format(date);
 }
 
-export type ActivityDayGroup = { label: string; events: ActivityEventRow[] };
+export type ActivityDayGroup<T extends ActivityEventRow = ActivityEventRow> = { label: string; events: T[] };
 
 // Events arrive newest-first; grouped by calendar day so each day's events
-// stay in that same newest-first order within the group.
-export function groupActivityByDay(events: ActivityEventRow[]): ActivityDayGroup[] {
+// stay in that same newest-first order within the group. Generic so callers
+// that enrich rows with extra fields (e.g. which bug an event belongs to)
+// keep those fields on the grouped output too.
+export function groupActivityByDay<T extends ActivityEventRow>(events: T[]): ActivityDayGroup<T>[] {
   const now = new Date();
-  const groups: ActivityDayGroup[] = [];
+  const groups: ActivityDayGroup<T>[] = [];
 
   for (const event of events) {
     const label = dayLabel(event.createdAt, now);

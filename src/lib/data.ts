@@ -8,6 +8,9 @@ import { formatReleaseDate } from "@/lib/utils";
 import type { TrendRangeDays } from "@/lib/trend-range";
 import { resolveRelationships } from "@/lib/relationships";
 import { deriveTestCaseStatus, type TestCaseStatus } from "@/lib/test-case";
+import { reproductionQualityPercent } from "@/lib/tester";
+import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
+import type { TesterRole } from "@/generated/prisma/enums";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -442,6 +445,94 @@ export async function getSessionDetail(id: string) {
     bugs: bugs.map((b) => ({ ...b, number: numberMap.get(b.id) ?? 0 })),
     testRuns,
   };
+}
+
+// "Confirmed" here means the tester's own reported bugs that were validated
+// as real (anything past NEW that wasn't REJECTED) — a reproduction-quality
+// signal about their own reports, never a comparison against anyone else.
+const REJECTED_BUG_STATUSES: BugStatus[] = [BugStatus.REJECTED];
+
+export type TesterProfileSummary = {
+  id: string;
+  name: string;
+  email: string;
+  role: TesterRole;
+  bugsReported: number;
+  bugsConfirmed: number;
+  bugsRejected: number;
+  testCasesExecuted: number;
+  reproductionQuality: number | null;
+};
+
+export async function getTesterProfiles(): Promise<TesterProfileSummary[]> {
+  const [testers, bugCounts, testRunCounts] = await Promise.all([
+    // Alphabetical, not sorted by any stat — this is a directory, not a
+    // leaderboard.
+    prisma.tester.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, email: true, role: true } }),
+    prisma.bug.groupBy({ by: ["reportedById", "status"], _count: { _all: true } }),
+    prisma.testRun.groupBy({ by: ["testerId"], _count: { _all: true } }),
+  ]);
+
+  const testCaseCountByTester = new Map(testRunCounts.map((r) => [r.testerId, r._count._all]));
+
+  return testers.map((tester) => {
+    let bugsReported = 0;
+    let bugsRejected = 0;
+    let bugsConfirmed = 0;
+    for (const row of bugCounts) {
+      if (row.reportedById !== tester.id) continue;
+      bugsReported += row._count._all;
+      if (REJECTED_BUG_STATUSES.includes(row.status)) bugsRejected += row._count._all;
+      else if (row.status !== BugStatus.NEW) bugsConfirmed += row._count._all;
+    }
+
+    return {
+      id: tester.id,
+      name: tester.name,
+      email: tester.email,
+      role: tester.role,
+      bugsReported,
+      bugsConfirmed,
+      bugsRejected,
+      testCasesExecuted: testCaseCountByTester.get(tester.id) ?? 0,
+      reproductionQuality: reproductionQualityPercent(bugsConfirmed, bugsRejected),
+    };
+  });
+}
+
+export type TesterActivityRow = ActivityEventRow & { bug: { id: string; number: number; title: string } };
+
+export async function getTesterProfileDetail(id: string) {
+  const tester = await prisma.tester.findUnique({
+    where: { id },
+    select: { id: true, name: true, email: true, role: true },
+  });
+  if (!tester) return null;
+
+  const [profiles, activityEvents, numberMap] = await Promise.all([
+    getTesterProfiles(),
+    prisma.activityEvent.findMany({
+      where: { actorId: id },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+      include: {
+        actor: { select: { id: true, name: true, role: true } },
+        targetTester: { select: { id: true, name: true, role: true } },
+        bug: { select: { id: true, title: true } },
+      },
+    }),
+    getBugNumberMap(),
+  ]);
+
+  const summary = profiles.find((p) => p.id === id);
+  if (!summary) return null;
+
+  const activity: TesterActivityRow[] = activityEvents.map((e) => ({
+    ...e,
+    bug: { id: e.bug.id, number: numberMap.get(e.bug.id) ?? 0, title: e.bug.title },
+  }));
+
+  return { ...summary, activityByDay: groupActivityByDay(activity) };
 }
 
 export async function getCurrentUser() {
