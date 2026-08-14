@@ -81,14 +81,20 @@ export type BuildSummary = {
   game: { id: string; name: string; slug: string; platform: Platform; coverColor: string };
   bugTotal: number;
   criticalOpenCount: number;
+  highOpenCount: number;
+  regressionCount: number;
   qualityScore: number;
   qualityBand: QualityBand;
   testPassRate: number | null;
 };
 
-export async function getBuilds(gameSlug?: string): Promise<BuildSummary[]> {
+export async function getBuilds(options?: { gameSlug?: string; buildIds?: string[] }): Promise<BuildSummary[]> {
+  const { gameSlug, buildIds } = options ?? {};
   const builds = await prisma.build.findMany({
-    where: gameSlug && gameSlug !== "all" ? { game: { slug: gameSlug } } : undefined,
+    where: {
+      ...(gameSlug && gameSlug !== "all" ? { game: { slug: gameSlug } } : {}),
+      ...(buildIds ? { id: { in: buildIds } } : {}),
+    },
     orderBy: { releasedAt: "desc" },
     select: {
       id: true,
@@ -98,7 +104,7 @@ export async function getBuilds(gameSlug?: string): Promise<BuildSummary[]> {
       releasedAt: true,
       notes: true,
       game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
-      bugs: { select: { severity: true, status: true } },
+      bugs: { select: { severity: true, status: true, isRegression: true } },
     },
   });
 
@@ -142,10 +148,24 @@ export async function getBuilds(gameSlug?: string): Promise<BuildSummary[]> {
       game: build.game,
       bugTotal: build.bugs.length,
       criticalOpenCount: openCounts.CRITICAL,
+      highOpenCount: openCounts.HIGH,
+      regressionCount: build.bugs.filter((b) => b.isRegression).length,
       qualityScore,
       qualityBand: qualityBand(qualityScore),
       testPassRate,
     };
+  });
+}
+
+export async function getBuildOptions() {
+  return prisma.build.findMany({
+    orderBy: [{ game: { name: "asc" } }, { releasedAt: "desc" }],
+    select: {
+      id: true,
+      version: true,
+      releasedAt: true,
+      game: { select: { name: true, slug: true } },
+    },
   });
 }
 
