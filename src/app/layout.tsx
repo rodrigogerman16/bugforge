@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import { Sidebar } from "@/components/sidebar";
@@ -36,12 +37,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <div className="flex h-dvh flex-col">
             <TopBar user={user} />
             <div className="flex min-h-0 flex-1">
-              <Sidebar games={games} />
-              <ShellMobileNav games={games} />
+              <Suspense fallback={null}>
+                <Sidebar games={games} />
+              </Suspense>
+              <Suspense fallback={null}>
+                <ShellMobileNav games={games} />
+              </Suspense>
               <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
             </div>
           </div>
-          <CommandPalette games={games} />
+          <Suspense fallback={null}>
+            <CommandPalette games={games} />
+          </Suspense>
         </ShellUIProvider>
       </body>
     </html>
