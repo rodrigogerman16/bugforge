@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaLibSql({
@@ -8,8 +8,6 @@ const adapter = new PrismaLibSql({
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 const prisma = new PrismaClient({ adapter });
-
-import { AREAS } from "../src/lib/areas";
 
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -145,7 +143,47 @@ function buildActivityEvents({
 
 type BugDef = { title: string; expected: string; actual: string; trigger: string };
 
+// The real, user-manageable game-area taxonomy (see the Area model) — every
+// area below is seeded as a real row, with genuine bug/test-case content of
+// its own rather than a shallow relabeling of the old 10-area list.
+const AREA_DEFS: { name: string; discipline: QADiscipline }[] = [
+  { name: "Gameplay", discipline: QADiscipline.GAMEPLAY },
+  { name: "Combat", discipline: QADiscipline.GAMEPLAY },
+  { name: "Movement", discipline: QADiscipline.GAMEPLAY },
+  { name: "AI", discipline: QADiscipline.GAMEPLAY },
+  { name: "Animation", discipline: QADiscipline.GAMEPLAY },
+  { name: "UI", discipline: QADiscipline.UI },
+  { name: "Audio", discipline: QADiscipline.AUDIO },
+  { name: "Networking", discipline: QADiscipline.NETWORKING },
+  { name: "Performance", discipline: QADiscipline.PERFORMANCE },
+  { name: "Graphics", discipline: QADiscipline.PERFORMANCE },
+  { name: "Physics", discipline: QADiscipline.GAMEPLAY },
+  { name: "Input", discipline: QADiscipline.UI },
+  { name: "Localization", discipline: QADiscipline.LOCALIZATION },
+  { name: "Accessibility", discipline: QADiscipline.ACCESSIBILITY },
+];
+
 const BUG_DEFS: Record<string, BugDef[]> = {
+  Gameplay: [
+    {
+      title: "Objective completion not registering in the mission log",
+      expected: "Completing an objective marks it done in the mission log immediately.",
+      actual: "The mission log still shows the objective as incomplete after it's been completed.",
+      trigger: "Complete any active mission objective and open the mission log.",
+    },
+    {
+      title: "Difficulty setting resets to default after loading a save",
+      expected: "The difficulty selected at save time is restored exactly on load.",
+      actual: "Loading a save silently resets difficulty to the default setting.",
+      trigger: "Set a non-default difficulty, save, quit, then load the save.",
+    },
+    {
+      title: "Interactable prompt fails to appear on reachable objects",
+      expected: "The interact prompt appears whenever a reachable interactable object is in range.",
+      actual: "Some reachable interactable objects never show the interact prompt.",
+      trigger: "Approach an interactable object within its normal interaction range.",
+    },
+  ],
   Combat: [
     {
       title: "Weapon damage not applied after parry",
@@ -166,7 +204,27 @@ const BUG_DEFS: Record<string, BugDef[]> = {
       trigger: "Land a critical hit on an enemy that has an active shield.",
     },
   ],
-  "UI/HUD": [
+  Movement: [
+    {
+      title: "Player clips through geometry when sprinting into a corner",
+      expected: "Player collides with corner geometry normally at any movement speed.",
+      actual: "Sprinting into a tight corner lets the player clip partway through the wall.",
+      trigger: "Sprint directly into a tight interior corner.",
+    },
+    {
+      title: "Double-jump input dropped after wall-slide",
+      expected: "The double-jump is available immediately after leaving a wall-slide.",
+      actual: "The double-jump input is silently ignored for about a second after a wall-slide.",
+      trigger: "Wall-slide down a surface, then jump away and immediately press jump again.",
+    },
+    {
+      title: "Character momentum not preserved across a zipline dismount",
+      expected: "Horizontal momentum from the zipline carries over into the dismount jump.",
+      actual: "Dismounting a zipline zeroes out horizontal momentum instead of carrying it over.",
+      trigger: "Ride a zipline at speed and dismount with a jump input.",
+    },
+  ],
+  UI: [
     {
       title: "Health bar desyncs from actual HP after respawn",
       expected: "Health bar reflects full HP immediately on respawn.",
@@ -246,7 +304,7 @@ const BUG_DEFS: Record<string, BugDef[]> = {
       trigger: "Get an explosive kill on an enemy.",
     },
   ],
-  "AI/Enemies": [
+  AI: [
     {
       title: "Enemies stuck pathing around destructible cover",
       expected: "Enemies path around or through destructible cover without getting stuck.",
@@ -266,27 +324,47 @@ const BUG_DEFS: Record<string, BugDef[]> = {
       trigger: "Take an ally into sustained enemy fire.",
     },
   ],
-  Progression: [
+  Animation: [
     {
-      title: "XP not saved if game closes during loading screen",
-      expected: "XP earned before a loading screen is persisted regardless of when the game closes.",
-      actual: "XP earned in the previous match is lost if the game is closed during the next loading screen.",
-      trigger: "Finish a match, then force-quit during the next loading screen.",
+      title: "Reload animation doesn't cancel when swapping weapons mid-animation",
+      expected: "Swapping weapons mid-reload immediately cancels the reload animation.",
+      actual: "The reload animation keeps playing on the old weapon for a moment after swapping.",
+      trigger: "Start a reload, then swap to a different weapon before it finishes.",
     },
     {
-      title: "Skill tree points reset after prestige",
-      expected: "Skill tree points behave per the documented prestige rules, with no unintended loss.",
-      actual: "All allocated skill tree points are reset to zero immediately after prestiging, beyond what's intended.",
-      trigger: "Allocate skill tree points, then prestige.",
+      title: "T-pose flashes briefly when transitioning between idle and run",
+      expected: "The idle-to-run transition blends smoothly with no bind-pose frame.",
+      actual: "A single T-pose frame flashes on-screen when transitioning from idle to run.",
+      trigger: "Stand still, then start running.",
     },
     {
-      title: "Daily challenge progress not tracked",
-      expected: "Progress toward the active daily challenge updates as qualifying actions are performed.",
-      actual: "Daily challenge progress stays at 0% regardless of completed qualifying actions.",
-      trigger: "Perform the actions required by the active daily challenge.",
+      title: "Climb animation doesn't align hands to ledge geometry",
+      expected: "Hand placement in the climb animation aligns with the actual ledge geometry.",
+      actual: "Hands visibly float off the ledge surface during the climb animation on uneven ledges.",
+      trigger: "Climb onto a ledge with an irregular or angled edge.",
     },
   ],
-  Rendering: [
+  Performance: [
+    {
+      title: "Particle effects cause frame drop below 30fps",
+      expected: "Frame rate stays at or above 30fps during large particle effects.",
+      actual: "Frame rate drops below 30fps whenever a large particle effect (e.g. an explosion) is on-screen.",
+      trigger: "Trigger a large particle effect such as an explosion.",
+    },
+    {
+      title: "Memory usage climbs steadily during long play sessions",
+      expected: "Memory usage stays within a stable range over the course of a play session.",
+      actual: "Memory usage climbs steadily and never plateaus over a long play session.",
+      trigger: "Play continuously for two or more hours without restarting the game.",
+    },
+    {
+      title: "Load times increase significantly after 2+ hours of continuous play",
+      expected: "Load times stay roughly consistent regardless of session length.",
+      actual: "Level load times grow noticeably longer the longer a single session runs.",
+      trigger: "Play continuously for 2+ hours, then trigger a level load.",
+    },
+  ],
+  Graphics: [
     {
       title: "Texture flickering on distant foliage",
       expected: "Distant foliage renders stably with no flicker.",
@@ -300,50 +378,70 @@ const BUG_DEFS: Record<string, BugDef[]> = {
       trigger: "Rotate the camera near a building at close range.",
     },
     {
-      title: "Particle effects cause frame drop below 30fps",
-      expected: "Frame rate stays at or above 30fps during large particle effects.",
-      actual: "Frame rate drops below 30fps whenever a large particle effect (e.g. an explosion) is on-screen.",
-      trigger: "Trigger a large particle effect such as an explosion.",
+      title: "Water reflection shows inverted geometry at oblique angles",
+      expected: "Water reflections mirror the scene correctly at any camera angle.",
+      actual: "At oblique viewing angles, the water reflection shows visibly inverted/distorted geometry.",
+      trigger: "Look across a water surface at a shallow, oblique angle.",
     },
   ],
-  "Save/Load": [
+  Input: [
     {
-      title: "Save file corrupts after quitting during autosave",
-      expected: "Save file remains valid even if the game quits during an autosave.",
-      actual: "Force-quitting during an autosave corrupts the save file, and it fails to load.",
-      trigger: "Force-quit the game while an autosave is in progress.",
+      title: "Controller vibration doesn't stop after switching to keyboard/mouse",
+      expected: "Controller vibration stops as soon as input switches to keyboard/mouse.",
+      actual: "Controller vibration keeps running for several seconds after switching to keyboard/mouse.",
+      trigger: "Play with a controller, then switch to keyboard/mouse mid-session.",
     },
     {
-      title: "Loadout not restored correctly on continue",
-      expected: "Loadout matches exactly what was equipped before quitting.",
-      actual: "Continuing a save restores a different loadout than what was equipped before quitting.",
-      trigger: "Equip a custom loadout, quit to the main menu, then continue the save.",
+      title: "Rebound key bindings don't persist after relaunch",
+      expected: "Custom key bindings are restored exactly as configured on next launch.",
+      actual: "Custom key bindings silently revert to defaults after relaunching the game.",
+      trigger: "Rebind a key, quit the game fully, then relaunch.",
     },
     {
-      title: "Cloud save conflicts overwrite local progress",
-      expected: "Cloud sync resolves conflicts without silently discarding progress.",
-      actual: "A cloud sync conflict silently overwrites more recent local progress with an older cloud save.",
-      trigger: "Play offline on two devices, then reconnect both to cloud sync.",
+      title: "Analog stick deadzone ignored below 15% setting",
+      expected: "The configured deadzone value is respected down to its minimum setting.",
+      actual: "Setting the deadzone below 15% has no effect — stick drift still occurs.",
+      trigger: "Set the analog stick deadzone below 15% and leave the stick untouched.",
     },
   ],
-  Matchmaking: [
+  Localization: [
     {
-      title: "Matchmaking hangs indefinitely on party of 3",
-      expected: "Matchmaking completes within the expected time window for any party size.",
-      actual: "Queuing as a party of exactly 3 causes matchmaking to hang indefinitely with no match found.",
-      trigger: "Form a party of exactly 3 players and queue for matchmaking.",
+      title: "German subtitle text overflows the dialogue box",
+      expected: "Subtitle text wraps or scales to fit the dialogue box in every supported language.",
+      actual: "Longer German translations overflow past the edges of the dialogue box.",
+      trigger: "Set the game language to German and trigger a dialogue line with a long translation.",
     },
     {
-      title: "Skill rating not updated after ranked match",
-      expected: "Skill rating updates according to the match result immediately after a ranked match ends.",
-      actual: "Skill rating stays unchanged after completing a ranked match.",
-      trigger: "Complete a ranked match through to its result screen.",
+      title: "Currency values not formatted per regional locale in the store",
+      expected: "Store prices use the correct currency symbol and separator for the active locale.",
+      actual: "Store prices show the default locale's formatting regardless of the selected region.",
+      trigger: "Set a non-default region and open the in-game store.",
     },
     {
-      title: "Region lock ignored, causing high ping matches",
-      expected: "Matchmaking respects the configured region lock.",
-      actual: "Players are matched into servers outside their region lock, resulting in high ping.",
-      trigger: "Queue for matchmaking with region lock enabled.",
+      title: "Untranslated placeholder string shown in Japanese menu",
+      expected: "Every menu string has a real translation for each supported language.",
+      actual: "A raw placeholder key is displayed instead of translated text in the Japanese settings menu.",
+      trigger: "Set the game language to Japanese and open the settings menu.",
+    },
+  ],
+  Accessibility: [
+    {
+      title: "Colorblind mode doesn't apply to enemy health bars",
+      expected: "Colorblind mode's palette adjustments apply to every HUD element that uses color, including health bars.",
+      actual: "Enemy health bars keep the default color palette even with colorblind mode enabled.",
+      trigger: "Enable colorblind mode and engage an enemy to view its health bar.",
+    },
+    {
+      title: "Screen reader skips the settings menu focus order",
+      expected: "The screen reader announces every focusable settings menu item in order.",
+      actual: "The screen reader silently skips several items when navigating the settings menu.",
+      trigger: "Enable the screen reader and tab through the settings menu.",
+    },
+    {
+      title: "Subtitle size setting doesn't affect cutscene subtitles",
+      expected: "The subtitle size setting applies consistently to both gameplay and cutscene subtitles.",
+      actual: "Increasing subtitle size affects gameplay subtitles but cutscene subtitles stay at default size.",
+      trigger: "Increase the subtitle size setting, then play a cutscene with subtitles.",
     },
   ],
 };
@@ -503,6 +601,20 @@ const TEST_CASE_TEMPLATES: Record<
   string,
   { title: string; preconditions: string; steps: string; expected: string }[]
 > = {
+  Gameplay: [
+    {
+      title: "Objective completion registers correctly in the mission log",
+      preconditions: "Player has an active mission with at least one incomplete objective.",
+      steps: "1. Complete the active objective\n2. Open the mission log",
+      expected: "The objective is marked complete in the mission log",
+    },
+    {
+      title: "Difficulty setting persists after loading a save",
+      preconditions: "Player has a save file created on a non-default difficulty.",
+      steps: "1. Set a non-default difficulty\n2. Save and quit\n3. Load the save",
+      expected: "The difficulty matches what was set before saving",
+    },
+  ],
   Combat: [
     {
       title: "Melee weapon deals listed damage to an unshielded enemy",
@@ -517,7 +629,49 @@ const TEST_CASE_TEMPLATES: Record<
       expected: "Player takes zero damage and the enemy is staggered",
     },
   ],
-  "UI/HUD": [
+  Movement: [
+    {
+      title: "Player does not clip through geometry when sprinting into a corner",
+      preconditions: "Player has access to a tight interior corner and sprint enabled.",
+      steps: "1. Sprint directly into a tight interior corner\n2. Observe collision behavior",
+      expected: "Player collides with the corner normally with no clipping",
+    },
+    {
+      title: "Double-jump input is not dropped after a wall-slide",
+      preconditions: "Player has double-jump unlocked and access to a slidable wall surface.",
+      steps: "1. Wall-slide down a surface\n2. Jump away from the wall\n3. Immediately press jump again",
+      expected: "The double-jump triggers immediately with no dropped input",
+    },
+  ],
+  AI: [
+    {
+      title: "Enemies path around destructible cover correctly",
+      preconditions: "Player has access to an enemy and destructible cover geometry.",
+      steps: "1. Place destructible cover between player and enemy\n2. Aggro the enemy",
+      expected: "Enemy paths around or through cover without getting stuck",
+    },
+    {
+      title: "Boss completes its second phase transition",
+      preconditions: "Player is engaged in a boss encounter with a scripted phase-2 transition.",
+      steps: "1. Reduce boss HP to the phase-2 threshold\n2. Observe the transition",
+      expected: "Boss plays its phase-2 transition and enters phase 2",
+    },
+  ],
+  Animation: [
+    {
+      title: "Reload animation cancels correctly when swapping weapons mid-animation",
+      preconditions: "Player has two weapons equipped and one is mid-reload.",
+      steps: "1. Start a reload\n2. Swap to the other weapon before it finishes\n3. Observe the animation",
+      expected: "The reload animation cancels immediately on swap",
+    },
+    {
+      title: "Idle-to-run transition does not flash a T-pose",
+      preconditions: "Player character is standing still.",
+      steps: "1. Stand still\n2. Start running\n3. Observe the transition frame",
+      expected: "The transition blends smoothly with no bind-pose frame",
+    },
+  ],
+  UI: [
     {
       title: "Health bar reflects current HP immediately after respawn",
       preconditions: "Player is in an active match with respawns enabled.",
@@ -573,35 +727,21 @@ const TEST_CASE_TEMPLATES: Record<
       expected: "Loop transition is seamless with no audible pop",
     },
   ],
-  "AI/Enemies": [
+  Performance: [
     {
-      title: "Enemies path around destructible cover correctly",
-      preconditions: "Player has access to an enemy and destructible cover geometry.",
-      steps: "1. Place destructible cover between player and enemy\n2. Aggro the enemy",
-      expected: "Enemy paths around or through cover without getting stuck",
+      title: "Frame rate stays above 30fps during a large particle effect",
+      preconditions: "A frame rate counter is enabled and a large particle effect is available to trigger.",
+      steps: "1. Trigger a large particle effect (e.g. an explosion)\n2. Monitor frame rate",
+      expected: "Frame rate remains at or above 30fps",
     },
     {
-      title: "Boss completes its second phase transition",
-      preconditions: "Player is engaged in a boss encounter with a scripted phase-2 transition.",
-      steps: "1. Reduce boss HP to the phase-2 threshold\n2. Observe the transition",
-      expected: "Boss plays its phase-2 transition and enters phase 2",
-    },
-  ],
-  Progression: [
-    {
-      title: "XP earned is saved if the game closes mid-loading-screen",
-      preconditions: "Player has a valid save file and is signed in.",
-      steps: "1. Earn XP\n2. Trigger a loading screen\n3. Force-quit during the load",
-      expected: "XP earned before the quit is persisted on next launch",
-    },
-    {
-      title: "Skill tree points persist across a prestige reset",
-      preconditions: "Player has unspent skill tree points and meets the prestige requirement.",
-      steps: "1. Allocate skill tree points\n2. Prestige\n3. Check skill tree points",
-      expected: "Points behave per the documented prestige rules with no silent loss",
+      title: "Memory usage remains stable during a long play session",
+      preconditions: "A memory usage monitor is available and the game can run continuously.",
+      steps: "1. Play continuously for 2+ hours\n2. Monitor memory usage throughout",
+      expected: "Memory usage stays within a stable range with no unbounded growth",
     },
   ],
-  Rendering: [
+  Graphics: [
     {
       title: "Distant foliage renders without flickering",
       preconditions: "Player is in an outdoor area with foliage in the distance.",
@@ -609,38 +749,52 @@ const TEST_CASE_TEMPLATES: Record<
       expected: "Foliage renders stably with no flicker",
     },
     {
-      title: "Frame rate stays above 30fps during a large particle effect",
-      preconditions: "A frame rate counter is enabled and a large particle effect is available to trigger.",
-      steps: "1. Trigger a large particle effect (e.g. an explosion)\n2. Monitor frame rate",
-      expected: "Frame rate remains at or above 30fps",
+      title: "Shadows transition smoothly when rotating the camera near buildings",
+      preconditions: "Player is near a building with dynamic shadows enabled.",
+      steps: "1. Stand near a building\n2. Rotate the camera at close range",
+      expected: "Shadows transition smoothly with no popping",
     },
   ],
-  "Save/Load": [
+  Input: [
     {
-      title: "Save file remains valid if the game quits during autosave",
-      preconditions: "Autosave is enabled and player has progress worth saving.",
-      steps: "1. Trigger an autosave\n2. Force-quit while it is in progress\n3. Relaunch",
-      expected: "Save file loads without corruption",
+      title: "Controller vibration stops when switching to keyboard/mouse",
+      preconditions: "Player is using a controller mid-session with vibration enabled.",
+      steps: "1. Play with a controller\n2. Switch to keyboard/mouse\n3. Observe controller vibration",
+      expected: "Controller vibration stops immediately on switch",
     },
     {
-      title: "Loadout is restored correctly on continue",
-      preconditions: "Player has a save file with a custom loadout equipped.",
-      steps: "1. Set a custom loadout\n2. Quit to main menu\n3. Continue the save",
-      expected: "Loadout matches what was equipped before quitting",
+      title: "Rebound key bindings persist after relaunch",
+      preconditions: "Player has rebound at least one key from its default.",
+      steps: "1. Rebind a key\n2. Quit the game fully\n3. Relaunch and check the binding",
+      expected: "The custom binding is restored exactly as configured",
     },
   ],
-  Matchmaking: [
+  Localization: [
     {
-      title: "Matchmaking completes for a party of 3",
-      preconditions: "Three players are available to form a party and matchmaking servers are reachable.",
-      steps: "1. Form a party of 3\n2. Queue for matchmaking",
-      expected: "A match is found within the expected time window",
+      title: "Subtitle text fits within the dialogue box in German",
+      preconditions: "Game language is set to German and a dialogue line with a long translation is available.",
+      steps: "1. Set language to German\n2. Trigger the dialogue line\n3. Observe the subtitle box",
+      expected: "Subtitle text wraps or scales to stay fully within the dialogue box",
     },
     {
-      title: "Skill rating updates after a ranked match",
-      preconditions: "Player has an established skill rating and joins a ranked match.",
-      steps: "1. Complete a ranked match\n2. Check skill rating",
-      expected: "Skill rating updates according to the match result",
+      title: "Store prices are formatted per regional locale",
+      preconditions: "A non-default region is available to select and the in-game store is accessible.",
+      steps: "1. Set a non-default region\n2. Open the in-game store\n3. Check price formatting",
+      expected: "Prices use the correct currency symbol and separator for the selected region",
+    },
+  ],
+  Accessibility: [
+    {
+      title: "Colorblind mode applies to enemy health bars",
+      preconditions: "Colorblind mode is available and an enemy with a health bar is present.",
+      steps: "1. Enable colorblind mode\n2. Engage an enemy\n3. Check the health bar colors",
+      expected: "The health bar uses the colorblind-adjusted palette",
+    },
+    {
+      title: "Subtitle size setting affects cutscene subtitles",
+      preconditions: "A cutscene with subtitles is available to trigger.",
+      steps: "1. Increase the subtitle size setting\n2. Play a cutscene with subtitles",
+      expected: "Cutscene subtitles render at the increased size",
     },
   ],
 };
@@ -657,6 +811,9 @@ async function main() {
   await prisma.tester.deleteMany();
   await prisma.game.deleteMany();
   await prisma.tag.deleteMany();
+  await prisma.area.deleteMany();
+
+  const areas = await Promise.all(AREA_DEFS.map((a) => prisma.area.create({ data: a })));
 
   const tags = await Promise.all(
     [
@@ -810,8 +967,8 @@ async function main() {
     const gameBugs: Bug[] = [];
     const bugCount = 60 + Math.floor(Math.random() * 20);
     for (let i = 0; i < bugCount; i++) {
-      const area = pick(AREAS);
-      const bugDef = pick(BUG_DEFS[area]);
+      const area = pick(areas);
+      const bugDef = pick(BUG_DEFS[area.name]);
       const severity = pick(weightedPool);
       const priority = pick(priorityPool);
       const build = pick(builds);
@@ -850,7 +1007,7 @@ async function main() {
         for (let s = 0; s < screenshotCount; s++) {
           evidenceCreates.push({
             type: EvidenceType.IMAGE,
-            url: screenshotSvgDataUri({ title: bugDef.title, area, severity, buildVersion: build.version }),
+            url: screenshotSvgDataUri({ title: bugDef.title, area: area.name, severity, buildVersion: build.version }),
             caption: s === 0 ? "Repro screenshot" : `Repro screenshot ${s + 1}`,
             fileName: `screenshot-${s + 1}.svg`,
           });
@@ -859,7 +1016,7 @@ async function main() {
           const logContent = generateLogContent({
             gameName: game.name,
             buildVersion: build.version,
-            area,
+            area: area.name,
             severity,
             actual: bugDef.actual,
           });
@@ -911,7 +1068,7 @@ async function main() {
           buildId: build.id,
           sessionId: session.id,
           title: bugDef.title,
-          description: `Observed in ${area} while testing ${game.name} on build ${build.version}. Needs triage confirmation.`,
+          description: `Observed in ${area.name} while testing ${game.name} on build ${build.version}. Needs triage confirmation.`,
           stepsToReproduce: [
             `1. Start ${gameMode}`,
             `2. Enter ${map}`,
@@ -928,7 +1085,7 @@ async function main() {
           priority,
           status,
           isRegression: false,
-          area,
+          areaId: area.id,
           reportedById,
           assignedToId,
           tags: { connect: pickSome(tags, 2).map((t) => ({ id: t.id })) },
@@ -975,6 +1132,7 @@ async function main() {
         Math.floor((Date.now() - original.updatedAt.getTime()) / 86_400_000)
       );
       const regressionDaysAgo = Math.floor(Math.random() * originalResolvedDaysAgo);
+      const originalArea = areas.find((a) => a.id === original.areaId);
 
       const regressionBug = await prisma.bug.create({
         data: {
@@ -994,7 +1152,7 @@ async function main() {
           priority: original.priority,
           status: regressionStatus,
           isRegression: true,
-          area: original.area,
+          areaId: original.areaId,
           reportedById,
           assignedToId,
           evidence: {
@@ -1003,7 +1161,7 @@ async function main() {
                 type: EvidenceType.IMAGE,
                 url: screenshotSvgDataUri({
                   title: original.title,
-                  area: original.area ?? "",
+                  area: originalArea?.name ?? "",
                   severity: original.severity,
                   buildVersion: regressionBuild.version,
                 }),
@@ -1040,17 +1198,17 @@ async function main() {
     ];
 
     const testCases = await Promise.all(
-      AREAS.flatMap((area) =>
-        TEST_CASE_TEMPLATES[area].map((tc) =>
+      areas.flatMap((area) =>
+        TEST_CASE_TEMPLATES[area.name].map((tc) =>
           prisma.testCase.create({
             data: {
               gameId: game.id,
               title: tc.title,
-              description: `Regression check for ${area.toLowerCase()} systems.`,
+              description: `Regression check for ${area.name.toLowerCase()} systems.`,
               preconditions: tc.preconditions,
               steps: tc.steps,
               expected: tc.expected,
-              category: area,
+              categoryId: area.id,
               priority: pick(testCasePriorityPool),
               platform: game.platform,
             },

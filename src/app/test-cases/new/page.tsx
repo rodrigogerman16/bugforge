@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getShellGames } from "@/lib/data";
+import { getShellGames, getAreas } from "@/lib/data";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 
 export default async function NewTestCasePage({
@@ -9,7 +9,7 @@ export default async function NewTestCasePage({
   searchParams: Promise<{ game?: string }>;
 }) {
   const { game: gameSlug } = await searchParams;
-  const games = await getShellGames();
+  const [games, areas] = await Promise.all([getShellGames(), getAreas()]);
   const defaultGame = games.find((g) => g.slug === gameSlug) ?? games[0];
 
   return (
@@ -31,7 +31,7 @@ export default async function NewTestCasePage({
       {!defaultGame ? (
         <p className="text-sm text-[color:var(--bf-ink-muted)]">No games exist yet.</p>
       ) : (
-        <TestCaseForm gameId={defaultGame.id} games={games.map((g) => ({ id: g.id, name: g.name }))} />
+        <TestCaseForm gameId={defaultGame.id} games={games.map((g) => ({ id: g.id, name: g.name }))} areas={areas} />
       )}
     </div>
   );

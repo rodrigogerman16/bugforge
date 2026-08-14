@@ -53,7 +53,7 @@ type GameRef = { name: string; slug: string; coverColor: string };
 
 type SearchResults = {
   bugs: Array<{ id: string; title: string; severity: BugSeverity; status: BugStatus; game: GameRef }>;
-  testCases: Array<{ id: string; title: string; category: string | null; game: GameRef }>;
+  testCases: Array<{ id: string; title: string; category: { name: string } | null; game: GameRef }>;
   builds: Array<{ id: string; version: string; branch: string; game: GameRef }>;
   sessions: Array<{ id: string; name: string; status: SessionStatus; game: GameRef }>;
   testers: Array<{ id: string; name: string; email: string; role: string }>;
@@ -234,7 +234,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
       key: `testcase-${tc.id}`,
       group: "Test Cases",
       label: tc.title,
-      sublabel: tc.category ? `${tc.game.name} · ${tc.category}` : tc.game.name,
+      sublabel: tc.category ? `${tc.game.name} · ${tc.category.name}` : tc.game.name,
       enabled: true,
       icon: ListChecks,
       iconColor: tc.game.coverColor,

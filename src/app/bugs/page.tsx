@@ -51,7 +51,7 @@ export default async function BugsPage({
   const severity = isBugSeverity(params.severity) ? params.severity : undefined;
   const priority = isBugPriority(params.priority) ? params.priority : undefined;
   const status = isBugStatus(params.status) ? params.status : undefined;
-  const area = params.area || undefined;
+  const areaId = params.area || undefined;
   const build = params.build || undefined;
   const platform = isPlatform(params.platform) ? params.platform : undefined;
   const reporterId = params.reporter || undefined;
@@ -70,7 +70,7 @@ export default async function BugsPage({
       severity,
       priority,
       status,
-      area,
+      areaId,
       build,
       platform,
       reporterId,
@@ -94,7 +94,7 @@ export default async function BugsPage({
       severity,
       priority,
       status,
-      area,
+      area: areaId,
       build,
       platform,
       reporter: reporterId,
@@ -122,7 +122,10 @@ export default async function BugsPage({
   if (severity) activeFilters.push({ key: "severity", label: SEVERITY_META[severity].label, color: SEVERITY_META[severity].color });
   if (priority) activeFilters.push({ key: "priority", label: `${PRIORITY_META[priority].code} — ${PRIORITY_META[priority].label}`, color: PRIORITY_META[priority].color });
   if (status) activeFilters.push({ key: "status", label: BUG_STATUS_META[status].label, color: BUG_STATUS_META[status].color });
-  if (area) activeFilters.push({ key: "area", label: area });
+  if (areaId) {
+    const area = filterOptions.areas.find((a) => a.id === areaId);
+    activeFilters.push({ key: "area", label: area?.name ?? "…" });
+  }
   if (build) activeFilters.push({ key: "build", label: build });
   if (platform) activeFilters.push({ key: "platform", label: PLATFORM_LABEL[platform] });
   if (reporterId) {
@@ -172,6 +175,7 @@ export default async function BugsPage({
         platforms={filterOptions.platforms}
         testers={filterOptions.testers}
         tags={filterOptions.tags}
+        areas={filterOptions.areas}
         activeFilterCount={activeFilters.length - (q ? 1 : 0)}
       />
 

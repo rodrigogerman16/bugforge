@@ -1,6 +1,7 @@
 import { AlertTriangle } from "lucide-react";
 import { getCoverageByDiscipline } from "@/lib/data";
 import { qualityBand } from "@/lib/quality-score";
+import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { CoverageBar } from "@/components/coverage/coverage-bar";
 
 export default async function CoveragePage({
@@ -35,7 +36,7 @@ export default async function CoveragePage({
           <AlertTriangle size={15} className="mt-0.5 shrink-0 text-[color:var(--bf-status-warning)]" />
           <span>
             {needsAttention.length} of {coverage.length} areas haven&apos;t received enough testing:{" "}
-            {needsAttention.map((c) => c.discipline).join(", ")}.
+            {needsAttention.map((c) => QA_DISCIPLINE_META[c.discipline].label).join(", ")}.
           </span>
         </div>
       )}

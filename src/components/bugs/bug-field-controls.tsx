@@ -9,6 +9,7 @@ import {
   updateBugPriority,
   updateBugSeverity,
   updateBugAssignee,
+  updateBugArea,
 } from "@/app/bugs/[id]/bug-field-actions";
 import type { BugStatus, BugPriority, BugSeverity } from "@/generated/prisma/enums";
 
@@ -101,6 +102,36 @@ export function BugAssigneeControl({
       {testers.map((t) => (
         <option key={t.id} value={t.id}>
           {t.name}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+type Area = { id: string; name: string };
+
+export function BugAreaControl({
+  bugId,
+  areaId,
+  areas,
+}: {
+  bugId: string;
+  areaId: string | null;
+  areas: Area[];
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <select
+      value={areaId ?? ""}
+      disabled={isPending}
+      onChange={(e) => startTransition(() => updateBugArea(bugId, e.target.value || null))}
+      className="appearance-none rounded-md border border-transparent bg-transparent py-0 pr-4 text-[13px] text-[color:var(--bf-ink-muted)] outline-none hover:border-[color:var(--bf-border)] disabled:opacity-50"
+    >
+      <option value="">No area</option>
+      {areas.map((a) => (
+        <option key={a.id} value={a.id}>
+          {a.name}
         </option>
       ))}
     </select>

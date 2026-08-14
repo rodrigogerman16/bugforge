@@ -56,6 +56,11 @@ export async function updateBugSeverity(bugId: string, severity: BugSeverity) {
   revalidateBug(bugId);
 }
 
+export async function updateBugArea(bugId: string, areaId: string | null) {
+  await prisma.bug.update({ where: { id: bugId }, data: { areaId } });
+  revalidateBug(bugId);
+}
+
 export async function updateBugAssignee(bugId: string, assigneeId: string | null) {
   const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { assignedToId: true } });
   if (!bug || bug.assignedToId === assigneeId) return;

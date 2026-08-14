@@ -65,7 +65,7 @@ export default async function TestCasesPage({
                         {tc.title}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{tc.category ?? "—"}</td>
+                    <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{tc.category?.name ?? "—"}</td>
                     <td className="px-4 py-3">
                       <span className="font-medium" style={{ color: priorityMeta.color }}>
                         {priorityMeta.label}

@@ -154,7 +154,8 @@ model Bug {
   priority    BugPriority @default(P2)
   status      BugStatus   @default(NEW)
   isRegression Boolean    @default(false)
-  area        String?
+  areaId      String?
+  area        Area?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
   stepsToReproduce String?
   expectedResult String?
   actualResult   String?
@@ -342,7 +343,8 @@ model TestCase {
   preconditions String?
   steps         String
   expected      String
-  category      String?
+  categoryId    String?
+  category      Area?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   priority      TestCasePriority @default(MEDIUM)
   platform      Platform         @default(PC)
   createdAt     DateTime         @default(now())
@@ -351,6 +353,29 @@ model TestCase {
   game          Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
   runs          TestRun[]
+}
+
+enum QADiscipline {
+  GAMEPLAY
+  UI
+  AUDIO
+  PERFORMANCE
+  NETWORKING
+  ACCESSIBILITY
+  LOCALIZATION
+}
+
+// The real, user-manageable game-area taxonomy — replaces what used to be a
+// hardcoded list. Custom areas are just new rows here; discipline is an
+// optional higher-level grouping used only by the coverage page.
+model Area {
+  id         String        @id @default(cuid())
+  name       String        @unique
+  discipline QADiscipline?
+  createdAt  DateTime      @default(now())
+
+  bugs      Bug[]
+  testCases TestCase[]
 }
 
 model TestRun {

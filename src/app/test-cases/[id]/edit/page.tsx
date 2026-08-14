@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getTestCaseDetail } from "@/lib/data";
+import { getTestCaseDetail, getAreas } from "@/lib/data";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 
 export default async function EditTestCasePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const testCase = await getTestCaseDetail(id);
+  const [testCase, areas] = await Promise.all([getTestCaseDetail(id), getAreas()]);
   if (!testCase) notFound();
 
   return (
@@ -27,6 +27,7 @@ export default async function EditTestCasePage({ params }: { params: Promise<{ i
 
       <TestCaseForm
         gameId={testCase.gameId}
+        areas={areas}
         testCaseId={testCase.id}
         initial={{
           title: testCase.title,
@@ -34,7 +35,7 @@ export default async function EditTestCasePage({ params }: { params: Promise<{ i
           preconditions: testCase.preconditions ?? "",
           steps: testCase.steps,
           expected: testCase.expected,
-          category: testCase.category ?? "",
+          categoryId: testCase.categoryId,
           priority: testCase.priority,
           platform: testCase.platform,
         }}

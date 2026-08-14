@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_PRIORITY_ORDER } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { AREAS } from "@/lib/areas";
 import { createTestCase, updateTestCase, type TestCaseInput } from "@/app/test-cases/actions";
 import type { TestCasePriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -18,11 +17,13 @@ const labelClass = "mb-1.5 block text-[12px] font-medium text-[color:var(--bf-in
 export function TestCaseForm({
   gameId,
   games,
+  areas,
   testCaseId,
   initial,
 }: {
   gameId: string;
   games?: { id: string; name: string }[];
+  areas: { id: string; name: string }[];
   testCaseId?: string;
   initial?: Partial<TestCaseInput>;
 }) {
@@ -34,7 +35,7 @@ export function TestCaseForm({
   const [preconditions, setPreconditions] = useState(initial?.preconditions ?? "");
   const [steps, setSteps] = useState(initial?.steps ?? "");
   const [expected, setExpected] = useState(initial?.expected ?? "");
-  const [category, setCategory] = useState(initial?.category || AREAS[0]);
+  const [categoryId, setCategoryId] = useState(initial?.categoryId ?? areas[0]?.id ?? "");
   const [priority, setPriority] = useState<TestCasePriority>(initial?.priority ?? "MEDIUM");
   const [platform, setPlatform] = useState<Platform>(initial?.platform ?? "PC");
 
@@ -49,7 +50,7 @@ export function TestCaseForm({
       preconditions,
       steps,
       expected,
-      category,
+      categoryId: categoryId || null,
       priority,
       platform,
     };
@@ -117,10 +118,10 @@ export function TestCaseForm({
         </div>
         <div>
           <label className={labelClass}>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputClass}>
-            {AREAS.map((a) => (
-              <option key={a} value={a}>
-                {a}
+          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
+            {areas.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
               </option>
             ))}
           </select>

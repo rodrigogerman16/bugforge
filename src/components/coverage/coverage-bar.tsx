@@ -1,4 +1,5 @@
 import { qualityBand, QUALITY_BAND_META } from "@/lib/quality-score";
+import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import type { DisciplineCoverage } from "@/lib/data";
 
 export function CoverageBar({ coverage }: { coverage: DisciplineCoverage }) {
@@ -10,7 +11,9 @@ export function CoverageBar({ coverage }: { coverage: DisciplineCoverage }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm font-medium text-[color:var(--bf-ink-primary)]">{discipline}</span>
+        <span className="text-sm font-medium text-[color:var(--bf-ink-primary)]">
+          {QA_DISCIPLINE_META[discipline].label}
+        </span>
         <span className="font-mono text-sm font-semibold" style={{ color }}>
           {hasData ? `${coveragePercent}%` : "—"}
         </span>

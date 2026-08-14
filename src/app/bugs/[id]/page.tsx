@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo } from "@/lib/data";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo, getAreas } from "@/lib/data";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { CommentSection } from "@/components/comments/comment-section";
-import { BugFieldControls, BugAssigneeControl } from "@/components/bugs/bug-field-controls";
+import { BugFieldControls, BugAssigneeControl, BugAreaControl } from "@/components/bugs/bug-field-controls";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
 import { RegressionBanner } from "@/components/bugs/regression-banner";
@@ -36,13 +36,14 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity, relationships, regressionInfo] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
     getBugActivity(id),
     getBugRelationships(id),
     bug.isRegression ? getRegressionInfo(id) : Promise.resolve(null),
+    getAreas(),
   ]);
 
   return (
@@ -93,6 +94,9 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           <span>Reported by {bug.reportedBy?.name ?? "Unknown"}</span>
           <span className="flex items-center gap-1">
             Assigned to <BugAssigneeControl bugId={bug.id} assignedToId={bug.assignedToId} testers={testers} />
+          </span>
+          <span className="flex items-center gap-1">
+            Area <BugAreaControl bugId={bug.id} areaId={bug.areaId} areas={areas} />
           </span>
           {bug.session && <span>{bug.session.name}</span>}
           <span>Updated {formatRelativeTime(bug.updatedAt)} · {updatedFormatter.format(bug.createdAt)} reported</span>

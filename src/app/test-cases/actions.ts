@@ -17,7 +17,7 @@ export type TestCaseInput = {
   preconditions: string;
   steps: string;
   expected: string;
-  category: string;
+  categoryId: string | null;
   priority: TestCasePriority;
   platform: Platform;
 };
@@ -31,7 +31,7 @@ export async function createTestCase(input: TestCaseInput) {
       preconditions: input.preconditions.trim() || null,
       steps: input.steps.trim(),
       expected: input.expected.trim(),
-      category: input.category.trim() || null,
+      categoryId: input.categoryId,
       priority: input.priority,
       platform: input.platform,
     },
@@ -50,7 +50,7 @@ export async function updateTestCase(id: string, input: TestCaseInput) {
       preconditions: input.preconditions.trim() || null,
       steps: input.steps.trim(),
       expected: input.expected.trim(),
-      category: input.category.trim() || null,
+      categoryId: input.categoryId,
       priority: input.priority,
       platform: input.platform,
     },
@@ -160,7 +160,7 @@ export async function executeTestCase({
         severity: TEST_CASE_PRIORITY_TO_BUG_SEVERITY[testCase.priority],
         priority: TEST_CASE_PRIORITY_TO_BUG_PRIORITY[testCase.priority],
         status: "NEW",
-        area: testCase.category,
+        areaId: testCase.categoryId,
         reportedById: user.id,
       },
     });

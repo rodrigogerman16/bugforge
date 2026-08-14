@@ -8,7 +8,6 @@ import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { AREAS } from "@/lib/areas";
 import type { Platform } from "@/generated/prisma/enums";
 
 const STATUS_OPTIONS = [...BUG_WORKFLOW_MAIN, ...BUG_WORKFLOW_EXITS];
@@ -31,6 +30,7 @@ export function BugToolbar({
   platforms,
   testers,
   tags,
+  areas,
   activeFilterCount,
 }: {
   initialQuery: string;
@@ -38,6 +38,7 @@ export function BugToolbar({
   platforms: Platform[];
   testers: { id: string; name: string }[];
   tags: { id: string; name: string; color: string }[];
+  areas: { id: string; name: string }[];
   activeFilterCount: number;
 }) {
   const router = useRouter();
@@ -158,9 +159,9 @@ export function BugToolbar({
                 className={selectClass}
               >
                 <option value="">All areas</option>
-                {AREAS.map((area) => (
-                  <option key={area} value={area}>
-                    {area}
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
                   </option>
                 ))}
               </select>

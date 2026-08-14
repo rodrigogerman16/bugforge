@@ -11,7 +11,7 @@ import { deriveTestCaseStatus, type TestCaseStatus } from "@/lib/test-case";
 import { reproductionQualityPercent } from "@/lib/tester";
 import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
 import type { TesterRole } from "@/generated/prisma/enums";
-import { QA_DISCIPLINES, AREA_TO_DISCIPLINE, type QADiscipline } from "@/lib/coverage";
+import { QA_DISCIPLINE_ORDER, QADiscipline } from "@/lib/coverage";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -197,7 +197,7 @@ export type TestCaseSummary = {
   id: string;
   number: number;
   title: string;
-  category: string | null;
+  category: { id: string; name: string } | null;
   priority: TestCasePriority;
   platform: Platform;
   status: TestCaseStatus;
@@ -213,7 +213,7 @@ export async function getTestCases(gameSlug?: string): Promise<TestCaseSummary[]
       select: {
         id: true,
         title: true,
-        category: true,
+        category: { select: { id: true, name: true } },
         priority: true,
         platform: true,
         game: { select: { id: true, name: true, slug: true, coverColor: true } },
@@ -242,6 +242,7 @@ export async function getTestCaseDetail(id: string) {
       where: { id },
       include: {
         game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+        category: { select: { id: true, name: true } },
         runs: {
           orderBy: { runAt: "desc" },
           include: {
@@ -546,21 +547,21 @@ export type DisciplineCoverage = {
 export async function getCoverageByDiscipline(gameSlug?: string): Promise<DisciplineCoverage[]> {
   const testCases = await prisma.testCase.findMany({
     where: gameSlug && gameSlug !== "all" ? { game: { slug: gameSlug } } : undefined,
-    select: { category: true, _count: { select: { runs: true } } },
+    select: { category: { select: { discipline: true } }, _count: { select: { runs: true } } },
   });
 
   const buckets = new Map<QADiscipline, { total: number; executed: number }>();
-  for (const discipline of QA_DISCIPLINES) buckets.set(discipline, { total: 0, executed: 0 });
+  for (const discipline of QA_DISCIPLINE_ORDER) buckets.set(discipline, { total: 0, executed: 0 });
 
   for (const testCase of testCases) {
-    const discipline = testCase.category ? AREA_TO_DISCIPLINE[testCase.category] : undefined;
+    const discipline = testCase.category?.discipline;
     if (!discipline) continue;
     const bucket = buckets.get(discipline)!;
     bucket.total++;
     if (testCase._count.runs > 0) bucket.executed++;
   }
 
-  return QA_DISCIPLINES.map((discipline) => {
+  return QA_DISCIPLINE_ORDER.map((discipline) => {
     const bucket = buckets.get(discipline)!;
     return {
       discipline,
@@ -776,7 +777,7 @@ export type BugListOptions = {
   severity?: BugSeverity;
   priority?: BugPriority;
   status?: BugStatus;
-  area?: string;
+  areaId?: string;
   build?: string;
   platform?: Platform;
   reporterId?: string;
@@ -806,12 +807,32 @@ export async function getBugFilterOptions(gameSlug: string | undefined) {
   const builds = [...new Set(games.flatMap((g) => g.builds.map((b) => b.version)))];
   const platforms = [...new Set(games.map((g) => g.platform))];
 
-  const [testers, tags] = await Promise.all([
+  const [testers, tags, areas] = await Promise.all([
     prisma.tester.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     prisma.tag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, color: true } }),
+    prisma.area.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
-  return { builds, platforms, testers, tags };
+  return { builds, platforms, testers, tags, areas };
+}
+
+export type AreaSummary = { id: string; name: string; discipline: QADiscipline | null };
+
+// The real, user-manageable game-area taxonomy (see the Area model) — bugs
+// and test cases are tagged against these rows, and new custom areas are
+// just new rows created from the /areas page, not a hardcoded list.
+export async function getAreas(): Promise<AreaSummary[]> {
+  return prisma.area.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, discipline: true },
+  });
+}
+
+export async function getAreaUsageCounts(): Promise<Map<string, { bugs: number; testCases: number }>> {
+  const areas = await prisma.area.findMany({
+    select: { id: true, _count: { select: { bugs: true, testCases: true } } },
+  });
+  return new Map(areas.map((a) => [a.id, { bugs: a._count.bugs, testCases: a._count.testCases }]));
 }
 
 // Every bug gets a stable, human-friendly ticket number (BUG-1, BUG-2, …)
@@ -833,7 +854,7 @@ export async function getBugList(options: BugListOptions) {
     severity,
     priority,
     status,
-    area,
+    areaId,
     build,
     platform,
     reporterId,
@@ -863,7 +884,7 @@ export async function getBugList(options: BugListOptions) {
         ...(severity ? { severity } : {}),
         ...(priority ? { priority } : {}),
         ...(status ? { status } : {}),
-        ...(area ? { area } : {}),
+        ...(areaId ? { areaId } : {}),
         ...(build ? { build: { version: build } } : {}),
         ...(platform ? { game: { platform } } : {}),
         ...(reporterId ? { reportedById: reporterId } : {}),
@@ -877,7 +898,7 @@ export async function getBugList(options: BugListOptions) {
               OR: [
                 { title: { contains: q } },
                 { description: { contains: q } },
-                { area: { contains: q } },
+                { area: { name: { contains: q } } },
               ],
             }
           : {}),
@@ -889,7 +910,7 @@ export async function getBugList(options: BugListOptions) {
         priority: true,
         status: true,
         isRegression: true,
-        area: true,
+        area: { select: { id: true, name: true } },
         updatedAt: true,
         game: { select: { name: true, slug: true, coverColor: true } },
         build: { select: { version: true } },
@@ -913,7 +934,7 @@ export async function getBugList(options: BugListOptions) {
     severity: (a, b) => SEVERITY_ORDER.indexOf(b.severity) - SEVERITY_ORDER.indexOf(a.severity),
     priority: (a, b) => PRIORITY_ORDER.indexOf(b.priority) - PRIORITY_ORDER.indexOf(a.priority),
     status: (a, b) => STATUS_SORT_ORDER.indexOf(b.status) - STATUS_SORT_ORDER.indexOf(a.status),
-    area: (a, b) => (a.area ?? "").localeCompare(b.area ?? ""),
+    area: (a, b) => (a.area?.name ?? "").localeCompare(b.area?.name ?? ""),
     build: (a, b) => a.build.version.localeCompare(b.build.version),
     reporter: (a, b) => (a.reportedBy?.name ?? "").localeCompare(b.reportedBy?.name ?? ""),
     assignee: (a, b) => (a.assignedTo?.name ?? "").localeCompare(b.assignedTo?.name ?? ""),
@@ -938,6 +959,7 @@ export async function getBugDetail(id: string) {
         game: { select: { name: true, slug: true, coverColor: true, platform: true } },
         build: { select: { version: true, branch: true } },
         session: { select: { name: true } },
+        area: { select: { id: true, name: true } },
         reportedBy: { select: { id: true, name: true, email: true } },
         assignedTo: { select: { id: true, name: true, email: true } },
         tags: { select: { id: true, name: true, color: true } },

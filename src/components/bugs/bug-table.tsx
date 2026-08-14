@@ -332,7 +332,7 @@ export function BugTable({
                   )}
                   {isVisible("area") && (
                     <td className="whitespace-nowrap px-4 py-3 text-[color:var(--bf-ink-muted)]">
-                      {bug.area ?? "—"}
+                      {bug.area?.name ?? "—"}
                     </td>
                   )}
                   {isVisible("build") && (

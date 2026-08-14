@@ -74,7 +74,7 @@ export default async function TestCaseDetailPage({ params }: { params: Promise<{
       </header>
 
       <dl className="mb-6 grid grid-cols-3 gap-4 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4">
-        <MetaField label="Category" value={testCase.category ?? "—"} />
+        <MetaField label="Category" value={testCase.category?.name ?? "—"} />
         <MetaField label="Priority" value={priorityMeta.label} color={priorityMeta.color} />
         <MetaField label="Status" value={statusMeta.label} color={statusMeta.color} />
       </dl>

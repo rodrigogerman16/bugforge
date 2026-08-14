@@ -18,7 +18,7 @@ export async function GET(request: Request) {
         OR: [
           { title: { contains: q } },
           { description: { contains: q } },
-          { area: { contains: q } },
+          { area: { name: { contains: q } } },
         ],
       },
       orderBy: { updatedAt: "desc" },
@@ -30,12 +30,12 @@ export async function GET(request: Request) {
         OR: [
           { title: { contains: q } },
           { description: { contains: q } },
-          { category: { contains: q } },
+          { category: { name: { contains: q } } },
         ],
       },
       orderBy: { createdAt: "desc" },
       take: RESULTS_PER_TYPE,
-      select: { id: true, title: true, category: true, game: gameSelect },
+      select: { id: true, title: true, category: { select: { name: true } }, game: gameSelect },
     }),
     prisma.build.findMany({
       where: {
