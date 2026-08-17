@@ -16,7 +16,7 @@ import { QA_DISCIPLINE_ORDER, QADiscipline } from "@/lib/coverage";
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
 // release risk until it reaches Verified.
-const OPEN_STATUSES: BugStatus[] = [
+export const OPEN_STATUSES: BugStatus[] = [
   BugStatus.NEW,
   BugStatus.CONFIRMED,
   BugStatus.IN_PROGRESS,
@@ -1100,4 +1100,143 @@ export async function getBugActivity(bugId: string) {
       targetTester: { select: { id: true, name: true, role: true } },
     },
   });
+}
+
+// Everything BugForge AI's heuristics need about one bug, gathered in a
+// single query so every action (severity, duplicates, regression risk, …)
+// works from the same real snapshot instead of re-deriving it per action.
+export type AiBugContext = {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  severity: BugSeverity;
+  priority: BugPriority;
+  status: BugStatus;
+  isRegression: boolean;
+  platform: Platform;
+  stepsToReproduce: string | null;
+  expectedResult: string | null;
+  actualResult: string | null;
+  map: string | null;
+  gameMode: string | null;
+  createdAt: Date;
+  evidenceCount: number;
+  tags: string[];
+  gameId: string;
+  gameName: string;
+  gameSlug: string;
+  areaId: string | null;
+  areaName: string | null;
+  areaDiscipline: QADiscipline | null;
+  buildVersion: string;
+  buildStatus: BuildStatus;
+};
+
+export async function getBugForAi(bugId: string): Promise<AiBugContext | null> {
+  const [bug, numberMap] = await Promise.all([
+    prisma.bug.findUnique({
+      where: { id: bugId },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        severity: true,
+        priority: true,
+        status: true,
+        isRegression: true,
+        platform: true,
+        stepsToReproduce: true,
+        expectedResult: true,
+        actualResult: true,
+        map: true,
+        gameMode: true,
+        createdAt: true,
+        _count: { select: { evidence: true } },
+        tags: { select: { name: true } },
+        game: { select: { id: true, name: true, slug: true } },
+        area: { select: { id: true, name: true, discipline: true } },
+        build: { select: { version: true, status: true } },
+      },
+    }),
+    getBugNumberMap(),
+  ]);
+  if (!bug) return null;
+
+  return {
+    id: bug.id,
+    number: numberMap.get(bug.id) ?? 0,
+    title: bug.title,
+    description: bug.description,
+    severity: bug.severity,
+    priority: bug.priority,
+    status: bug.status,
+    isRegression: bug.isRegression,
+    platform: bug.platform,
+    stepsToReproduce: bug.stepsToReproduce,
+    expectedResult: bug.expectedResult,
+    actualResult: bug.actualResult,
+    map: bug.map,
+    gameMode: bug.gameMode,
+    createdAt: bug.createdAt,
+    evidenceCount: bug._count.evidence,
+    tags: bug.tags.map((t) => t.name),
+    gameId: bug.game.id,
+    gameName: bug.game.name,
+    gameSlug: bug.game.slug,
+    areaId: bug.area?.id ?? null,
+    areaName: bug.area?.name ?? null,
+    areaDiscipline: bug.area?.discipline ?? null,
+    buildVersion: bug.build.version,
+    buildStatus: bug.build.status,
+  };
+}
+
+export type DuplicateCandidateBug = {
+  id: string;
+  number: number;
+  title: string;
+  description: string;
+  status: BugStatus;
+  severity: BugSeverity;
+};
+
+// Every other non-duplicate bug in the same game — the candidate pool the
+// duplicate-detection heuristic scores by text similarity against.
+export async function getGameBugsForDuplicateScan(
+  gameId: string,
+  excludeBugId: string
+): Promise<DuplicateCandidateBug[]> {
+  const [bugs, numberMap] = await Promise.all([
+    prisma.bug.findMany({
+      where: { gameId, id: { not: excludeBugId }, status: { not: "DUPLICATE" } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, description: true, status: true, severity: true },
+    }),
+    getBugNumberMap(),
+  ]);
+  return bugs.map((b) => ({ ...b, number: numberMap.get(b.id) ?? 0 }));
+}
+
+export type AreaRiskContext = { openBugsInArea: number; regressionCountInArea: number };
+
+// The two "is this area historically unstable" signals regression-risk and
+// priority heuristics need — how many other open bugs and confirmed
+// regressions this specific area already has in this game.
+export async function getAreaRiskContext(
+  gameId: string,
+  areaId: string | null,
+  excludeBugId: string
+): Promise<AreaRiskContext> {
+  if (!areaId) return { openBugsInArea: 0, regressionCountInArea: 0 };
+
+  const [openBugsInArea, regressionCountInArea] = await Promise.all([
+    prisma.bug.count({
+      where: { gameId, areaId, id: { not: excludeBugId }, status: { in: OPEN_STATUSES } },
+    }),
+    prisma.bugRelationship.count({
+      where: { type: "REGRESSION_OF", sourceBug: { gameId, areaId } },
+    }),
+  ]);
+  return { openBugsInArea, regressionCountInArea };
 }

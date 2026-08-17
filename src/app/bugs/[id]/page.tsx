@@ -7,6 +7,7 @@ import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl, BugAreaControl } from "@/components/bugs/bug-field-controls";
+import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
 import { RegressionBanner } from "@/components/bugs/regression-banner";
@@ -84,6 +85,9 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <BugFieldControls bugId={bug.id} status={bug.status} priority={bug.priority} severity={bug.severity} />
+          <div className="ml-auto">
+            <AskAiButton />
+          </div>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-y border-[color:var(--bf-border)] py-3 text-[13px] text-[color:var(--bf-ink-muted)]">

@@ -6,6 +6,7 @@ import { ShellMobileNav } from "@/components/shell-mobile-nav";
 import { ShellUIProvider } from "@/components/shell-ui-provider";
 import { TopBar } from "@/components/topbar";
 import { CommandPalette } from "@/components/command-palette";
+import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
 import { getShellGames, getCurrentUser } from "@/lib/data";
 import "./globals.css";
 
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Suspense fallback={null}>
             <CommandPalette games={games} />
           </Suspense>
+          <AiAssistantPanel />
         </ShellUIProvider>
       </body>
     </html>

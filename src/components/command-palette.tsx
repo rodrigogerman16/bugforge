@@ -62,7 +62,7 @@ type SearchResults = {
 const EMPTY_RESULTS: SearchResults = { bugs: [], testCases: [], builds: [], sessions: [], testers: [] };
 
 export function CommandPalette({ games }: { games: GameOption[] }) {
-  const { commandPaletteOpen, setCommandPaletteOpen } = useShellUI();
+  const { commandPaletteOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
@@ -183,13 +183,13 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
         key: "action-ask-ai",
         group: "Quick Actions",
         label: "Ask BugForge AI",
-        sublabel: "Coming soon",
-        enabled: false,
+        sublabel: "Open the internal QA assistant",
+        enabled: true,
         icon: Sparkles,
-        run: () => {},
+        run: () => setAiPanelOpen(true),
       },
     ],
-    [contextGame, router]
+    [contextGame, router, setAiPanelOpen]
   );
 
   const staticItems = useMemo<PaletteItem[]>(() => {

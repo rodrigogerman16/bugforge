@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search } from "lucide-react";
+import { Menu, Search, Sparkles } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { Brand } from "@/components/brand";
 import { NotificationsMenu } from "@/components/notifications-menu";
@@ -11,7 +11,7 @@ export function TopBar({
 }: {
   user: { name: string; email: string; role: string };
 }) {
-  const { setMobileNavOpen, setCommandPaletteOpen } = useShellUI();
+  const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-4 sm:px-6">
@@ -46,6 +46,14 @@ export function TopBar({
         aria-label="Search"
       >
         <Search size={16} />
+      </button>
+
+      <button
+        onClick={() => setAiPanelOpen(true)}
+        className="flex items-center gap-1.5 rounded-lg border border-[color:var(--bf-brand)]/30 px-2.5 py-1.5 text-[12px] font-medium text-[color:var(--bf-brand)] hover:bg-[color:var(--bf-brand-soft)]"
+      >
+        <Sparkles size={13} />
+        <span className="hidden sm:inline">BugForge AI</span>
       </button>
 
       <NotificationsMenu />

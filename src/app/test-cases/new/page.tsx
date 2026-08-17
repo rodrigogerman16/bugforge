@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getShellGames, getAreas } from "@/lib/data";
+import { getShellGames, getAreas, getBugForAi } from "@/lib/data";
+import { draftTestCaseFromBug } from "@/lib/ai/heuristics";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 
 export default async function NewTestCasePage({
   searchParams,
 }: {
-  searchParams: Promise<{ game?: string }>;
+  searchParams: Promise<{ game?: string; fromBug?: string }>;
 }) {
-  const { game: gameSlug } = await searchParams;
-  const [games, areas] = await Promise.all([getShellGames(), getAreas()]);
-  const defaultGame = games.find((g) => g.slug === gameSlug) ?? games[0];
+  const { game: gameSlug, fromBug } = await searchParams;
+  const [games, areas, sourceBug] = await Promise.all([
+    getShellGames(),
+    getAreas(),
+    fromBug ? getBugForAi(fromBug) : Promise.resolve(null),
+  ]);
+  const defaultGame = (sourceBug ? games.find((g) => g.id === sourceBug.gameId) : undefined) ?? games.find((g) => g.slug === gameSlug) ?? games[0];
+  const draft = sourceBug ? draftTestCaseFromBug(sourceBug) : null;
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-8">
@@ -26,6 +32,11 @@ export default async function NewTestCasePage({
         <h1 className="text-2xl font-bold tracking-wide text-[color:var(--bf-ink-primary)] uppercase">
           New Test Case
         </h1>
+        {sourceBug && (
+          <p className="mt-1 text-[12px] text-[color:var(--bf-ink-muted)]">
+            Drafted by BugForge AI from BUG-{sourceBug.number} ({sourceBug.title}).
+          </p>
+        )}
       </header>
 
       {!defaultGame ? (
@@ -36,6 +47,20 @@ export default async function NewTestCasePage({
           games={games.map((g) => ({ id: g.id, name: g.name }))}
           gamePlatformsById={Object.fromEntries(games.map((g) => [g.id, g.platforms]))}
           areas={areas}
+          initial={
+            draft && sourceBug
+              ? {
+                  title: draft.title,
+                  description: draft.description,
+                  preconditions: draft.preconditions,
+                  steps: draft.steps,
+                  expected: draft.expected,
+                  categoryId: draft.categoryId,
+                  priority: draft.priority,
+                  platform: sourceBug.platform,
+                }
+              : undefined
+          }
         />
       )}
     </div>

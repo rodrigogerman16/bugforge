@@ -9,6 +9,8 @@ type ShellUIContextValue = {
   setMobileNavOpen: (open: boolean) => void;
   commandPaletteOpen: boolean;
   setCommandPaletteOpen: (open: boolean) => void;
+  aiPanelOpen: boolean;
+  setAiPanelOpen: (open: boolean) => void;
   sidebarCollapsed: boolean;
   toggleSidebarCollapsed: () => void;
 };
@@ -18,6 +20,7 @@ const ShellUIContext = createContext<ShellUIContextValue | null>(null);
 export function ShellUIProvider({ children }: { children: ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,8 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
         setMobileNavOpen,
         commandPaletteOpen,
         setCommandPaletteOpen,
+        aiPanelOpen,
+        setAiPanelOpen,
         sidebarCollapsed,
         toggleSidebarCollapsed,
       }}
