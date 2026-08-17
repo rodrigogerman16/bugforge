@@ -3,13 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, ExternalLink, Loader2 } from "lucide-react";
+import { Sparkles, ExternalLink, Loader2, Check } from "lucide-react";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { createBug, type CreateBugInput } from "@/app/bugs/actions";
-import { searchDuplicateBugsForDraft } from "@/app/ai/actions";
+import { searchDuplicateBugsForDraft, suggestReproStepsForDraft } from "@/app/ai/actions";
 import type { DuplicateCandidate } from "@/lib/ai/heuristics";
 import type { BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -59,6 +59,27 @@ export function BugCreateForm({
 
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
+
+  const [suggestedSteps, setSuggestedSteps] = useState<string[]>([]);
+  const [isSuggestingSteps, startSuggestingSteps] = useTransition();
+
+  // On-demand, not live — the tester asks for a starting point rather than
+  // having one appear mid-sentence. Nothing here invents specifics the
+  // tester didn't write: it's real build data plus their own words, scaffolded
+  // into steps.
+  function requestReproStepsSuggestion() {
+    const source = `${title} ${description}`.trim();
+    if (source.length < 8 || isSuggestingSteps) return;
+    startSuggestingSteps(async () => {
+      const steps = await suggestReproStepsForDraft(selectedGameId, source);
+      setSuggestedSteps(steps);
+    });
+  }
+
+  function acceptReproStepsSuggestion() {
+    setStepsToReproduce(suggestedSteps.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+    setSuggestedSteps([]);
+  }
 
   // Live duplicate search: fires as the tester types the title/description,
   // debounced, scoped to the selected game. It only ever surfaces
@@ -251,7 +272,52 @@ export function BugCreateForm({
       </div>
 
       <div>
-        <label className={labelClass}>Steps to Reproduce</label>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className={labelClass}>Steps to Reproduce</label>
+          <button
+            type="button"
+            onClick={requestReproStepsSuggestion}
+            disabled={`${title} ${description}`.trim().length < 8 || isSuggestingSteps}
+            className="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--bf-brand)] hover:underline disabled:cursor-not-allowed disabled:text-[color:var(--bf-ink-muted)] disabled:no-underline"
+          >
+            {isSuggestingSteps ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+            Suggest steps with BugForge AI
+          </button>
+        </div>
+
+        {suggestedSteps.length > 0 && (
+          <div className="mb-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">
+              Suggested reproduction steps
+            </p>
+            <ol className="list-decimal space-y-1 pl-5 text-[12px] text-[color:var(--bf-ink-secondary)]">
+              {suggestedSteps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
+              AI-generated scaffold from your description and this game&apos;s real build — not a verified repro. Accept it and edit freely, or write your own.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={acceptReproStepsSuggestion}
+                className="flex items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-2.5 py-1.5 text-[11px] font-medium text-black hover:opacity-90"
+              >
+                <Check size={11} />
+                Use these steps
+              </button>
+              <button
+                type="button"
+                onClick={() => setSuggestedSteps([])}
+                className="rounded-md border border-[color:var(--bf-border)] px-2.5 py-1.5 text-[11px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <textarea
           value={stepsToReproduce}
           onChange={(e) => setStepsToReproduce(e.target.value)}

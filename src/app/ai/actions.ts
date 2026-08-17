@@ -18,6 +18,7 @@ import {
   draftTestCaseFromBug,
   analyzeRegressionRisk,
   buildQuickAnalysis,
+  suggestReproSteps,
   type BugQuickAnalysis,
 } from "@/lib/ai/heuristics";
 import type { AiActionKey, AiResult, AnalyzeReport } from "@/lib/ai/types";
@@ -78,6 +79,14 @@ export async function searchDuplicateBugsForDraft(
   if (title.trim().length < 6) return [];
   const candidates = await getGameBugsForDuplicateScan(gameId);
   return findDuplicateCandidates({ title, description }, candidates);
+}
+
+// Suggests a reproduction-steps scaffold for a bug that's still being
+// drafted, from whatever short description the tester has typed so far.
+export async function suggestReproStepsForDraft(gameId: string, text: string): Promise<string[]> {
+  if (text.trim().length < 8) return [];
+  const latestBuildVersion = await getLatestBuildVersion(gameId);
+  return suggestReproSteps(text, latestBuildVersion);
 }
 
 async function buildAnalyzeReport(bug: AiBugContext): Promise<AnalyzeReport> {

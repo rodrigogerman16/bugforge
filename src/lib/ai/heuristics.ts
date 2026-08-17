@@ -504,3 +504,55 @@ export function buildQuickAnalysis(
     recommendedNextTest: recommendNextTest(bug, latestBuildVersion),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Suggest reproduction steps — scaffolds a numbered repro sequence from a
+// short free-text report. Deliberately does NOT invent specific locations,
+// objects, or intermediate actions that weren't actually said: only the
+// tester's own words and real data (the game's real latest build) appear in
+// the output. What it adds is structure — a launch step, a navigate step
+// built from whatever location phrase the text actually contains, the
+// tester's own description as the repro action, and an observe step — a
+// real head start the tester is expected to edit and flesh out, not a
+// finished report.
+// ---------------------------------------------------------------------------
+
+const LOCATION_PREPOSITIONS = ["near", "inside", "within", "in", "at", "on", "by", "around"];
+const LOCATION_PATTERN = new RegExp(
+  `\\b(?:${LOCATION_PREPOSITIONS.join("|")})\\s+(?:the\\s+)?([a-z][a-z\\s'-]{2,30}?)(?=[.,;!?]|\\s+(?:and|while|when)\\b|$)`,
+  "gi"
+);
+
+function extractLocationPhrase(text: string): string | null {
+  const matches = [...text.matchAll(LOCATION_PATTERN)];
+  if (matches.length === 0) return null;
+  // The last spatial phrase in the sentence is usually the most specific
+  // one ("near the eastern edge of the warehouse" over an earlier "in the
+  // level"), so it wins over earlier matches.
+  const phrase = matches[matches.length - 1][1].trim().split(/\s+/).slice(0, 4).join(" ");
+  return phrase.length >= 3 ? phrase : null;
+}
+
+function capitalizeSentence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
+}
+
+export function suggestReproSteps(rawText: string, latestBuildVersion: string | null): string[] {
+  const cleaned = rawText.trim().replace(/\s+/g, " ");
+  if (!cleaned) return [];
+
+  const location = extractLocationPhrase(cleaned);
+  const steps: string[] = [];
+
+  steps.push(latestBuildVersion ? `Launch build ${latestBuildVersion}.` : "Launch the current build.");
+  if (location) {
+    steps.push(`Navigate to ${/^(the|a|an)\b/i.test(location) ? location : `the ${location}`}.`);
+  }
+  steps.push(`Attempt to reproduce: ${capitalizeSentence(cleaned)}`);
+  steps.push("Observe whether the issue occurs as described.");
+
+  return steps;
+}
