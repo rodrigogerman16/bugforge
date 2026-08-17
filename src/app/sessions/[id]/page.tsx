@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getSessionDetail } from "@/lib/data";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/session";
 import { SEVERITY_META } from "@/lib/severity";
 import { TEST_RUN_RESULT_META } from "@/lib/test-case";
@@ -61,7 +61,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
 
       <dl className="mb-6 grid grid-cols-2 gap-4 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4 sm:grid-cols-4">
         <StatTile label="Build" value={session.build.version} />
-        <StatTile label="Platform" value={PLATFORM_LABEL[session.game.platform]} />
+        <StatTile label="Platforms" value={formatPlatformList(session.game.platforms)} />
         <StatTile label="Testers" value={String(session.testerCount)} />
         <StatTile label="Duration" value={sessionDurationLabel(session.startedAt, session.endedAt)} />
         <StatTile label="Bugs Found" value={String(session.bugsFound)} />

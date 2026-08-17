@@ -27,6 +27,7 @@ export default async function EditTestCasePage({ params }: { params: Promise<{ i
 
       <TestCaseForm
         gameId={testCase.gameId}
+        gamePlatformsById={{ [testCase.gameId]: testCase.game.platforms }}
         areas={areas}
         testCaseId={testCase.id}
         initial={{

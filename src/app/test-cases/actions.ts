@@ -22,7 +22,15 @@ export type TestCaseInput = {
   platform: Platform;
 };
 
+async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
+  const supported = await prisma.gamePlatform.findUnique({
+    where: { gameId_platform: { gameId, platform } },
+  });
+  if (!supported) throw new Error(`This game does not support ${platform}.`);
+}
+
 export async function createTestCase(input: TestCaseInput) {
+  await assertGameSupportsPlatform(input.gameId, input.platform);
   const testCase = await prisma.testCase.create({
     data: {
       gameId: input.gameId,
@@ -42,6 +50,7 @@ export async function createTestCase(input: TestCaseInput) {
 }
 
 export async function updateTestCase(id: string, input: TestCaseInput) {
+  await assertGameSupportsPlatform(input.gameId, input.platform);
   await prisma.testCase.update({
     where: { id },
     data: {
@@ -159,6 +168,7 @@ export async function executeTestCase({
         actualResult,
         severity: TEST_CASE_PRIORITY_TO_BUG_SEVERITY[testCase.priority],
         priority: TEST_CASE_PRIORITY_TO_BUG_PRIORITY[testCase.priority],
+        platform: testCase.platform,
         status: "NEW",
         areaId: testCase.categoryId,
         reportedById: user.id,

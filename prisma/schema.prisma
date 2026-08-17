@@ -16,7 +16,6 @@ enum Platform {
   XBOX
   SWITCH
   MOBILE
-  VR
 }
 
 enum BugSeverity {
@@ -69,16 +68,29 @@ model Game {
   id          String    @id @default(cuid())
   name        String
   slug        String    @unique
-  platform    Platform
   coverColor  String    @default("#6366f1")
   releaseDate DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  platforms   GamePlatform[]
   builds      Build[]
   sessions    QASession[]
   bugs        Bug[]
   testCases   TestCase[]
+}
+
+// A game supports a subset of platforms, never assumed to be all of them —
+// this join table is what makes "which platforms does this game support" a
+// real, per-game fact instead of the single hardcoded value it used to be.
+model GamePlatform {
+  id       String   @id @default(cuid())
+  platform Platform
+
+  gameId String
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, platform])
 }
 
 enum BuildStatus {
@@ -154,6 +166,9 @@ model Bug {
   priority    BugPriority @default(P2)
   status      BugStatus   @default(NEW)
   isRegression Boolean    @default(false)
+  // Which of the game's supported platforms this bug was found on — never
+  // assume a game's whole platform lineup shares one bug list.
+  platform    Platform    @default(PC)
   areaId      String?
   area        Area?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
   stepsToReproduce String?

@@ -112,7 +112,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Environment</h2>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4 sm:grid-cols-3">
           <EnvRow label="Build" value={bug.build.version} />
-          <EnvRow label="Platform" value={PLATFORM_LABEL[bug.game.platform]} />
+          <EnvRow label="Platform" value={PLATFORM_LABEL[bug.platform]} />
           {bug.environmentOS && <EnvRow label="OS" value={bug.environmentOS} />}
           {bug.environmentGpu && <EnvRow label="GPU" value={bug.environmentGpu} />}
           {bug.map && <EnvRow label="Map" value={bug.map} />}

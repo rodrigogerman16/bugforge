@@ -1,14 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_PRIORITY_ORDER } from "@/lib/test-case";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
 import { createTestCase, updateTestCase, type TestCaseInput } from "@/app/test-cases/actions";
 import type { TestCasePriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
-
-const PLATFORM_ORDER: Platform[] = ["PC", "PLAYSTATION", "XBOX", "SWITCH", "MOBILE", "VR"];
 
 const inputClass =
   "w-full rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-2 text-sm text-[color:var(--bf-ink-primary)] outline-none placeholder:text-[color:var(--bf-ink-muted)] focus:border-[color:var(--bf-border-strong)]";
@@ -17,12 +15,14 @@ const labelClass = "mb-1.5 block text-[12px] font-medium text-[color:var(--bf-in
 export function TestCaseForm({
   gameId,
   games,
+  gamePlatformsById,
   areas,
   testCaseId,
   initial,
 }: {
   gameId: string;
   games?: { id: string; name: string }[];
+  gamePlatformsById: Record<string, Platform[]>;
   areas: { id: string; name: string }[];
   testCaseId?: string;
   initial?: Partial<TestCaseInput>;
@@ -38,6 +38,20 @@ export function TestCaseForm({
   const [categoryId, setCategoryId] = useState(initial?.categoryId ?? areas[0]?.id ?? "");
   const [priority, setPriority] = useState<TestCasePriority>(initial?.priority ?? "MEDIUM");
   const [platform, setPlatform] = useState<Platform>(initial?.platform ?? "PC");
+
+  // The platform picker adapts to whichever game is selected — never offer a
+  // platform the current game doesn't actually support.
+  const availablePlatforms = PLATFORM_ORDER.filter((p) =>
+    (gamePlatformsById[selectedGameId] ?? PLATFORM_ORDER).includes(p)
+  );
+
+  useEffect(() => {
+    if (availablePlatforms.length > 0 && !availablePlatforms.includes(platform)) {
+      setPlatform(availablePlatforms[0]);
+    }
+    // Only re-check when the selected game (and thus its supported platforms) changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGameId]);
 
   const canSubmit = title.trim() && steps.trim() && expected.trim();
 
@@ -129,7 +143,7 @@ export function TestCaseForm({
         <div>
           <label className={labelClass}>Platform</label>
           <select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className={inputClass}>
-            {PLATFORM_ORDER.map((p) => (
+            {availablePlatforms.map((p) => (
               <option key={p} value={p}>
                 {PLATFORM_LABEL[p]}
               </option>

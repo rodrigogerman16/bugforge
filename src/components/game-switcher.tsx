@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronsUpDown, Check, Gamepad2, CalendarDays, GitBranch } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META, type QualityBand } from "@/lib/quality-score";
 import type { Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,7 @@ export type GameOption = {
   id: string;
   name: string;
   slug: string;
-  platform: Platform;
+  platforms: Platform[];
   coverColor: string;
   latestBuildVersion: string | null;
   qualityScore: number;
@@ -48,10 +48,11 @@ export function GameSwitcher({
   }
 
   const label = selected ? selected.name : "All Games";
+  const platformsLabel = selected ? formatPlatformList(selected.platforms) : "";
   const sublabel = selected
     ? selected.latestBuildVersion
       ? `Build ${selected.latestBuildVersion}`
-      : PLATFORM_LABEL[selected.platform]
+      : platformsLabel
     : "All projects";
 
   return (
@@ -127,7 +128,7 @@ export function GameSwitcher({
                       {game.name}
                     </span>
                     <span className="shrink-0 text-[11px] text-[color:var(--bf-ink-muted)]">
-                      {PLATFORM_LABEL[game.platform]}
+                      {formatPlatformList(game.platforms)}
                     </span>
                   </span>
                   <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--bf-ink-muted)]">

@@ -840,35 +840,46 @@ async function main() {
     ].map((t) => prisma.tester.create({ data: t }))
   );
 
-  const games = await Promise.all([
-    prisma.game.create({
-      data: {
-        name: "King of Meat",
-        slug: "king-of-meat",
-        platform: Platform.PC,
-        coverColor: "#2a78d6",
-        releaseDate: new Date("2026-10-15"),
-      },
-    }),
-    prisma.game.create({
-      data: {
-        name: "Voidrunner Protocol",
-        slug: "voidrunner-protocol",
-        platform: Platform.PLAYSTATION,
-        coverColor: "#6366f1",
-        releaseDate: new Date("2027-02-20"),
-      },
-    }),
-    prisma.game.create({
-      data: {
-        name: "Hollow Frontier",
-        slug: "hollow-frontier",
-        platform: Platform.SWITCH,
-        coverColor: "#d6409f",
-        releaseDate: new Date("2026-12-05"),
-      },
-    }),
-  ]);
+  // Each game supports its own subset of platforms — never every platform in
+  // the enum. Voidrunner Protocol is console-only (no PC release planned);
+  // Hollow Frontier is handheld/mobile-focused with no PlayStation release.
+  const gameDefs = [
+    {
+      name: "King of Meat",
+      slug: "king-of-meat",
+      coverColor: "#2a78d6",
+      releaseDate: new Date("2026-10-15"),
+      platforms: [Platform.PC, Platform.XBOX, Platform.SWITCH],
+    },
+    {
+      name: "Voidrunner Protocol",
+      slug: "voidrunner-protocol",
+      coverColor: "#6366f1",
+      releaseDate: new Date("2027-02-20"),
+      platforms: [Platform.PLAYSTATION, Platform.XBOX],
+    },
+    {
+      name: "Hollow Frontier",
+      slug: "hollow-frontier",
+      coverColor: "#d6409f",
+      releaseDate: new Date("2026-12-05"),
+      platforms: [Platform.SWITCH, Platform.MOBILE],
+    },
+  ];
+  const games = await Promise.all(
+    gameDefs.map((def) =>
+      prisma.game.create({
+        data: {
+          name: def.name,
+          slug: def.slug,
+          coverColor: def.coverColor,
+          releaseDate: def.releaseDate,
+          platforms: { create: def.platforms.map((platform) => ({ platform })) },
+        },
+      })
+    )
+  );
+  const gamePlatforms = new Map<string, Platform[]>(games.map((g, i) => [g.id, gameDefs[i].platforms]));
 
   // Rotated per game so every BuildStatus value shows up somewhere in the
   // seeded data, not just a single hardcoded triple.
@@ -976,7 +987,10 @@ async function main() {
       const status = pick(statusPool);
       const map = pick(MAPS);
       const gameMode = pick(GAME_MODES);
-      const isPC = game.platform === Platform.PC;
+      // Each bug is filed against one of the specific platforms this game
+      // actually supports — never assume every game supports every platform.
+      const platform = pick(gamePlatforms.get(game.id)!);
+      const isPC = platform === Platform.PC;
 
       // Spread discovery over the last ~6.5 weeks so weekly metrics (bugs
       // discovered/fixed this week) have real, non-uniform data to compute from.
@@ -1032,7 +1046,7 @@ async function main() {
         if (Math.random() < 0.25) {
           const reportContent = generateDeviceReport({
             buildVersion: build.version,
-            platform: game.platform,
+            platform,
             os: environmentOS,
             gpu: environmentGpu,
             map,
@@ -1081,6 +1095,7 @@ async function main() {
           gameMode,
           environmentOS,
           environmentGpu,
+          platform,
           severity,
           priority,
           status,
@@ -1148,6 +1163,7 @@ async function main() {
           gameMode: original.gameMode,
           environmentOS: original.environmentOS,
           environmentGpu: original.environmentGpu,
+          platform: original.platform,
           severity: original.severity,
           priority: original.priority,
           status: regressionStatus,
@@ -1210,7 +1226,7 @@ async function main() {
               expected: tc.expected,
               categoryId: area.id,
               priority: pick(testCasePriorityPool),
-              platform: game.platform,
+              platform: pick(gamePlatforms.get(game.id)!),
             },
           })
         )

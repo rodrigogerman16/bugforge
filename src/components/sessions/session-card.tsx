@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Users, Timer, Bug as BugIcon, AlertTriangle, ListChecks } from "lucide-react";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/session";
 import type { SessionSummary } from "@/lib/data";
 
@@ -36,8 +36,8 @@ export function SessionCard({ session }: { session: SessionSummary }) {
           <dd className="mt-0.5 font-mono font-semibold text-[color:var(--bf-ink-primary)]">{session.build.version}</dd>
         </div>
         <div>
-          <dt className="text-[color:var(--bf-ink-muted)] uppercase">Platform</dt>
-          <dd className="mt-0.5 font-semibold text-[color:var(--bf-ink-primary)]">{PLATFORM_LABEL[session.game.platform]}</dd>
+          <dt className="text-[color:var(--bf-ink-muted)] uppercase">Platforms</dt>
+          <dd className="mt-0.5 font-semibold text-[color:var(--bf-ink-primary)]">{formatPlatformList(session.game.platforms)}</dd>
         </div>
         <div>
           <dt className="flex items-center gap-1 text-[color:var(--bf-ink-muted)] uppercase">

@@ -31,7 +31,12 @@ export default async function NewTestCasePage({
       {!defaultGame ? (
         <p className="text-sm text-[color:var(--bf-ink-muted)]">No games exist yet.</p>
       ) : (
-        <TestCaseForm gameId={defaultGame.id} games={games.map((g) => ({ id: g.id, name: g.name }))} areas={areas} />
+        <TestCaseForm
+          gameId={defaultGame.id}
+          games={games.map((g) => ({ id: g.id, name: g.name }))}
+          gamePlatformsById={Object.fromEntries(games.map((g) => [g.id, g.platforms]))}
+          areas={areas}
+        />
       )}
     </div>
   );

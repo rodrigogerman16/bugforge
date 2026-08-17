@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, Bug as BugIcon, CheckCircle2 } from "lucide-react";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
 import { BuildStatusControl } from "@/components/builds/build-status-control";
 import type { BuildSummary } from "@/lib/data";
@@ -19,7 +19,7 @@ export function BuildCard({ build }: { build: BuildSummary }) {
             {build.game.name}
           </div>
           <p className="mt-0.5 font-mono text-base font-bold text-[color:var(--bf-ink-primary)]">{build.version}</p>
-          <p className="text-[12px] text-[color:var(--bf-ink-muted)]">{PLATFORM_LABEL[build.game.platform]}</p>
+          <p className="text-[12px] text-[color:var(--bf-ink-muted)]">{formatPlatformList(build.game.platforms)}</p>
           <p className="text-[12px] text-[color:var(--bf-ink-muted)]">
             Released {releasedFormatter.format(build.releasedAt)}
           </p>

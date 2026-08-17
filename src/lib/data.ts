@@ -28,7 +28,7 @@ export type GameSummary = {
   id: string;
   name: string;
   slug: string;
-  platform: Platform;
+  platforms: Platform[];
   coverColor: string;
   latestBuild: { version: string; branch: string } | null;
   activeSession: { name: string; status: string } | null;
@@ -47,7 +47,7 @@ export async function getShellGames() {
       id: true,
       name: true,
       slug: true,
-      platform: true,
+      platforms: { select: { platform: true } },
       coverColor: true,
       releaseDate: true,
       builds: { orderBy: { releasedAt: "desc" }, take: 1, select: { version: true } },
@@ -66,7 +66,7 @@ export async function getShellGames() {
       id: game.id,
       name: game.name,
       slug: game.slug,
-      platform: game.platform,
+      platforms: game.platforms.map((p) => p.platform),
       coverColor: game.coverColor,
       latestBuildVersion: game.builds[0]?.version ?? null,
       qualityScore,
@@ -83,7 +83,7 @@ export type BuildSummary = {
   status: BuildStatus;
   releasedAt: Date;
   notes: string | null;
-  game: { id: string; name: string; slug: string; platform: Platform; coverColor: string };
+  game: { id: string; name: string; slug: string; platforms: Platform[]; coverColor: string };
   bugTotal: number;
   criticalOpenCount: number;
   highOpenCount: number;
@@ -108,7 +108,7 @@ export async function getBuilds(options?: { gameSlug?: string; buildIds?: string
       status: true,
       releasedAt: true,
       notes: true,
-      game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+      game: { select: { id: true, name: true, slug: true, coverColor: true, platforms: { select: { platform: true } } } },
       bugs: { select: { severity: true, status: true, isRegression: true } },
     },
   });
@@ -150,7 +150,7 @@ export async function getBuilds(options?: { gameSlug?: string; buildIds?: string
       status: build.status,
       releasedAt: build.releasedAt,
       notes: build.notes,
-      game: build.game,
+      game: { ...build.game, platforms: build.game.platforms.map((p) => p.platform) },
       bugTotal: build.bugs.length,
       criticalOpenCount: openCounts.CRITICAL,
       highOpenCount: openCounts.HIGH,
@@ -241,7 +241,7 @@ export async function getTestCaseDetail(id: string) {
     prisma.testCase.findUnique({
       where: { id },
       include: {
-        game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+        game: { select: { id: true, name: true, slug: true, coverColor: true, platforms: { select: { platform: true } } } },
         category: { select: { id: true, name: true } },
         runs: {
           orderBy: { runAt: "desc" },
@@ -260,6 +260,7 @@ export async function getTestCaseDetail(id: string) {
 
   return {
     ...testCase,
+    game: { ...testCase.game, platforms: testCase.game.platforms.map((p) => p.platform) },
     number: numberMap.get(testCase.id) ?? 0,
     status: deriveTestCaseStatus(testCase.runs[0]?.result),
     runs: testCase.runs.map((run) => ({
@@ -311,7 +312,7 @@ export type SessionSummary = {
   endedAt: Date | null;
   notes: string | null;
   build: { version: string };
-  game: { id: string; name: string; slug: string; platform: Platform; coverColor: string };
+  game: { id: string; name: string; slug: string; platforms: Platform[]; coverColor: string };
   testerCount: number;
   bugsFound: number;
   criticalCount: number;
@@ -329,7 +330,7 @@ async function buildSessionSummaries(
     notes: string | null;
     gameId: string;
     build: { version: string };
-    game: { id: string; name: string; slug: string; platform: Platform; coverColor: string };
+    game: { id: string; name: string; slug: string; platforms: Platform[]; coverColor: string };
     bugs: { severity: BugSeverity; reportedById: string | null }[];
     testRuns: { testerId: string | null; testCaseId: string }[];
   }[]
@@ -385,13 +386,15 @@ export async function getSessions(gameSlug?: string): Promise<SessionSummary[]> 
       notes: true,
       gameId: true,
       build: { select: { version: true } },
-      game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+      game: { select: { id: true, name: true, slug: true, coverColor: true, platforms: { select: { platform: true } } } },
       bugs: { select: { severity: true, reportedById: true } },
       testRuns: { select: { testerId: true, testCaseId: true } },
     },
   });
 
-  return buildSessionSummaries(sessions);
+  return buildSessionSummaries(
+    sessions.map((s) => ({ ...s, game: { ...s.game, platforms: s.game.platforms.map((p) => p.platform) } }))
+  );
 }
 
 export async function getSessionDetail(id: string) {
@@ -406,7 +409,7 @@ export async function getSessionDetail(id: string) {
       notes: true,
       gameId: true,
       build: { select: { version: true } },
-      game: { select: { id: true, name: true, slug: true, platform: true, coverColor: true } },
+      game: { select: { id: true, name: true, slug: true, coverColor: true, platforms: { select: { platform: true } } } },
       bugs: {
         select: { severity: true, reportedById: true },
       },
@@ -415,7 +418,9 @@ export async function getSessionDetail(id: string) {
   });
   if (!session) return null;
 
-  const [summary] = await buildSessionSummaries([session]);
+  const [summary] = await buildSessionSummaries([
+    { ...session, game: { ...session.game, platforms: session.game.platforms.map((p) => p.platform) } },
+  ]);
 
   const [testers, bugs, testRuns, numberMap] = await Promise.all([
     prisma.tester.findMany({
@@ -598,6 +603,7 @@ export async function getDashboardData(gameSlug?: string) {
     include: {
       builds: { orderBy: { releasedAt: "desc" }, take: 1 },
       sessions: { orderBy: { startedAt: "desc" } },
+      platforms: { select: { platform: true } },
       bugs: {
         select: { severity: true, status: true, isRegression: true, createdAt: true, updatedAt: true },
       },
@@ -626,7 +632,7 @@ export async function getDashboardData(gameSlug?: string) {
       id: game.id,
       name: game.name,
       slug: game.slug,
-      platform: game.platform,
+      platforms: game.platforms.map((p) => p.platform),
       coverColor: game.coverColor,
       latestBuild: game.builds[0]
         ? { version: game.builds[0].version, branch: game.builds[0].branch }
@@ -799,13 +805,13 @@ export async function getBugFilterOptions(gameSlug: string | undefined) {
     orderBy: { createdAt: "asc" },
     take: !showAll && !gameSlug ? 1 : undefined,
     select: {
-      platform: true,
+      platforms: { select: { platform: true } },
       builds: { select: { version: true }, orderBy: { releasedAt: "desc" } },
     },
   });
 
   const builds = [...new Set(games.flatMap((g) => g.builds.map((b) => b.version)))];
-  const platforms = [...new Set(games.map((g) => g.platform))];
+  const platforms = [...new Set(games.flatMap((g) => g.platforms.map((p) => p.platform)))];
 
   const [testers, tags, areas] = await Promise.all([
     prisma.tester.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
@@ -886,7 +892,7 @@ export async function getBugList(options: BugListOptions) {
         ...(status ? { status } : {}),
         ...(areaId ? { areaId } : {}),
         ...(build ? { build: { version: build } } : {}),
-        ...(platform ? { game: { platform } } : {}),
+        ...(platform ? { platform } : {}),
         ...(reporterId ? { reportedById: reporterId } : {}),
         ...(assigneeId ? { assignedToId: assigneeId === "unassigned" ? null : assigneeId } : {}),
         ...(tagId ? { tags: { some: { id: tagId } } } : {}),
@@ -956,7 +962,7 @@ export async function getBugDetail(id: string) {
     prisma.bug.findUnique({
       where: { id },
       include: {
-        game: { select: { name: true, slug: true, coverColor: true, platform: true } },
+        game: { select: { name: true, slug: true, coverColor: true } },
         build: { select: { version: true, branch: true } },
         session: { select: { name: true } },
         area: { select: { id: true, name: true } },

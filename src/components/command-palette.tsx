@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { NAV_ITEMS, NAV_FOOTER_ITEMS } from "@/lib/nav-items";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META, SESSION_STATUS_LABEL } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
@@ -208,7 +208,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
       key: `game-${game.id}`,
       group: "Games",
       label: game.name,
-      sublabel: PLATFORM_LABEL[game.platform],
+      sublabel: formatPlatformList(game.platforms),
       enabled: true,
       icon: Gamepad2,
       iconColor: game.coverColor,

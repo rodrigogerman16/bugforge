@@ -1,6 +1,6 @@
 import { GitBranch, Radio } from "lucide-react";
 import type { GameSummary } from "@/lib/data";
-import { PLATFORM_LABEL } from "@/lib/platform";
+import { formatPlatformList } from "@/lib/platform";
 import { SeverityMeter } from "@/components/severity-meter";
 
 export function GameCard({ game }: { game: GameSummary }) {
@@ -21,7 +21,7 @@ export function GameCard({ game }: { game: GameSummary }) {
               {game.name}
             </p>
             <p className="text-[12px] text-[color:var(--bf-ink-muted)]">
-              {PLATFORM_LABEL[game.platform]}
+              {formatPlatformList(game.platforms)}
             </p>
           </div>
         </div>
