@@ -2,7 +2,60 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import type { BugStatus } from "@/generated/prisma/enums";
+import { getCurrentUser } from "@/lib/data";
+import type { BugStatus, BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
+
+export type CreateBugInput = {
+  gameId: string;
+  buildId: string;
+  title: string;
+  description: string;
+  severity: BugSeverity;
+  priority: BugPriority;
+  areaId: string | null;
+  platform: Platform;
+  stepsToReproduce: string;
+  expectedResult: string;
+  actualResult: string;
+};
+
+async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
+  const supported = await prisma.gamePlatform.findUnique({
+    where: { gameId_platform: { gameId, platform } },
+  });
+  if (!supported) throw new Error(`This game does not support ${platform}.`);
+}
+
+export async function createBug(input: CreateBugInput): Promise<string> {
+  await assertGameSupportsPlatform(input.gameId, input.platform);
+  const user = await getCurrentUser();
+
+  const bug = await prisma.bug.create({
+    data: {
+      gameId: input.gameId,
+      buildId: input.buildId,
+      title: input.title.trim(),
+      description: input.description.trim(),
+      severity: input.severity,
+      priority: input.priority,
+      areaId: input.areaId,
+      platform: input.platform,
+      stepsToReproduce: input.stepsToReproduce.trim() || null,
+      expectedResult: input.expectedResult.trim() || null,
+      actualResult: input.actualResult.trim() || null,
+      status: "NEW",
+      reportedById: user.id,
+    },
+  });
+
+  await prisma.activityEvent.create({
+    data: { type: "BUG_CREATED", bugId: bug.id, actorId: user.id },
+  });
+
+  revalidatePath("/bugs");
+  revalidatePath("/");
+  return bug.id;
+}
 
 export async function bulkUpdateBugStatus(ids: string[], status: BugStatus) {
   if (ids.length === 0) return;

@@ -174,6 +174,37 @@ export async function getGamesWithBuilds() {
   });
 }
 
+export type GameCreateOption = {
+  id: string;
+  name: string;
+  slug: string;
+  platforms: Platform[];
+  builds: { id: string; version: string }[];
+};
+
+// Everything the new-bug form needs about every game: which builds it has
+// (a bug must be filed against a real one) and which platforms it supports
+// (a bug's platform must be one of them — see the Platform Support feature).
+export async function getGamesForBugCreation(): Promise<GameCreateOption[]> {
+  const games = await prisma.game.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      platforms: { select: { platform: true } },
+      builds: { orderBy: { releasedAt: "desc" }, select: { id: true, version: true } },
+    },
+  });
+  return games.map((g) => ({
+    id: g.id,
+    name: g.name,
+    slug: g.slug,
+    platforms: g.platforms.map((p) => p.platform),
+    builds: g.builds,
+  }));
+}
+
 export async function getBuildOptions() {
   return prisma.build.findMany({
     orderBy: [{ game: { name: "asc" } }, { releasedAt: "desc" }],
@@ -1205,11 +1236,15 @@ export type DuplicateCandidateBug = {
 // duplicate-detection heuristic scores by text similarity against.
 export async function getGameBugsForDuplicateScan(
   gameId: string,
-  excludeBugId: string
+  excludeBugId?: string
 ): Promise<DuplicateCandidateBug[]> {
   const [bugs, numberMap] = await Promise.all([
     prisma.bug.findMany({
-      where: { gameId, id: { not: excludeBugId }, status: { not: "DUPLICATE" } },
+      where: {
+        gameId,
+        ...(excludeBugId ? { id: { not: excludeBugId } } : {}),
+        status: { not: "DUPLICATE" },
+      },
       orderBy: { createdAt: "desc" },
       select: { id: true, title: true, description: true, status: true, severity: true },
     }),

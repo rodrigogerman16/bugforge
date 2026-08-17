@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE } from "@/lib/data";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
@@ -160,11 +160,20 @@ export default async function BugsPage({
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-[color:var(--bf-ink-primary)]">Bugs</h1>
-        <p className="mt-1 text-sm text-[color:var(--bf-ink-muted)]">
-          {totalCount} {totalCount === 1 ? "bug" : "bugs"}
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[color:var(--bf-ink-primary)]">Bugs</h1>
+          <p className="mt-1 text-sm text-[color:var(--bf-ink-muted)]">
+            {totalCount} {totalCount === 1 ? "bug" : "bugs"}
+          </p>
+        </div>
+        <Link
+          href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
+          className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+        >
+          <Plus size={13} />
+          Report Bug
+        </Link>
       </header>
 
       <BugWorkflowLegend />

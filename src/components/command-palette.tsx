@@ -136,10 +136,10 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
         key: "action-create-bug",
         group: "Quick Actions",
         label: "Create bug",
-        sublabel: "Coming soon",
-        enabled: false,
+        sublabel: contextGame ? `Report a bug in ${contextGame.name}` : "Report a new bug",
+        enabled: true,
         icon: Plus,
-        run: () => {},
+        run: () => router.push(contextGame ? `/bugs/new?game=${contextGame.slug}` : "/bugs/new"),
       },
       {
         key: "action-start-session",

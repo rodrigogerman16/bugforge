@@ -21,6 +21,7 @@ import {
   type BugQuickAnalysis,
 } from "@/lib/ai/heuristics";
 import type { AiActionKey, AiResult, AnalyzeReport } from "@/lib/ai/types";
+import type { DuplicateCandidate } from "@/lib/ai/heuristics";
 
 export type AiBugHeader = {
   id: string;
@@ -64,6 +65,19 @@ export async function getBugQuickAnalysis(bugId: string): Promise<BugQuickAnalys
   ]);
 
   return buildQuickAnalysis(bug, duplicateCandidates, areaRisk, areas.map((a) => a.name), latestBuildVersion);
+}
+
+// Live duplicate search while a bug is still being drafted — same heuristic
+// as the DUPLICATES action, just run against a title/description that
+// hasn't been saved as a bug yet, so there's no bugId to key off of.
+export async function searchDuplicateBugsForDraft(
+  gameId: string,
+  title: string,
+  description: string
+): Promise<DuplicateCandidate[]> {
+  if (title.trim().length < 6) return [];
+  const candidates = await getGameBugsForDuplicateScan(gameId);
+  return findDuplicateCandidates({ title, description }, candidates);
 }
 
 async function buildAnalyzeReport(bug: AiBugContext): Promise<AnalyzeReport> {
