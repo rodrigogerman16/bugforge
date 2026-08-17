@@ -438,3 +438,69 @@ export function analyzeRegressionRisk(bug: AiBugContext, areaRisk: AreaRiskConte
   const band: RegressionRiskBand = score >= 4 ? "SEVERE" : score >= 2.5 ? "HIGH" : score >= 1 ? "MODERATE" : "LOW";
   return { band, score, reasons };
 }
+
+// ---------------------------------------------------------------------------
+// Recommend next test — a real, actionable retest suggestion: the game's own
+// latest build plus a debug/diagnostic tool relevant to the bug's area. The
+// tool mapping is a fixed lookup (not invented per bug); the build version is
+// always the game's real latest build.
+// ---------------------------------------------------------------------------
+
+const AREA_DEBUG_TOOL: Record<string, string> = {
+  physics: "collision debug visualization",
+  movement: "collision debug visualization",
+  combat: "hit-detection debug overlay",
+  animation: "animation state debug overlay",
+  audio: "audio debug overlay",
+  graphics: "render debug overlay",
+  networking: "network diagnostics overlay",
+  performance: "performance profiler overlay",
+  ui: "UI bounds/layout debug overlay",
+  input: "input debug overlay",
+  ai: "AI behavior debug overlay",
+  accessibility: "accessibility debug overlay",
+  localization: "localization debug overlay",
+  gameplay: "verbose gameplay logging",
+};
+
+export function recommendNextTest(bug: AiBugContext, latestBuildVersion: string | null): string {
+  const tool = (bug.areaName && AREA_DEBUG_TOOL[bug.areaName.toLowerCase()]) || "verbose logging";
+  const buildLabel = latestBuildVersion ?? bug.buildVersion;
+  return `Repeat on build ${buildLabel} with ${tool} enabled.`;
+}
+
+// ---------------------------------------------------------------------------
+// Quick analysis — the compact, at-a-glance readout shown inline on the bug
+// detail page itself (distinct from the fuller multi-duplicate/multi-system
+// report the BugForge AI panel's "Analyze this bug" action produces): one
+// likely subsystem, one possible duplicate, and one retest recommendation.
+// ---------------------------------------------------------------------------
+
+export type BugQuickAnalysis = {
+  subsystem: { name: string; confidence: "primary" | "possible" } | null;
+  severity: SeveritySuggestion;
+  duplicate: { id: string; number: number; title: string; similarityPercent: number } | null;
+  regressionProbability: RegressionRiskAnalysis;
+  recommendedNextTest: string;
+};
+
+export function buildQuickAnalysis(
+  bug: AiBugContext,
+  duplicateCandidates: DuplicateCandidateBug[],
+  areaRisk: AreaRiskContext,
+  allAreaNames: string[],
+  latestBuildVersion: string | null
+): BugQuickAnalysis {
+  const topSystem = identifyAffectedSystems(bug, allAreaNames)[0] ?? null;
+  const topDuplicate = findDuplicateCandidates(bug, duplicateCandidates)[0] ?? null;
+
+  return {
+    subsystem: topSystem ? { name: topSystem.name, confidence: topSystem.confidence } : null,
+    severity: suggestSeverity(bug),
+    duplicate: topDuplicate
+      ? { id: topDuplicate.id, number: topDuplicate.number, title: topDuplicate.title, similarityPercent: topDuplicate.similarityPercent }
+      : null,
+    regressionProbability: analyzeRegressionRisk(bug, areaRisk),
+    recommendedNextTest: recommendNextTest(bug, latestBuildVersion),
+  };
+}

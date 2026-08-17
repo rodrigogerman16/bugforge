@@ -5,6 +5,7 @@ import {
   getGameBugsForDuplicateScan,
   getAreaRiskContext,
   getAreas,
+  getLatestBuildVersion,
   type AiBugContext,
 } from "@/lib/data";
 import {
@@ -16,6 +17,8 @@ import {
   identifyAffectedSystems,
   draftTestCaseFromBug,
   analyzeRegressionRisk,
+  buildQuickAnalysis,
+  type BugQuickAnalysis,
 } from "@/lib/ai/heuristics";
 import type { AiActionKey, AiResult, AnalyzeReport } from "@/lib/ai/types";
 
@@ -44,6 +47,23 @@ export async function getAiBugHeader(bugId: string): Promise<AiBugHeader | null>
     gameName: bug.gameName,
     gameSlug: bug.gameSlug,
   };
+}
+
+// Powers the compact "BugForge AI" analysis panel shown inline on the bug
+// detail page — a smaller, five-field readout distinct from the fuller
+// report the drawer's "Analyze this bug" action produces.
+export async function getBugQuickAnalysis(bugId: string): Promise<BugQuickAnalysis | null> {
+  const bug = await getBugForAi(bugId);
+  if (!bug) return null;
+
+  const [duplicateCandidates, areaRisk, areas, latestBuildVersion] = await Promise.all([
+    getGameBugsForDuplicateScan(bug.gameId, bug.id),
+    getAreaRiskContext(bug.gameId, bug.areaId, bug.id),
+    getAreas(),
+    getLatestBuildVersion(bug.gameId),
+  ]);
+
+  return buildQuickAnalysis(bug, duplicateCandidates, areaRisk, areas.map((a) => a.name), latestBuildVersion);
 }
 
 async function buildAnalyzeReport(bug: AiBugContext): Promise<AnalyzeReport> {

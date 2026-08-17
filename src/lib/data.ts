@@ -1240,3 +1240,14 @@ export async function getAreaRiskContext(
   ]);
   return { openBugsInArea, regressionCountInArea };
 }
+
+// The real, current latest build for a game — what "recommended next test"
+// actually tells a tester to retest against, never a guessed version string.
+export async function getLatestBuildVersion(gameId: string): Promise<string | null> {
+  const build = await prisma.build.findFirst({
+    where: { gameId },
+    orderBy: { releasedAt: "desc" },
+    select: { version: true },
+  });
+  return build?.version ?? null;
+}

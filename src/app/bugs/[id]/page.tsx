@@ -8,6 +8,8 @@ import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl, BugAreaControl } from "@/components/bugs/bug-field-controls";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
+import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
+import { getBugQuickAnalysis } from "@/app/ai/actions";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
 import { RegressionBanner } from "@/components/bugs/regression-banner";
@@ -37,7 +39,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas, aiAnalysis] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
@@ -45,6 +47,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
     getBugRelationships(id),
     bug.isRegression ? getRegressionInfo(id) : Promise.resolve(null),
     getAreas(),
+    getBugQuickAnalysis(id),
   ]);
 
   return (
@@ -106,6 +109,8 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           <span>Updated {formatRelativeTime(bug.updatedAt)} · {updatedFormatter.format(bug.createdAt)} reported</span>
         </div>
       </header>
+
+      <BugAiAnalysisPanel analysis={aiAnalysis} />
 
       <section className="mb-6">
         <h2 className="mb-2 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Description</h2>
