@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline, QualityGateMetric, GateOperator } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline, QualityGateMetric, GateOperator, NotificationType } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaLibSql({
@@ -802,6 +802,8 @@ const TEST_CASE_TEMPLATES: Record<
 async function main() {
   console.log("Seeding BugForge...");
 
+  await prisma.notification.deleteMany();
+  await prisma.qualityGate.deleteMany();
   await prisma.evidence.deleteMany();
   await prisma.testRun.deleteMany();
   await prisma.testCase.deleteMany();
@@ -1272,6 +1274,120 @@ async function main() {
       { metric: QualityGateMetric.PERFORMANCE, operator: GateOperator.GREATER_THAN, threshold: 85 },
     ],
   });
+
+  // Notifications — every row is derived from data just seeded above, not
+  // fabricated: one per build actually uploaded, one per confirmed
+  // regression, one per bug currently sitting in Ready for QA, a bounded
+  // recent sample of newly-discovered Critical/Blocker bugs (team-wide),
+  // and each tester's own few most-recently-touched assignments (personal).
+  // Read/unread is real too — anything older than 3 days reads as already
+  // seen, matching what a live feed would look like the first time someone
+  // opens it, given the 0–45-day spread bug/build timestamps are seeded over.
+  console.log("Seeding notifications...");
+
+  const allBugsForNumbering = await prisma.bug.findMany({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  const bugNumberMap = new Map(allBugsForNumbering.map((b, i) => [b.id, i + 1]));
+  const unreadCutoff = new Date(Date.now() - 3 * 86_400_000);
+
+  const notificationRows: {
+    type: NotificationType;
+    title: string;
+    detail: string;
+    link: string;
+    read: boolean;
+    recipientId: string | null;
+    createdAt: Date;
+  }[] = [];
+
+  const allBuilds = await prisma.build.findMany({
+    select: { version: true, releasedAt: true, game: { select: { name: true } } },
+  });
+  for (const build of allBuilds) {
+    notificationRows.push({
+      type: NotificationType.BUILD_UPLOADED,
+      title: `Build ${build.version} uploaded`,
+      detail: `${build.game.name} — now available for testing`,
+      link: "/builds",
+      read: build.releasedAt < unreadCutoff,
+      recipientId: null,
+      createdAt: build.releasedAt,
+    });
+  }
+
+  const regressions = await prisma.bugRelationship.findMany({
+    where: { type: RelationshipType.REGRESSION_OF },
+    select: { sourceBug: { select: { id: true, title: true, createdAt: true, game: { select: { name: true } } } } },
+  });
+  for (const r of regressions) {
+    notificationRows.push({
+      type: NotificationType.REGRESSION_DETECTED,
+      title: "Regression detected",
+      detail: `BUG-${bugNumberMap.get(r.sourceBug.id) ?? 0} — ${r.sourceBug.title} (${r.sourceBug.game.name})`,
+      link: `/bugs/${r.sourceBug.id}`,
+      read: r.sourceBug.createdAt < unreadCutoff,
+      recipientId: null,
+      createdAt: r.sourceBug.createdAt,
+    });
+  }
+
+  const readyForQaBugs = await prisma.bug.findMany({
+    where: { status: BugStatus.READY_FOR_QA },
+    select: { id: true, title: true, updatedAt: true, game: { select: { name: true } } },
+  });
+  for (const bug of readyForQaBugs) {
+    notificationRows.push({
+      type: NotificationType.BUG_READY_FOR_QA,
+      title: `BUG-${bugNumberMap.get(bug.id) ?? 0} marked Ready for QA`,
+      detail: `${bug.title} — ${bug.game.name}`,
+      link: `/bugs/${bug.id}`,
+      read: bug.updatedAt < unreadCutoff,
+      recipientId: null,
+      createdAt: bug.updatedAt,
+    });
+  }
+
+  const criticalBugs = await prisma.bug.findMany({
+    where: { severity: { in: [BugSeverity.CRITICAL, BugSeverity.BLOCKER] } },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+    select: { id: true, title: true, createdAt: true, game: { select: { name: true } } },
+  });
+  for (const bug of criticalBugs) {
+    notificationRows.push({
+      type: NotificationType.CRITICAL_BUG,
+      title: "Critical bug discovered",
+      detail: `BUG-${bugNumberMap.get(bug.id) ?? 0} — ${bug.title} (${bug.game.name})`,
+      link: `/bugs/${bug.id}`,
+      read: bug.createdAt < unreadCutoff,
+      recipientId: null,
+      createdAt: bug.createdAt,
+    });
+  }
+
+  for (const tester of testers) {
+    const assignedBugs = await prisma.bug.findMany({
+      where: { assignedToId: tester.id },
+      orderBy: { updatedAt: "desc" },
+      take: 3,
+      select: { id: true, title: true, updatedAt: true, game: { select: { name: true } } },
+    });
+    for (const bug of assignedBugs) {
+      notificationRows.push({
+        type: NotificationType.BUG_ASSIGNED,
+        title: `BUG-${bugNumberMap.get(bug.id) ?? 0} assigned to you`,
+        detail: `${bug.title} — ${bug.game.name}`,
+        link: `/bugs/${bug.id}`,
+        read: bug.updatedAt < unreadCutoff,
+        recipientId: tester.id,
+        createdAt: bug.updatedAt,
+      });
+    }
+  }
+
+  await prisma.notification.createMany({ data: notificationRows });
 
   console.log("Seed complete.");
 }

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus, type TestCasePriority, type SessionStatus, type QualityGateMetric } from "@/generated/prisma/enums";
+import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus, type TestCasePriority, type SessionStatus, type QualityGateMetric, type NotificationType } from "@/generated/prisma/enums";
 import { emptySeverityCounts, SEVERITY_ORDER, type SeverityCounts } from "@/lib/severity";
 import { PRIORITY_ORDER } from "@/lib/priority";
 import { BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
@@ -1897,4 +1897,28 @@ export async function getRegressionReportData(
     entries,
     byArea: [...byArea.entries()].map(([area, count]) => ({ area, count })).sort((a, b) => b.count - a.count),
   };
+}
+
+export type NotificationSummary = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  detail: string;
+  link: string | null;
+  read: boolean;
+  createdAt: Date;
+};
+
+// Every notification is a row created at the moment its real event happened
+// (see the write sites in bugs/actions.ts, bug-field-actions.ts,
+// relationship-actions.ts, and the seed script's backfill of the same five
+// event types from data that already exists) — a null recipient is a
+// team-wide event, a set recipient is personal to that tester.
+export async function getNotifications(userId: string, limit = 30): Promise<NotificationSummary[]> {
+  return prisma.notification.findMany({
+    where: { OR: [{ recipientId: null }, { recipientId: userId }] },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { id: true, type: true, title: true, detail: true, link: true, read: true, createdAt: true },
+  });
 }

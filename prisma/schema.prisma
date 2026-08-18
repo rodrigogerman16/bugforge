@@ -156,6 +156,8 @@ model Tester {
 
   activityAsActor  ActivityEvent[] @relation("ActivityActor")
   activityAsTarget ActivityEvent[] @relation("ActivityTarget")
+
+  notifications Notification[] @relation("NotificationRecipient")
 }
 
 model Bug {
@@ -445,6 +447,34 @@ enum GateOperator {
   GREATER_THAN
   GREATER_THAN_OR_EQUAL
   EQUAL
+}
+
+enum NotificationType {
+  BUG_ASSIGNED
+  BUG_READY_FOR_QA
+  BUILD_UPLOADED
+  CRITICAL_BUG
+  REGRESSION_DETECTED
+}
+
+// A real event, not a decorative bell icon — every row is created at the
+// moment its underlying event actually happens (a bug gets assigned, a
+// build gets uploaded, a regression relationship is created, ...). A null
+// recipient is a team-wide event (everyone sees it); a set recipient is
+// personal (e.g. "assigned to you") and only that tester sees it.
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  title     String
+  detail    String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  recipientId String?
+  recipient   Tester? @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, read])
 }
 
 // A configurable release requirement — e.g. "Test pass rate must be > 95%".

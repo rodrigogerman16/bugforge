@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/data";
+import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { BugStatus, BugPriority, BugSeverity } from "@/generated/prisma/enums";
 
 function revalidateBug(bugId: string) {
@@ -12,7 +13,10 @@ function revalidateBug(bugId: string) {
 }
 
 export async function updateBugStatus(bugId: string, status: BugStatus) {
-  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { status: true } });
+  const bug = await prisma.bug.findUnique({
+    where: { id: bugId },
+    select: { status: true, title: true, createdAt: true, game: { select: { name: true } } },
+  });
   if (!bug || bug.status === status) return;
   const user = await getCurrentUser();
 
@@ -22,6 +26,16 @@ export async function updateBugStatus(bugId: string, status: BugStatus) {
       data: { type: "STATUS_CHANGED", fromValue: bug.status, toValue: status, bugId, actorId: user.id },
     }),
   ]);
+
+  if (status === "READY_FOR_QA") {
+    const number = await getBugNumber(bug.createdAt);
+    await createNotification({
+      type: "BUG_READY_FOR_QA",
+      title: `BUG-${number} marked Ready for QA`,
+      detail: `${bug.title} — ${bug.game.name}`,
+      link: `/bugs/${bugId}`,
+    });
+  }
 
   revalidateBug(bugId);
 }
@@ -62,7 +76,10 @@ export async function updateBugArea(bugId: string, areaId: string | null) {
 }
 
 export async function updateBugAssignee(bugId: string, assigneeId: string | null) {
-  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { assignedToId: true } });
+  const bug = await prisma.bug.findUnique({
+    where: { id: bugId },
+    select: { assignedToId: true, title: true, createdAt: true, game: { select: { name: true } } },
+  });
   if (!bug || bug.assignedToId === assigneeId) return;
   const user = await getCurrentUser();
 
@@ -78,6 +95,17 @@ export async function updateBugAssignee(bugId: string, assigneeId: string | null
       },
     }),
   ]);
+
+  if (assigneeId) {
+    const number = await getBugNumber(bug.createdAt);
+    await createNotification({
+      type: "BUG_ASSIGNED",
+      title: `BUG-${number} assigned to you`,
+      detail: `${bug.title} — ${bug.game.name}`,
+      link: `/bugs/${bugId}`,
+      recipientId: assigneeId,
+    });
+  }
 
   revalidateBug(bugId);
 }

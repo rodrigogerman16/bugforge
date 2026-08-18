@@ -7,7 +7,7 @@ import { ShellUIProvider } from "@/components/shell-ui-provider";
 import { TopBar } from "@/components/topbar";
 import { CommandPalette } from "@/components/command-palette";
 import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
-import { getShellGames, getCurrentUser } from "@/lib/data";
+import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,7 +26,8 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [games, user] = await Promise.all([getShellGames(), getCurrentUser()]);
+  const user = await getCurrentUser();
+  const [games, notifications] = await Promise.all([getShellGames(), getNotifications(user.id)]);
 
   return (
     <html
@@ -36,7 +37,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         <ShellUIProvider>
           <div className="flex h-dvh flex-col">
-            <TopBar user={user} />
+            <TopBar user={user} notifications={notifications} />
             <div className="flex min-h-0 flex-1">
               <Suspense fallback={null}>
                 <Sidebar games={games} />

@@ -5,11 +5,14 @@ import { useShellUI } from "@/components/shell-ui-provider";
 import { Brand } from "@/components/brand";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { UserMenu } from "@/components/user-menu";
+import type { NotificationSummary } from "@/lib/data";
 
 export function TopBar({
   user,
+  notifications,
 }: {
-  user: { name: string; email: string; role: string };
+  user: { id: string; name: string; email: string; role: string };
+  notifications: NotificationSummary[];
 }) {
   const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
 
@@ -56,7 +59,7 @@ export function TopBar({
         <span className="hidden sm:inline">BugForge AI</span>
       </button>
 
-      <NotificationsMenu />
+      <NotificationsMenu notifications={notifications} userId={user.id} />
       <UserMenu user={user} />
     </header>
   );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/data";
+import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { BugStatus, BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 
 export type CreateBugInput = {
@@ -46,11 +47,22 @@ export async function createBug(input: CreateBugInput): Promise<string> {
       status: "NEW",
       reportedById: user.id,
     },
+    include: { game: { select: { name: true } } },
   });
 
   await prisma.activityEvent.create({
     data: { type: "BUG_CREATED", bugId: bug.id, actorId: user.id },
   });
+
+  if (bug.severity === "CRITICAL" || bug.severity === "BLOCKER") {
+    const number = await getBugNumber(bug.createdAt);
+    await createNotification({
+      type: "CRITICAL_BUG",
+      title: "Critical bug discovered",
+      detail: `BUG-${number} — ${bug.title} (${bug.game.name})`,
+      link: `/bugs/${bug.id}`,
+    });
+  }
 
   revalidatePath("/bugs");
   revalidatePath("/");
@@ -59,6 +71,23 @@ export async function createBug(input: CreateBugInput): Promise<string> {
 
 export async function bulkUpdateBugStatus(ids: string[], status: BugStatus) {
   if (ids.length === 0) return;
+
+  if (status === "READY_FOR_QA") {
+    const bugs = await prisma.bug.findMany({
+      where: { id: { in: ids }, status: { not: status } },
+      select: { id: true, title: true, createdAt: true, game: { select: { name: true } } },
+    });
+    for (const bug of bugs) {
+      const number = await getBugNumber(bug.createdAt);
+      await createNotification({
+        type: "BUG_READY_FOR_QA",
+        title: `BUG-${number} marked Ready for QA`,
+        detail: `${bug.title} — ${bug.game.name}`,
+        link: `/bugs/${bug.id}`,
+      });
+    }
+  }
+
   await prisma.bug.updateMany({ where: { id: { in: ids } }, data: { status } });
   revalidatePath("/bugs");
   revalidatePath("/");
