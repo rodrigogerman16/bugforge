@@ -3,6 +3,7 @@ import { AlertTriangle, Bug as BugIcon, CheckCircle2 } from "lucide-react";
 import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
 import { BuildStatusControl } from "@/components/builds/build-status-control";
+import { BuildRiskPanel } from "@/components/ai/build-risk-panel";
 import type { BuildSummary } from "@/lib/data";
 
 const releasedFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -54,6 +55,8 @@ export function BuildCard({ build }: { build: BuildSummary }) {
           {build.testPassRate === null ? "No test runs" : `${build.testPassRate}% test pass rate`}
         </span>
       </div>
+
+      <BuildRiskPanel buildId={build.id} />
     </div>
   );
 }

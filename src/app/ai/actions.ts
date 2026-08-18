@@ -7,6 +7,7 @@ import {
   getAreas,
   getLatestBuildVersion,
   getGamePlatforms,
+  getBuildRiskContext,
   type AiBugContext,
 } from "@/lib/data";
 import {
@@ -20,7 +21,9 @@ import {
   analyzeRegressionRisk,
   buildQuickAnalysis,
   suggestReproSteps,
+  analyzeBuildReleaseRisk,
   type BugQuickAnalysis,
+  type BuildReleaseRiskAnalysis,
 } from "@/lib/ai/heuristics";
 import type { AiActionKey, AiResult, AnalyzeReport } from "@/lib/ai/types";
 import type { DuplicateCandidate } from "@/lib/ai/heuristics";
@@ -90,6 +93,13 @@ export async function suggestReproStepsForDraft(gameId: string, text: string): P
   if (text.trim().length < 8) return [];
   const latestBuildVersion = await getLatestBuildVersion(gameId);
   return suggestReproSteps(text, latestBuildVersion);
+}
+
+// Powers the on-demand "Analyze build risk" panel on each build card.
+export async function getBuildReleaseRisk(buildId: string): Promise<BuildReleaseRiskAnalysis | null> {
+  const ctx = await getBuildRiskContext(buildId);
+  if (!ctx) return null;
+  return analyzeBuildReleaseRisk(ctx);
 }
 
 async function buildAnalyzeReport(bug: AiBugContext): Promise<AnalyzeReport> {

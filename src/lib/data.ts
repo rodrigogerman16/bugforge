@@ -11,7 +11,7 @@ import { deriveTestCaseStatus, type TestCaseStatus } from "@/lib/test-case";
 import { reproductionQualityPercent } from "@/lib/tester";
 import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
 import type { TesterRole } from "@/generated/prisma/enums";
-import { QA_DISCIPLINE_ORDER, QADiscipline } from "@/lib/coverage";
+import { QA_DISCIPLINE_ORDER, QA_DISCIPLINE_META, QADiscipline } from "@/lib/coverage";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -1292,4 +1292,82 @@ export async function getLatestBuildVersion(gameId: string): Promise<string | nu
 export async function getGamePlatforms(gameId: string): Promise<Platform[]> {
   const rows = await prisma.gamePlatform.findMany({ where: { gameId }, select: { platform: true } });
   return rows.map((r) => r.platform);
+}
+
+const COVERAGE_TARGET_PERCENT = 70;
+const HIGH_PRIORITY_CLUSTER_THRESHOLD = 3;
+
+export type BuildRiskContext = {
+  buildId: string;
+  version: string;
+  status: BuildStatus;
+  gameId: string;
+  // Open BLOCKER + CRITICAL severity bugs filed against this specific build.
+  criticalOpenCount: number;
+  // Percentage-point change in this build's own regression rate versus the
+  // previous build for the same game, by release order. Null when there's
+  // no earlier build to compare against.
+  regressionRateDeltaPct: number | null;
+  // Disciplines whose real test coverage (from the Coverage page's own
+  // computation) sits below a fixed target — worst first, capped to 2.
+  belowTargetDisciplines: { label: string; coveragePercent: number | null }[];
+  // The single largest cluster of open, high-priority (P0/P1) bugs sharing
+  // one real gameMode value, when it meets the clustering threshold.
+  clusteredHighPriority: { gameMode: string; count: number } | null;
+};
+
+export async function getBuildRiskContext(buildId: string): Promise<BuildRiskContext | null> {
+  const build = await prisma.build.findUnique({
+    where: { id: buildId },
+    select: { id: true, version: true, status: true, releasedAt: true, gameId: true, game: { select: { slug: true } } },
+  });
+  if (!build) return null;
+
+  const [criticalOpenCount, thisBuildBugs, previousBuild, clusterRows, disciplineCoverage] = await Promise.all([
+    prisma.bug.count({
+      where: { buildId, status: { in: OPEN_STATUSES }, severity: { in: ["BLOCKER", "CRITICAL"] } },
+    }),
+    prisma.bug.findMany({ where: { buildId }, select: { isRegression: true } }),
+    prisma.build.findFirst({
+      where: { gameId: build.gameId, releasedAt: { lt: build.releasedAt } },
+      orderBy: { releasedAt: "desc" },
+      select: { id: true },
+    }),
+    prisma.bug.groupBy({
+      by: ["gameMode"],
+      where: { buildId, status: { in: OPEN_STATUSES }, priority: { in: ["P0", "P1"] }, gameMode: { not: null } },
+      _count: { _all: true },
+    }),
+    getCoverageByDiscipline(build.game.slug),
+  ]);
+
+  let regressionRateDeltaPct: number | null = null;
+  if (previousBuild) {
+    const prevBugs = await prisma.bug.findMany({ where: { buildId: previousBuild.id }, select: { isRegression: true } });
+    const rateOf = (bugs: { isRegression: boolean }[]) =>
+      bugs.length > 0 ? (bugs.filter((b) => b.isRegression).length / bugs.length) * 100 : 0;
+    regressionRateDeltaPct = Math.round((rateOf(thisBuildBugs) - rateOf(prevBugs)) * 10) / 10;
+  }
+
+  const belowTargetDisciplines = disciplineCoverage
+    .filter((d) => d.coveragePercent === null || d.coveragePercent < COVERAGE_TARGET_PERCENT)
+    .sort((a, b) => (a.coveragePercent ?? -1) - (b.coveragePercent ?? -1))
+    .slice(0, 2)
+    .map((d) => ({ label: QA_DISCIPLINE_META[d.discipline].label, coveragePercent: d.coveragePercent }));
+
+  const topCluster = clusterRows
+    .filter((r) => r._count._all >= HIGH_PRIORITY_CLUSTER_THRESHOLD)
+    .sort((a, b) => b._count._all - a._count._all)[0];
+  const clusteredHighPriority = topCluster ? { gameMode: topCluster.gameMode!, count: topCluster._count._all } : null;
+
+  return {
+    buildId: build.id,
+    version: build.version,
+    status: build.status,
+    gameId: build.gameId,
+    criticalOpenCount,
+    regressionRateDeltaPct,
+    belowTargetDisciplines,
+    clusteredHighPriority,
+  };
 }
