@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SmilePlus, Paperclip } from "lucide-react";
 import { CommentComposer } from "@/components/comments/comment-composer";
 import { REACTION_EMOJIS, ROLE_LABEL, initials, renderBodyWithMentions } from "@/components/comments/comment-utils";
+import { ATTACHMENT_RULES, formatBytes } from "@/lib/attachments";
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
   createComment,
@@ -106,13 +107,17 @@ export function CommentItem({
             <div className="mt-2 flex flex-wrap gap-2">
               {comment.attachments.map((a) =>
                 a.type === "IMAGE" ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={a.id}
-                    src={a.url}
-                    alt={a.fileName ?? "Attachment"}
-                    className="h-24 w-24 rounded-lg border border-[color:var(--bf-border)] object-cover"
-                  />
+                  <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={a.url}
+                      alt={a.fileName ?? "Attachment"}
+                      className="h-24 w-24 rounded-lg border border-[color:var(--bf-border)] object-cover"
+                    />
+                    <span className="mt-0.5 block text-[10px] text-[color:var(--bf-ink-muted)]">
+                      {ATTACHMENT_RULES.IMAGE.label} · {formatBytes(a.fileSizeBytes)}
+                    </span>
+                  </a>
                 ) : (
                   <a
                     key={a.id}
@@ -122,6 +127,9 @@ export function CommentItem({
                   >
                     <Paperclip size={11} />
                     {a.fileName}
+                    <span className="text-[color:var(--bf-ink-muted)]">
+                      · {ATTACHMENT_RULES[a.type].label} · {formatBytes(a.fileSizeBytes)}
+                    </span>
                   </a>
                 )
               )}

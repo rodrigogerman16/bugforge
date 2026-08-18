@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Play } from "lucide-react";
 import { EvidenceViewer, type EvidenceItem, TYPE_META } from "@/components/evidence/evidence-viewer";
+import { formatBytes } from "@/lib/attachments";
 
 export type { EvidenceItem } from "@/components/evidence/evidence-viewer";
 
@@ -45,6 +46,7 @@ export function EvidenceGallery({ items }: { items: EvidenceItem[] }) {
               <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
                 <Icon size={10} />
                 {meta.label}
+                {item.fileSizeBytes != null && <span className="text-white/60">· {formatBytes(item.fileSizeBytes)}</span>}
               </span>
             </button>
           );

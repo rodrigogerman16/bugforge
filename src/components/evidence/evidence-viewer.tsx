@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatBytes } from "@/lib/attachments";
 
 export type EvidenceType = "IMAGE" | "VIDEO" | "LOG" | "ATTACHMENT";
 
@@ -34,13 +35,6 @@ export const TYPE_META: Record<EvidenceType, { label: string; icon: typeof Image
   LOG: { label: "Log", icon: Terminal },
   ATTACHMENT: { label: "Attachment", icon: FileText },
 };
-
-function formatBytes(bytes: number | null): string {
-  if (!bytes) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 function downloadText(content: string, fileName: string) {
   const blob = new Blob([content], { type: "text/plain" });

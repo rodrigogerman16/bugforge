@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Paperclip, Send, X } from "lucide-react";
+import { Paperclip, Send, X, Loader2, AlertCircle } from "lucide-react";
 import { initials } from "@/components/comments/comment-utils";
+import { validateAttachmentFile, formatBytes, ATTACHMENT_RULES } from "@/lib/attachments";
+import { uploadAttachment } from "@/lib/upload-attachment";
 import { cn } from "@/lib/utils";
 import type { CommentAttachmentInput } from "@/app/bugs/[id]/comment-actions";
 
@@ -29,6 +31,8 @@ export function CommentComposer({
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionedIds, setMentionedIds] = useState<Set<string>>(new Set());
   const [attachments, setAttachments] = useState<CommentAttachmentInput[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,19 +55,30 @@ export function CommentComposer({
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const type = file.type.startsWith("image/") ? "IMAGE" : "ATTACHMENT";
+
+    const validation = validateAttachmentFile(file);
+    if (!validation.ok) {
+      setUploadError(validation.error);
+      return;
+    }
+
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const uploaded = await uploadAttachment(file);
       setAttachments((prev) => [
         ...prev,
-        { type, url: reader.result as string, fileName: file.name, fileSizeBytes: file.size },
+        { type: uploaded.kind, url: uploaded.url, fileName: uploaded.fileName, fileSizeBytes: uploaded.fileSizeBytes },
       ]);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
   }
 
   function handleSubmit() {
@@ -127,6 +142,9 @@ export function CommentComposer({
             >
               <Paperclip size={11} />
               {a.fileName}
+              <span className="text-[color:var(--bf-ink-muted)]">
+                · {a.type} · {formatBytes(a.fileSizeBytes)}
+              </span>
               <button
                 onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
                 aria-label="Remove attachment"
@@ -139,17 +157,27 @@ export function CommentComposer({
         </div>
       )}
 
+      {uploadError && (
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] text-[color:var(--bf-status-critical)]">
+          <AlertCircle size={12} />
+          {uploadError}
+        </p>
+      )}
+
       <div className="mt-2 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            title="Attach a file"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)]"
+            disabled={uploading}
+            title={`Attach a file (${Object.values(ATTACHMENT_RULES).map((r) => r.label.toLowerCase()).join(", ")})`}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)] disabled:opacity-50"
           >
-            <Paperclip size={14} />
+            {uploading ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} />}
           </button>
           <input ref={fileInputRef} type="file" className="hidden" onChange={handleFile} />
-          <span className="hidden text-[11px] text-[color:var(--bf-ink-muted)] sm:inline">Type @ to mention someone</span>
+          <span className="hidden text-[11px] text-[color:var(--bf-ink-muted)] sm:inline">
+            {uploading ? "Uploading…" : "Type @ to mention someone"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {onCancel && (
@@ -162,10 +190,10 @@ export function CommentComposer({
           )}
           <button
             onClick={handleSubmit}
-            disabled={isPending || !body.trim()}
+            disabled={isPending || uploading || !body.trim()}
             className={cn(
               "flex items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90",
-              (isPending || !body.trim()) && "cursor-not-allowed opacity-50 hover:opacity-50"
+              (isPending || uploading || !body.trim()) && "cursor-not-allowed opacity-50 hover:opacity-50"
             )}
           >
             <Send size={12} />

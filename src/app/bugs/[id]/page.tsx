@@ -5,6 +5,7 @@ import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivit
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
+import { EvidenceUploader } from "@/components/evidence/evidence-uploader";
 import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl, BugAreaControl } from "@/components/bugs/bug-field-controls";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
@@ -172,12 +173,17 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         </section>
       )}
 
-      {bug.evidence.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Evidence</h2>
+      <section className="mb-6">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Evidence</h2>
+          <EvidenceUploader bugId={bug.id} />
+        </div>
+        {bug.evidence.length > 0 ? (
           <EvidenceGallery items={bug.evidence} />
-        </section>
-      )}
+        ) : (
+          <p className="text-sm text-[color:var(--bf-ink-muted)]">No evidence attached yet.</p>
+        )}
+      </section>
 
       {bug.tags.length > 0 && (
         <section>
