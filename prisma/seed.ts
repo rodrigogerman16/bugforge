@@ -834,11 +834,13 @@ async function main() {
   const testers = await Promise.all(
     [
       { name: "Sam Rivera", email: "sam.rivera@bugforge.dev", role: TesterRole.QA_LEAD },
-      { name: "Priya Nair", email: "priya.nair@bugforge.dev", role: TesterRole.QA_ENGINEER },
-      { name: "Jonas Weber", email: "jonas.weber@bugforge.dev", role: TesterRole.QA_ENGINEER },
-      { name: "Mei Chen", email: "mei.chen@bugforge.dev", role: TesterRole.QA_ENGINEER },
+      { name: "Priya Nair", email: "priya.nair@bugforge.dev", role: TesterRole.QA_TESTER },
+      { name: "Jonas Weber", email: "jonas.weber@bugforge.dev", role: TesterRole.QA_TESTER },
+      { name: "Mei Chen", email: "mei.chen@bugforge.dev", role: TesterRole.QA_TESTER },
       { name: "Diego Alvarez", email: "diego.alvarez@bugforge.dev", role: TesterRole.DEVELOPER },
       { name: "Harper Lee", email: "harper.lee@bugforge.dev", role: TesterRole.PRODUCER },
+      { name: "Alex Morgan", email: "alex.morgan@bugforge.dev", role: TesterRole.ADMIN },
+      { name: "Robin Kade", email: "robin.kade@bugforge.dev", role: TesterRole.VIEWER },
     ].map((t) => prisma.tester.create({ data: t }))
   );
 

@@ -1,8 +1,10 @@
-import { getQualityGates } from "@/lib/data";
+import { getQualityGates, getCurrentUser } from "@/lib/data";
+import { canManageSettings } from "@/lib/permissions";
 import { QualityGatesForm } from "@/components/settings/quality-gates-form";
 
 export default async function SettingsPage() {
-  const gates = await getQualityGates();
+  const [gates, user] = await Promise.all([getQualityGates(), getCurrentUser()]);
+  const readOnly = !canManageSettings(user.role);
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-8">
@@ -16,10 +18,11 @@ export default async function SettingsPage() {
       <section>
         <h2 className="mb-1 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Release Requirements</h2>
         <p className="mb-3 text-[12px] text-[color:var(--bf-ink-muted)]">
-          Changes apply immediately to every build&apos;s Release Readiness page. Uncheck a requirement to stop
-          enforcing it without losing its configured threshold.
+          {readOnly
+            ? "Only Admins and QA Leads can change these — you have read-only access."
+            : "Changes apply immediately to every build's Release Readiness page. Uncheck a requirement to stop enforcing it without losing its configured threshold."}
         </p>
-        <QualityGatesForm gates={gates} />
+        <QualityGatesForm gates={gates} readOnly={readOnly} />
       </section>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { validateAttachmentFile } from "@/lib/attachments";
 import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/supabase";
+import { assertCanWrite, PermissionError } from "@/lib/permissions";
 
 // The one real upload path in the app — the comment composer and the
 // bug-evidence uploader both post here, never straight to Supabase from the
@@ -9,6 +10,13 @@ import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } fr
 // already checked (a client-side check is a UX nicety, not a trust
 // boundary — this route re-validates from scratch).
 export async function POST(request: NextRequest) {
+  try {
+    await assertCanWrite();
+  } catch (err) {
+    if (err instanceof PermissionError) return new Response(err.message, { status: 403 });
+    throw err;
+  }
+
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
   if (!file || typeof file === "string") {

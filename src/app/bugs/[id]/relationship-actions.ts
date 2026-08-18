@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { RELATIONSHIP_PICKER_OPTIONS } from "@/lib/relationships";
 import { createNotification, getBugNumber } from "@/lib/notifications";
+import { assertCanWrite } from "@/lib/permissions";
 
 export async function createRelationship({
   currentBugId,
@@ -14,6 +15,7 @@ export async function createRelationship({
   targetBugId: string;
   pickerLabel: string;
 }) {
+  await assertCanWrite();
   if (currentBugId === targetBugId) return;
 
   const option = RELATIONSHIP_PICKER_OPTIONS.find((o) => o.label === pickerLabel);
@@ -55,6 +57,7 @@ export async function createRelationship({
 }
 
 export async function deleteRelationship({ id, currentBugId }: { id: string; currentBugId: string }) {
+  await assertCanWrite();
   const relationship = await prisma.bugRelationship.delete({ where: { id } }).catch(() => null);
   if (!relationship) return;
 

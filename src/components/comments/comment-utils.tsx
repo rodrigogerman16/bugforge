@@ -3,10 +3,12 @@ import type { ReactNode } from "react";
 export const REACTION_EMOJIS = ["👍", "❤️", "😄", "🎉", "👀", "🚀"];
 
 export const ROLE_LABEL: Record<string, string> = {
+  ADMIN: "Admin",
   QA_LEAD: "QA Lead",
-  QA_ENGINEER: "QA Engineer",
+  QA_TESTER: "QA Tester",
   DEVELOPER: "Developer",
   PRODUCER: "Producer",
+  VIEWER: "Viewer",
 };
 
 export function initials(name: string): string {

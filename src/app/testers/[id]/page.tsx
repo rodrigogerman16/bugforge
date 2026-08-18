@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getTesterProfileDetail } from "@/lib/data";
+import { getTesterProfileDetail, getCurrentUser } from "@/lib/data";
 import { TESTER_ROLE_META, initials } from "@/lib/tester";
+import { canManageRoles } from "@/lib/permissions";
 import { TesterActivityFeed } from "@/components/testers/tester-activity-feed";
+import { RoleSelect } from "@/components/testers/role-select";
 
 function StatTile({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -18,10 +20,11 @@ function StatTile({ label, value, color }: { label: string; value: string; color
 
 export default async function TesterProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const tester = await getTesterProfileDetail(id);
+  const [tester, currentUser] = await Promise.all([getTesterProfileDetail(id), getCurrentUser()]);
   if (!tester) notFound();
 
   const roleMeta = TESTER_ROLE_META[tester.role];
+  const canEditRole = canManageRoles(currentUser.role);
 
   return (
     <div className="mx-auto max-w-3xl px-8 py-8">
@@ -39,9 +42,15 @@ export default async function TesterProfilePage({ params }: { params: Promise<{ 
         </span>
         <div>
           <h1 className="text-2xl font-bold text-[color:var(--bf-ink-primary)]">{tester.name}</h1>
-          <p className="text-[13px] font-medium" style={{ color: roleMeta.color }}>
-            {roleMeta.label}
-          </p>
+          {canEditRole ? (
+            <div className="mt-1">
+              <RoleSelect testerId={tester.id} role={tester.role} />
+            </div>
+          ) : (
+            <p className="text-[13px] font-medium" style={{ color: roleMeta.color }}>
+              {roleMeta.label}
+            </p>
+          )}
         </div>
       </header>
 

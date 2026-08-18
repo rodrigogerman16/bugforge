@@ -10,9 +10,11 @@ import type { NotificationSummary } from "@/lib/data";
 export function TopBar({
   user,
   notifications,
+  authConfigured,
 }: {
   user: { id: string; name: string; email: string; role: string };
   notifications: NotificationSummary[];
+  authConfigured: boolean;
 }) {
   const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
 
@@ -60,7 +62,7 @@ export function TopBar({
       </button>
 
       <NotificationsMenu notifications={notifications} userId={user.id} />
-      <UserMenu user={user} />
+      <UserMenu user={user} authConfigured={authConfigured} />
     </header>
   );
 }

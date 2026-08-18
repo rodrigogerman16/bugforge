@@ -8,6 +8,8 @@ import { TopBar } from "@/components/topbar";
 import { CommandPalette } from "@/components/command-palette";
 import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
+import { isSupabaseAuthConfigured } from "@/lib/auth";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,6 +28,25 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Auth pages (login/signup/forgot-password/reset-password) render without
+  // the dashboard shell — proxy.ts already redirects anyone without a
+  // session away from every other route, so reaching here unauthenticated
+  // means we're on one of those pages. In demo mode (Supabase Auth not
+  // configured yet), the shell always renders, same as before this feature
+  // existed.
+  const authConfigured = isSupabaseAuthConfigured();
+  const hasSession = authConfigured
+    ? Boolean((await (await createSupabaseServerClient()).auth.getUser()).data.user)
+    : true;
+
+  if (authConfigured && !hasSession) {
+    return (
+      <html lang="en" className={`${inter.variable} ${geistMono.variable} h-full antialiased`}>
+        <body className="min-h-full">{children}</body>
+      </html>
+    );
+  }
+
   const user = await getCurrentUser();
   const [games, notifications] = await Promise.all([getShellGames(), getNotifications(user.id)]);
 
@@ -37,7 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         <ShellUIProvider>
           <div className="flex h-dvh flex-col">
-            <TopBar user={user} notifications={notifications} />
+            <TopBar user={user} notifications={notifications} authConfigured={authConfigured} />
             <div className="flex min-h-0 flex-1">
               <Suspense fallback={null}>
                 <Sidebar games={games} />

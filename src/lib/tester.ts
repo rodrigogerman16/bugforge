@@ -1,10 +1,12 @@
 import type { TesterRole } from "@/generated/prisma/enums";
 
 export const TESTER_ROLE_META: Record<TesterRole, { label: string; color: string }> = {
+  ADMIN: { label: "Admin", color: "var(--bf-status-critical)" },
   QA_LEAD: { label: "QA Lead", color: "var(--bf-brand)" },
-  QA_ENGINEER: { label: "QA Engineer", color: "var(--bf-status-good)" },
+  QA_TESTER: { label: "QA Tester", color: "var(--bf-status-good)" },
   DEVELOPER: { label: "Developer", color: "var(--bf-status-warning)" },
   PRODUCER: { label: "Producer", color: "var(--bf-ink-muted)" },
+  VIEWER: { label: "Viewer", color: "var(--bf-status-low)" },
 };
 
 export function initials(name: string): string {

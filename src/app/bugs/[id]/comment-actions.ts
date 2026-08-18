@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/data";
+import { assertCanWrite } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
@@ -28,7 +28,7 @@ export async function createComment({
 }) {
   const trimmed = body.trim();
   if (!trimmed) return;
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
 
   const [comment] = await prisma.$transaction([
     prisma.comment.create({
@@ -75,7 +75,7 @@ export async function createComment({
 export async function updateComment({ id, bugId, body }: { id: string; bugId: string; body: string }) {
   const trimmed = body.trim();
   if (!trimmed) return;
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
 
   const comment = await prisma.comment.findUnique({ where: { id }, select: { authorId: true } });
   if (!comment || comment.authorId !== user.id) return;
@@ -89,7 +89,7 @@ export async function updateComment({ id, bugId, body }: { id: string; bugId: st
 }
 
 export async function deleteComment({ id, bugId }: { id: string; bugId: string }) {
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
   const comment = await prisma.comment.findUnique({ where: { id }, select: { authorId: true } });
   if (!comment || comment.authorId !== user.id) return;
 
@@ -108,7 +108,7 @@ export async function toggleReaction({
   bugId: string;
   emoji: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
 
   const existing = await prisma.reaction.findUnique({
     where: { commentId_testerId_emoji: { commentId, testerId: user.id, emoji } },

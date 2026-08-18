@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, getBugNumberMap, getTestCaseNumberMap } from "@/lib/data";
+import { getBugNumberMap, getTestCaseNumberMap } from "@/lib/data";
+import { assertCanWrite } from "@/lib/permissions";
 import {
   computeOverallResult,
   TEST_CASE_PRIORITY_TO_BUG_SEVERITY,
@@ -30,6 +31,7 @@ async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
 }
 
 export async function createTestCase(input: TestCaseInput) {
+  await assertCanWrite();
   await assertGameSupportsPlatform(input.gameId, input.platform);
   const testCase = await prisma.testCase.create({
     data: {
@@ -50,6 +52,7 @@ export async function createTestCase(input: TestCaseInput) {
 }
 
 export async function updateTestCase(id: string, input: TestCaseInput) {
+  await assertCanWrite();
   await assertGameSupportsPlatform(input.gameId, input.platform);
   await prisma.testCase.update({
     where: { id },
@@ -73,6 +76,7 @@ export async function updateTestCase(id: string, input: TestCaseInput) {
 // approve step happens client-side (checkboxes), so by the time this runs
 // every input here is one the tester explicitly chose to keep.
 export async function createTestCasesBatch(inputs: TestCaseInput[]): Promise<string[]> {
+  await assertCanWrite();
   const uniqueGamePlatforms = new Set(inputs.map((i) => `${i.gameId}:${i.platform}`));
   await Promise.all(
     [...uniqueGamePlatforms].map((key) => {
@@ -104,6 +108,7 @@ export async function createTestCasesBatch(inputs: TestCaseInput[]): Promise<str
 }
 
 export async function deleteTestCase(id: string) {
+  await assertCanWrite();
   await prisma.testCase.delete({ where: { id } });
   revalidatePath("/test-cases");
 }
@@ -119,7 +124,7 @@ export async function logTestRun({
   result: string;
   notes: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
 
   await prisma.testRun.create({
     data: {
@@ -152,7 +157,7 @@ export async function executeTestCase({
   const session = await prisma.qASession.findUnique({ where: { id: sessionId }, select: { buildId: true } });
   if (!session) return null;
 
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
   const overallResult = computeOverallResult(steps.map((s) => s.result));
 
   const testRun = await prisma.testRun.create({

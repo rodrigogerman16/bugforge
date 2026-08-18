@@ -58,10 +58,12 @@ enum SessionStatus {
 }
 
 enum TesterRole {
+  ADMIN
   QA_LEAD
-  QA_ENGINEER
+  QA_TESTER
   DEVELOPER
   PRODUCER
+  VIEWER
 }
 
 model Game {
@@ -142,9 +144,17 @@ model Tester {
   id        String     @id @default(cuid())
   name      String
   email     String     @unique
-  role      TesterRole @default(QA_ENGINEER)
+  role      TesterRole @default(VIEWER)
   avatarUrl String?
   createdAt DateTime   @default(now())
+
+  // The Supabase Auth user's id (its `sub` claim) once this person has
+  // actually signed in — nullable because seeded/demo testers don't have a
+  // real auth account until someone signs in with a matching email, at
+  // which point getCurrentUser() backfills it. Supabase Auth lives in its
+  // own project/database, so this is a soft reference (matched by email at
+  // sign-in time), not a real foreign key.
+  authUserId String? @unique
 
   reportedBugs Bug[]     @relation("ReportedBy")
   assignedBugs Bug[]     @relation("AssignedTo")

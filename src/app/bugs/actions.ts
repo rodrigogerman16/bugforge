@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/data";
+import { assertCanWrite } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { BugStatus, BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 
@@ -29,7 +29,7 @@ async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
 
 export async function createBug(input: CreateBugInput): Promise<string> {
   await assertGameSupportsPlatform(input.gameId, input.platform);
-  const user = await getCurrentUser();
+  const user = await assertCanWrite();
 
   const bug = await prisma.bug.create({
     data: {
@@ -70,6 +70,7 @@ export async function createBug(input: CreateBugInput): Promise<string> {
 }
 
 export async function bulkUpdateBugStatus(ids: string[], status: BugStatus) {
+  await assertCanWrite();
   if (ids.length === 0) return;
 
   if (status === "READY_FOR_QA") {
@@ -94,6 +95,7 @@ export async function bulkUpdateBugStatus(ids: string[], status: BugStatus) {
 }
 
 export async function bulkDeleteBugs(ids: string[]) {
+  await assertCanWrite();
   if (ids.length === 0) return;
   await prisma.bug.deleteMany({ where: { id: { in: ids } } });
   revalidatePath("/bugs");

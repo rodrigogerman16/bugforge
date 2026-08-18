@@ -26,7 +26,7 @@ export type QualityGateRowData = {
   enabled: boolean;
 };
 
-function GateRow({ gate }: { gate: QualityGateRowData }) {
+function GateRow({ gate, readOnly }: { gate: QualityGateRowData; readOnly: boolean }) {
   const [operator, setOperator] = useState(gate.operator);
   const [threshold, setThreshold] = useState(String(gate.threshold));
   const [enabled, setEnabled] = useState(gate.enabled);
@@ -47,7 +47,7 @@ function GateRow({ gate }: { gate: QualityGateRowData }) {
         <input
           type="checkbox"
           checked={enabled}
-          disabled={isPending}
+          disabled={isPending || readOnly}
           onChange={(e) => {
             setEnabled(e.target.checked);
             save({ enabled: e.target.checked });
@@ -63,7 +63,7 @@ function GateRow({ gate }: { gate: QualityGateRowData }) {
 
       <select
         value={operator}
-        disabled={isPending || !enabled}
+        disabled={isPending || !enabled || readOnly}
         onChange={(e) => {
           const value = e.target.value as GateOperator;
           setOperator(value);
@@ -82,7 +82,7 @@ function GateRow({ gate }: { gate: QualityGateRowData }) {
         type="number"
         step="0.1"
         value={threshold}
-        disabled={isPending || !enabled}
+        disabled={isPending || !enabled || readOnly}
         onChange={(e) => setThreshold(e.target.value)}
         onBlur={() => {
           const parsed = Number(threshold);
@@ -108,11 +108,11 @@ function GateRow({ gate }: { gate: QualityGateRowData }) {
   );
 }
 
-export function QualityGatesForm({ gates }: { gates: QualityGateRowData[] }) {
+export function QualityGatesForm({ gates, readOnly = false }: { gates: QualityGateRowData[]; readOnly?: boolean }) {
   return (
     <div className="divide-y divide-[color:var(--bf-border)] rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)]">
       {gates.map((gate) => (
-        <GateRow key={gate.id} gate={gate} />
+        <GateRow key={gate.id} gate={gate} readOnly={readOnly} />
       ))}
     </div>
   );

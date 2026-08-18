@@ -12,6 +12,8 @@ import { reproductionQualityPercent } from "@/lib/tester";
 import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
 import type { TesterRole } from "@/generated/prisma/enums";
 import { QA_DISCIPLINE_ORDER, QA_DISCIPLINE_META, QADiscipline } from "@/lib/coverage";
+import { isSupabaseAuthConfigured } from "@/lib/auth";
+import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
 
 // "Open" means still on the pre-verification side of the workflow — a Fixed or
 // Ready for QA bug hasn't been confirmed by QA yet, so it still counts as a
@@ -608,7 +610,45 @@ export async function getCoverageByDiscipline(gameSlug?: string): Promise<Discip
   });
 }
 
+// Resolves the real Supabase Auth session (once configured — see
+// lib/auth.ts) to the Tester profile it belongs to, matched by email since
+// Supabase Auth and this app's own database are two separate systems with
+// no shared foreign keys. The first time a given auth identity is seen,
+// either a new Tester row is provisioned (role defaults to the safest
+// option, Viewer, until an Admin promotes them — see
+// testers/[id]/role-actions.ts) or an existing seeded Tester with a
+// matching email is linked to it via authUserId.
+//
+// Falls back to the pre-auth demo behavior (the seeded QA Lead) whenever
+// Supabase Auth isn't configured yet, so the app stays fully usable while
+// real credentials haven't been added to .env — see item 46/47's shared
+// "build now, wire up credentials later" pattern.
 export async function getCurrentUser() {
+  if (isSupabaseAuthConfigured()) {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    if (authUser?.email) {
+      let tester = await prisma.tester.findUnique({ where: { email: authUser.email } });
+      if (!tester) {
+        const fullName = typeof authUser.user_metadata?.full_name === "string" ? authUser.user_metadata.full_name.trim() : "";
+        tester = await prisma.tester.create({
+          data: {
+            name: fullName || authUser.email.split("@")[0],
+            email: authUser.email,
+            role: "VIEWER",
+            authUserId: authUser.id,
+          },
+        });
+      } else if (tester.authUserId !== authUser.id) {
+        tester = await prisma.tester.update({ where: { id: tester.id }, data: { authUserId: authUser.id } });
+      }
+      return tester;
+    }
+  }
+
   const tester = await prisma.tester.findFirst({
     where: { role: "QA_LEAD" },
     orderBy: { createdAt: "asc" },
@@ -618,7 +658,7 @@ export async function getCurrentUser() {
       id: "mock-user",
       name: "Guest QA",
       email: "guest@bugforge.dev",
-      role: "QA_ENGINEER" as const,
+      role: "QA_TESTER" as const,
     }
   );
 }
