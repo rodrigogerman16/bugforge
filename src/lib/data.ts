@@ -1637,3 +1637,81 @@ export async function getAnalyticsData(gameSlug: string | undefined, from: Date,
     coverageByDiscipline,
   };
 }
+
+export type LifecycleStageMetric = { avgHours: number | null; sampleCount: number };
+
+export type BugLifecycleMetrics = {
+  timeToConfirm: LifecycleStageMetric;
+  timeToFix: LifecycleStageMetric;
+  timeToVerify: LifecycleStageMetric;
+  totalResolutionTime: LifecycleStageMetric;
+};
+
+// Stage-to-stage durations, reconstructed from each bug's own real
+// STATUS_CHANGED activity history rather than guessed from createdAt/
+// updatedAt alone — updatedAt only ever reflects the *last* edit, so it
+// can't tell "confirmed" apart from "fixed" apart from "verified". A bug
+// that skipped a stage (e.g. straight to Rejected) simply contributes no
+// sample to that stage's average, rather than a fabricated zero.
+export async function getBugLifecycleMetrics(
+  gameSlug: string | undefined,
+  from: Date,
+  to: Date
+): Promise<BugLifecycleMetrics> {
+  const showAll = gameSlug === "all";
+  const games = await prisma.game.findMany({
+    where: !showAll && gameSlug ? { slug: gameSlug } : undefined,
+    orderBy: { createdAt: "asc" },
+    take: !showAll && !gameSlug ? 1 : undefined,
+    select: { id: true },
+  });
+  const gameIds = games.map((g) => g.id);
+
+  const bugs = await prisma.bug.findMany({
+    where: { gameId: { in: gameIds }, createdAt: { gte: from, lte: to } },
+    select: {
+      createdAt: true,
+      activity: {
+        where: { type: "STATUS_CHANGED" },
+        orderBy: { createdAt: "asc" },
+        select: { toValue: true, createdAt: true },
+      },
+    },
+  });
+
+  const hourMs = 3_600_000;
+  const confirmDurations: number[] = [];
+  const fixDurations: number[] = [];
+  const verifyDurations: number[] = [];
+  const totalDurations: number[] = [];
+
+  for (const bug of bugs) {
+    const firstReach = (status: string) => bug.activity.find((e) => e.toValue === status)?.createdAt ?? null;
+
+    const confirmedAt = firstReach("CONFIRMED");
+    const fixedAt = firstReach("FIXED");
+    const verifiedAt = firstReach("VERIFIED");
+    const closedAt = firstReach("CLOSED");
+
+    if (confirmedAt) confirmDurations.push((confirmedAt.getTime() - bug.createdAt.getTime()) / hourMs);
+    if (confirmedAt && fixedAt && fixedAt.getTime() >= confirmedAt.getTime()) {
+      fixDurations.push((fixedAt.getTime() - confirmedAt.getTime()) / hourMs);
+    }
+    if (fixedAt && verifiedAt && verifiedAt.getTime() >= fixedAt.getTime()) {
+      verifyDurations.push((verifiedAt.getTime() - fixedAt.getTime()) / hourMs);
+    }
+    if (closedAt) totalDurations.push((closedAt.getTime() - bug.createdAt.getTime()) / hourMs);
+  }
+
+  const summarize = (samples: number[]): LifecycleStageMetric => ({
+    avgHours: samples.length > 0 ? Math.round((samples.reduce((sum, v) => sum + v, 0) / samples.length) * 10) / 10 : null,
+    sampleCount: samples.length,
+  });
+
+  return {
+    timeToConfirm: summarize(confirmDurations),
+    timeToFix: summarize(fixDurations),
+    timeToVerify: summarize(verifyDurations),
+    totalResolutionTime: summarize(totalDurations),
+  };
+}

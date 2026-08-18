@@ -1,8 +1,9 @@
-import { getAnalyticsData } from "@/lib/data";
+import { getAnalyticsData, getBugLifecycleMetrics } from "@/lib/data";
 import { resolveAnalyticsRange } from "@/lib/analytics-range";
 import { AnalyticsRangeToggle } from "@/components/analytics/analytics-range-toggle";
 import { TrendChart } from "@/components/analytics/trend-chart";
 import { CategoryBarChart } from "@/components/analytics/category-bar-chart";
+import { LifecycleMetrics } from "@/components/analytics/lifecycle-metrics";
 import { CoverageBar } from "@/components/coverage/coverage-bar";
 import { SEVERITY_META } from "@/lib/severity";
 import { PLATFORM_LABEL } from "@/lib/platform";
@@ -15,7 +16,10 @@ export default async function AnalyticsPage({
   const { game: gameSlug, range, from: fromParam, to: toParam } = await searchParams;
   const { from, to, selection } = resolveAnalyticsRange({ range, from: fromParam, to: toParam });
 
-  const data = await getAnalyticsData(gameSlug, from, to);
+  const [data, lifecycleMetrics] = await Promise.all([
+    getAnalyticsData(gameSlug, from, to),
+    getBugLifecycleMetrics(gameSlug, from, to),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
@@ -28,6 +32,10 @@ export default async function AnalyticsPage({
         </div>
         <AnalyticsRangeToggle selection={selection} from={from} to={to} />
       </header>
+
+      <div className="mb-4">
+        <LifecycleMetrics metrics={lifecycleMetrics} />
+      </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <TrendChart
