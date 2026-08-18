@@ -46,7 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Analytics",
     items: [
       { label: "Analytics", icon: TrendingUp, href: "/analytics", enabled: true },
-      { label: "Reports", icon: FileText, href: "/reports", enabled: false },
+      { label: "Reports", icon: FileText, href: "/reports", enabled: true },
     ],
   },
   {
