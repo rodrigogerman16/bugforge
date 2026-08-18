@@ -1371,3 +1371,85 @@ export async function getBuildRiskContext(buildId: string): Promise<BuildRiskCon
     clusteredHighPriority,
   };
 }
+
+export type BuildReadinessData = {
+  id: string;
+  version: string;
+  status: BuildStatus;
+  releasedAt: Date;
+  gameId: string;
+  gameName: string;
+  gameSlug: string;
+  criticalBugs: number;
+  testPassRate: number | null;
+  regressionRate: number;
+  coverage: number | null;
+  performance: number | null;
+};
+
+// Everything the /builds/[id]/readiness scorecard needs, computed directly
+// from this build's own bugs and the test runs logged in its own sessions —
+// "coverage" and "performance" are real, build-scoped figures, not the
+// game-wide numbers the Coverage page shows.
+export async function getBuildReadinessData(buildId: string): Promise<BuildReadinessData | null> {
+  const build = await prisma.build.findUnique({
+    where: { id: buildId },
+    select: {
+      id: true,
+      version: true,
+      status: true,
+      releasedAt: true,
+      gameId: true,
+      game: { select: { name: true, slug: true } },
+    },
+  });
+  if (!build) return null;
+
+  const [criticalBugs, allBugs, sessions, totalTestCases] = await Promise.all([
+    prisma.bug.count({
+      where: { buildId, status: { in: OPEN_STATUSES }, severity: { in: ["BLOCKER", "CRITICAL"] } },
+    }),
+    prisma.bug.findMany({ where: { buildId }, select: { isRegression: true } }),
+    prisma.qASession.findMany({ where: { buildId }, select: { id: true } }),
+    prisma.testCase.count({ where: { gameId: build.gameId } }),
+  ]);
+
+  const regressionRate =
+    allBugs.length > 0 ? Math.round((allBugs.filter((b) => b.isRegression).length / allBugs.length) * 1000) / 10 : 0;
+
+  const sessionIds = sessions.map((s) => s.id);
+  const testRuns =
+    sessionIds.length > 0
+      ? await prisma.testRun.findMany({
+          where: { sessionId: { in: sessionIds } },
+          select: { result: true, testCaseId: true, testCase: { select: { category: { select: { discipline: true } } } } },
+        })
+      : [];
+
+  const passFailRate = (runs: { result: string }[]) => {
+    const pass = runs.filter((r) => r.result === "PASS").length;
+    const fail = runs.filter((r) => r.result === "FAIL").length;
+    return pass + fail > 0 ? Math.round((pass / (pass + fail)) * 1000) / 10 : null;
+  };
+
+  const testPassRate = passFailRate(testRuns);
+  const performance = passFailRate(testRuns.filter((r) => r.testCase.category?.discipline === "PERFORMANCE"));
+
+  const distinctExecuted = new Set(testRuns.map((r) => r.testCaseId)).size;
+  const coverage = totalTestCases > 0 ? Math.round((distinctExecuted / totalTestCases) * 1000) / 10 : null;
+
+  return {
+    id: build.id,
+    version: build.version,
+    status: build.status,
+    releasedAt: build.releasedAt,
+    gameId: build.gameId,
+    gameName: build.game.name,
+    gameSlug: build.game.slug,
+    criticalBugs,
+    testPassRate,
+    regressionRate,
+    coverage,
+    performance,
+  };
+}

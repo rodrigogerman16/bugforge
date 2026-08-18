@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Bug as BugIcon, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, Bug as BugIcon, CheckCircle2, ClipboardCheck } from "lucide-react";
 import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
 import { BuildStatusControl } from "@/components/builds/build-status-control";
@@ -55,6 +55,14 @@ export function BuildCard({ build }: { build: BuildSummary }) {
           {build.testPassRate === null ? "No test runs" : `${build.testPassRate}% test pass rate`}
         </span>
       </div>
+
+      <Link
+        href={`/builds/${build.id}/readiness`}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-md border border-[color:var(--bf-border)] py-1.5 text-[11px] font-medium text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] hover:text-[color:var(--bf-ink-primary)]"
+      >
+        <ClipboardCheck size={12} />
+        Release Readiness
+      </Link>
 
       <BuildRiskPanel buildId={build.id} />
     </div>
