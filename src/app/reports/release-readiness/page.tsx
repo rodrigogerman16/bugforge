@@ -27,7 +27,12 @@ export default async function ReleaseReadinessReportPage({
   );
 
   return (
-    <ReportShell title="Release Readiness Report" subtitle={`${data.gameName} — Build ${data.version}`}>
+    <ReportShell
+      title="Release Readiness Report"
+      subtitle={`${data.gameName} — Build ${data.version}`}
+      exportBase="/api/export/reports/release-readiness"
+      exportParams={{ build: buildId }}
+    >
       <ReportSection title="Verdict">
         <div className="flex items-center gap-4 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-5">
           <p

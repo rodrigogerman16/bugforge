@@ -885,23 +885,11 @@ export async function getBugNumberMap(): Promise<Map<string, number>> {
   return new Map(allBugs.map((b, i) => [b.id, i + 1]));
 }
 
-export async function getBugList(options: BugListOptions) {
-  const {
-    gameSlug,
-    severity,
-    priority,
-    status,
-    areaId,
-    build,
-    platform,
-    reporterId,
-    assigneeId,
-    dateFrom,
-    dateTo,
-    tagId,
-    q,
-    page = 1,
-  } = options;
+// Shared by getBugList (which paginates the result) and getBugsForExport
+// (which doesn't) — same filters, same sort, single source of truth for
+// what "matches the current bug list filters" means.
+async function queryMatchingBugs(options: Omit<BugListOptions, "page">) {
+  const { gameSlug, severity, priority, status, areaId, build, platform, reporterId, assigneeId, dateFrom, dateTo, tagId, q } = options;
   const sort = options.sort ?? "updatedAt";
   const dir = options.dir ?? "desc";
 
@@ -947,7 +935,9 @@ export async function getBugList(options: BugListOptions) {
         priority: true,
         status: true,
         isRegression: true,
+        platform: true,
         area: { select: { id: true, name: true } },
+        createdAt: true,
         updatedAt: true,
         game: { select: { name: true, slug: true, coverColor: true } },
         build: { select: { version: true } },
@@ -979,6 +969,13 @@ export async function getBugList(options: BugListOptions) {
   };
   bugs.sort((a, b) => dirMul * comparators[sort](a, b));
 
+  return bugs;
+}
+
+export async function getBugList(options: BugListOptions) {
+  const { page = 1 } = options;
+  const bugs = await queryMatchingBugs(options);
+
   const totalCount = bugs.length;
   const pageCount = Math.max(1, Math.ceil(totalCount / BUG_PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), pageCount);
@@ -986,6 +983,12 @@ export async function getBugList(options: BugListOptions) {
   const pageBugs = bugs.slice(start, start + BUG_PAGE_SIZE);
 
   return { bugs: pageBugs, totalCount, page: safePage, pageCount };
+}
+
+// The unpaginated counterpart of getBugList, for exporting the full set of
+// bugs matching the current filters (CSV/JSON) rather than one page of them.
+export async function getBugsForExport(options: Omit<BugListOptions, "page">) {
+  return queryMatchingBugs(options);
 }
 
 export async function getBugDetail(id: string) {

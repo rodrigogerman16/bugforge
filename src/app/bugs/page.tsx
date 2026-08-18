@@ -8,6 +8,7 @@ import { PLATFORM_LABEL } from "@/lib/platform";
 import { BugWorkflowLegend } from "@/components/bug-workflow-legend";
 import { BugToolbar } from "@/components/bugs/bug-toolbar";
 import { BugTable } from "@/components/bugs/bug-table";
+import { ExportLinks } from "@/components/export-links";
 import { BugSeverity, BugPriority, BugStatus, Platform } from "@/generated/prisma/enums";
 
 function isBugSeverity(value: string | undefined): value is BugSeverity {
@@ -167,13 +168,35 @@ export default async function BugsPage({
             {totalCount} {totalCount === 1 ? "bug" : "bugs"}
           </p>
         </div>
-        <Link
-          href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
-          className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
-        >
-          <Plus size={13} />
-          Report Bug
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <ExportLinks
+            base="/api/export/bugs"
+            params={{
+              game: params.game,
+              severity,
+              priority,
+              status,
+              area: areaId,
+              build,
+              platform,
+              reporter: reporterId,
+              assignee: assigneeId,
+              dateFrom: params.dateFrom,
+              dateTo: params.dateTo,
+              tag: tagId,
+              q,
+              sort,
+              dir,
+            }}
+          />
+          <Link
+            href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
+            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+          >
+            <Plus size={13} />
+            Report Bug
+          </Link>
+        </div>
       </header>
 
       <BugWorkflowLegend />

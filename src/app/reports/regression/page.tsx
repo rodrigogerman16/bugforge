@@ -23,6 +23,8 @@ export default async function RegressionReportPage({
     <ReportShell
       title="Regression Report"
       subtitle={`${scopeLabel} — last ${days} days (${dateFormatter.format(from)} to ${dateFormatter.format(to)})`}
+      exportBase="/api/export/reports/regression"
+      exportParams={{ game: gameSlug, range: rangeParam }}
     >
       <ReportSection title="Summary">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

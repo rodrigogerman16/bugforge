@@ -1,20 +1,26 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PrintButton } from "@/components/reports/print-button";
+import { ExportLinks } from "@/components/export-links";
 
 const generatedFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
 
 // The shared document frame every report page renders inside — a title,
 // a "generated at" timestamp (real, computed at request time, not a
-// static label), and a print affordance that hides itself and the nav
-// chrome on the printed/PDF output via Tailwind's print: variant.
+// static label), CSV/JSON export links, and a print affordance (PDF, via
+// window.print) — all hidden on the printed/PDF output itself via
+// Tailwind's print: variant.
 export function ReportShell({
   title,
   subtitle,
+  exportBase,
+  exportParams,
   children,
 }: {
   title: string;
   subtitle: string;
+  exportBase: string;
+  exportParams?: Record<string, string | undefined>;
   children: React.ReactNode;
 }) {
   return (
@@ -27,7 +33,10 @@ export function ReportShell({
           <ArrowLeft size={13} />
           Back to reports
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          <ExportLinks base={exportBase} params={exportParams} />
+          <PrintButton />
+        </div>
       </div>
 
       <header className="mb-6 border-b border-[color:var(--bf-border)] pb-4">

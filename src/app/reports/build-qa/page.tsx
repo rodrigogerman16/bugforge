@@ -17,7 +17,12 @@ export default async function BuildQaReportPage({
   if (!data) notFound();
 
   return (
-    <ReportShell title="Build QA Report" subtitle={`${data.gameName} — Build ${data.version}`}>
+    <ReportShell
+      title="Build QA Report"
+      subtitle={`${data.gameName} — Build ${data.version}`}
+      exportBase="/api/export/reports/build-qa"
+      exportParams={{ build: buildId }}
+    >
       <ReportSection title="Summary">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReportStat label="Status" value={BUILD_STATUS_META[data.status].label} color={BUILD_STATUS_META[data.status].color} />

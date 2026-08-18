@@ -25,6 +25,8 @@ export default async function WeeklyQaReportPage({
     <ReportShell
       title="Weekly QA Report"
       subtitle={`${scopeLabel} — ${rangeFormatter.format(from)} to ${rangeFormatter.format(to)}`}
+      exportBase="/api/export/reports/weekly-qa"
+      exportParams={{ game: gameSlug }}
     >
       <ReportSection title="This week at a glance">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

@@ -22,7 +22,12 @@ export default async function TestCoverageReportPage({
   const needsAttention = coverage.filter((c) => c.coveragePercent === null || qualityBand(c.coveragePercent) !== "HEALTHY");
 
   return (
-    <ReportShell title="Test Coverage Report" subtitle={scopeLabel}>
+    <ReportShell
+      title="Test Coverage Report"
+      subtitle={scopeLabel}
+      exportBase="/api/export/reports/test-coverage"
+      exportParams={{ game: gameSlug }}
+    >
       <ReportSection title="Summary">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <ReportStat label="Overall coverage" value={overallCoverage === null ? "N/A" : `${overallCoverage}%`} />

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GitCompare } from "lucide-react";
 import { getBuilds } from "@/lib/data";
 import { BuildCard } from "@/components/builds/build-card";
+import { ExportLinks } from "@/components/export-links";
 
 export default async function BuildsPage({
   searchParams,
@@ -20,13 +21,16 @@ export default async function BuildsPage({
             {builds.length} build{builds.length === 1 ? "" : "s"} tracked
           </p>
         </div>
-        <Link
-          href="/builds/compare"
-          className="flex shrink-0 items-center gap-1.5 rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-1.5 text-[12px] font-medium text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] hover:text-[color:var(--bf-ink-primary)]"
-        >
-          <GitCompare size={13} />
-          Compare Builds
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <ExportLinks base="/api/export/builds" params={{ game: gameSlug }} />
+          <Link
+            href="/builds/compare"
+            className="flex shrink-0 items-center gap-1.5 rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-1.5 text-[12px] font-medium text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] hover:text-[color:var(--bf-ink-primary)]"
+          >
+            <GitCompare size={13} />
+            Compare Builds
+          </Link>
+        </div>
       </header>
 
       {builds.length === 0 ? (
