@@ -455,6 +455,7 @@ enum NotificationType {
   BUILD_UPLOADED
   CRITICAL_BUG
   REGRESSION_DETECTED
+  COMMENT_MENTION
 }
 
 // A real event, not a decorative bell icon — every row is created at the

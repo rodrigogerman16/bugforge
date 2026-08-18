@@ -63,11 +63,13 @@ export function CommentItem({
 
   return (
     <div
-      className={
+      id={`comment-${comment.id}`}
+      className={cn(
+        "scroll-mt-20",
         depth > 0
           ? "mt-4 border-l border-[color:var(--bf-border)] pl-4 sm:pl-5"
           : "mt-6 border-t border-[color:var(--bf-border)] pt-6 first:mt-0 first:border-t-0 first:pt-0"
-      }
+      )}
     >
       <div className="flex items-start gap-3">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--bf-brand-soft)] text-[11px] font-semibold text-[color:var(--bf-brand)]">

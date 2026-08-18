@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/data";
+import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
 export type CommentAttachmentInput = {
@@ -29,7 +30,7 @@ export async function createComment({
   if (!trimmed) return;
   const user = await getCurrentUser();
 
-  await prisma.$transaction([
+  const [comment] = await prisma.$transaction([
     prisma.comment.create({
       data: {
         bugId,
@@ -44,6 +45,29 @@ export async function createComment({
       data: { type: "COMMENT_ADDED", bugId, actorId: user.id },
     }),
   ]);
+
+  // Every mentioned tester gets a personal notification — except the author,
+  // if they mentioned themselves, since that isn't news to them.
+  const recipients = [...new Set(mentionIds)].filter((id) => id !== user.id);
+  if (recipients.length > 0) {
+    const bug = await prisma.bug.findUnique({
+      where: { id: bugId },
+      select: { title: true, createdAt: true, game: { select: { name: true } } },
+    });
+    if (bug) {
+      const number = await getBugNumber(bug.createdAt);
+      const excerpt = trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
+      for (const recipientId of recipients) {
+        await createNotification({
+          type: "COMMENT_MENTION",
+          title: `${user.name} mentioned you`,
+          detail: `BUG-${number} — ${bug.title}: "${excerpt}"`,
+          link: `/bugs/${bugId}#comment-${comment.id}`,
+          recipientId,
+        });
+      }
+    }
+  }
 
   revalidatePath(`/bugs/${bugId}`);
 }

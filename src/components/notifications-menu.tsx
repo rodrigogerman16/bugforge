@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Bell, AlertTriangle, PackagePlus, FlaskConical, UserRound, RotateCcw, type LucideIcon } from "lucide-react";
+import { Bell, AlertTriangle, PackagePlus, FlaskConical, UserRound, RotateCcw, AtSign, type LucideIcon } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { markNotificationRead, markAllNotificationsRead } from "@/app/notifications/actions";
@@ -15,6 +15,7 @@ const TYPE_META: Record<NotificationType, { icon: LucideIcon; color: string }> =
   BUILD_UPLOADED: { icon: PackagePlus, color: "var(--bf-brand)" },
   CRITICAL_BUG: { icon: AlertTriangle, color: "var(--bf-status-critical)" },
   REGRESSION_DETECTED: { icon: RotateCcw, color: "var(--bf-status-critical)" },
+  COMMENT_MENTION: { icon: AtSign, color: "var(--bf-brand)" },
 };
 
 // Every notification here is a real Notification row (see lib/data.ts's
