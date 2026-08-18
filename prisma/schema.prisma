@@ -430,3 +430,33 @@ model TestStepResult {
   testRunId String
   testRun   TestRun @relation(fields: [testRunId], references: [id], onDelete: Cascade)
 }
+
+enum QualityGateMetric {
+  CRITICAL_BUGS
+  TEST_PASS_RATE
+  REGRESSION_RATE
+  COVERAGE
+  PERFORMANCE
+}
+
+enum GateOperator {
+  LESS_THAN
+  LESS_THAN_OR_EQUAL
+  GREATER_THAN
+  GREATER_THAN_OR_EQUAL
+  EQUAL
+}
+
+// A configurable release requirement — e.g. "Test pass rate must be > 95%".
+// The Release Readiness page (/builds/[id]/readiness) evaluates a build
+// against every enabled gate here; editing a threshold on the Settings
+// page changes what "ready to release" means everywhere, immediately —
+// these rows are the actual gate, not just a description of one.
+model QualityGate {
+  id        String            @id @default(cuid())
+  metric    QualityGateMetric @unique
+  operator  GateOperator
+  threshold Float
+  enabled   Boolean           @default(true)
+  updatedAt DateTime          @updatedAt
+}

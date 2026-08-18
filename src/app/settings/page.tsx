@@ -1,0 +1,26 @@
+import { getQualityGates } from "@/lib/data";
+import { QualityGatesForm } from "@/components/settings/quality-gates-form";
+
+export default async function SettingsPage() {
+  const gates = await getQualityGates();
+
+  return (
+    <div className="mx-auto max-w-2xl px-8 py-8">
+      <header className="mb-6">
+        <h1 className="text-2xl font-bold tracking-wide text-[color:var(--bf-ink-primary)] uppercase">Settings</h1>
+        <p className="mt-1 text-sm text-[color:var(--bf-ink-muted)]">
+          Configure the release requirements every build is measured against.
+        </p>
+      </header>
+
+      <section>
+        <h2 className="mb-1 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Release Requirements</h2>
+        <p className="mb-3 text-[12px] text-[color:var(--bf-ink-muted)]">
+          Changes apply immediately to every build&apos;s Release Readiness page. Uncheck a requirement to stop
+          enforcing it without losing its configured threshold.
+        </p>
+        <QualityGatesForm gates={gates} />
+      </section>
+    </div>
+  );
+}

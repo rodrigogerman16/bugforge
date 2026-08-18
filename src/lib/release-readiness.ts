@@ -1,10 +1,13 @@
+import type { QualityGateMetric, GateOperator } from "@/generated/prisma/enums";
+
 // Release readiness is a deterministic scorecard, not a BugForge AI
 // suggestion (see src/lib/ai/) — every number and every blocking issue is
-// computed directly from real build data against fixed, documented
-// thresholds, with no hedging language needed because nothing here is a
-// heuristic guess.
+// computed directly from real build data, evaluated against the
+// configurable QualityGate rows from the Settings page. No hedging language
+// is needed here because nothing in this file is a heuristic guess — a gate
+// either passes its own configured requirement or it doesn't.
 
-export type ReadinessBreakdown = {
+export type ReadinessMetrics = {
   criticalBugs: number;
   testPassRate: number | null;
   regressionRate: number;
@@ -12,68 +15,119 @@ export type ReadinessBreakdown = {
   performance: number | null;
 };
 
+export type QualityGateDefinition = {
+  id: string;
+  metric: QualityGateMetric;
+  operator: GateOperator;
+  threshold: number;
+  enabled: boolean;
+};
+
+export type GateEvaluation = {
+  metric: QualityGateMetric;
+  label: string;
+  value: number | null;
+  requirementLabel: string;
+  passed: boolean;
+};
+
 export type ReleaseReadiness = {
   score: number;
   ready: boolean;
-  breakdown: ReadinessBreakdown;
+  gates: GateEvaluation[];
   blockingIssues: string[];
 };
 
-// The bar a build must clear on each metric to ship. Also what drives the
-// blocking-issues list below — a metric only appears there when it actually
-// misses its own target.
-export const RELEASE_TARGETS = {
-  testPassRate: 90,
-  regressionRate: 3,
-  coverage: 80,
-  performance: 85,
+export const METRIC_LABEL: Record<QualityGateMetric, string> = {
+  CRITICAL_BUGS: "Critical bugs",
+  TEST_PASS_RATE: "Test pass rate",
+  REGRESSION_RATE: "Regression rate",
+  COVERAGE: "Coverage",
+  PERFORMANCE: "Performance",
 };
 
-export function computeReleaseReadiness(breakdown: ReadinessBreakdown): ReleaseReadiness {
+export const OPERATOR_LABEL: Record<GateOperator, string> = {
+  LESS_THAN: "<",
+  LESS_THAN_OR_EQUAL: "≤",
+  GREATER_THAN: ">",
+  GREATER_THAN_OR_EQUAL: "≥",
+  EQUAL: "=",
+};
+
+const METRIC_HAS_UNIT: Record<QualityGateMetric, boolean> = {
+  CRITICAL_BUGS: false,
+  TEST_PASS_RATE: true,
+  REGRESSION_RATE: true,
+  COVERAGE: true,
+  PERFORMANCE: true,
+};
+
+const METRIC_VALUE_KEY: Record<QualityGateMetric, keyof ReadinessMetrics> = {
+  CRITICAL_BUGS: "criticalBugs",
+  TEST_PASS_RATE: "testPassRate",
+  REGRESSION_RATE: "regressionRate",
+  COVERAGE: "coverage",
+  PERFORMANCE: "performance",
+};
+
+function unitFor(metric: QualityGateMetric): string {
+  return METRIC_HAS_UNIT[metric] ? "%" : "";
+}
+
+export function formatRequirement(operator: GateOperator, threshold: number, metric: QualityGateMetric): string {
+  return `Must be ${OPERATOR_LABEL[operator]} ${threshold}${unitFor(metric)}`;
+}
+
+function evaluateOperator(value: number, operator: GateOperator, threshold: number): boolean {
+  switch (operator) {
+    case "LESS_THAN":
+      return value < threshold;
+    case "LESS_THAN_OR_EQUAL":
+      return value <= threshold;
+    case "GREATER_THAN":
+      return value > threshold;
+    case "GREATER_THAN_OR_EQUAL":
+      return value >= threshold;
+    case "EQUAL":
+      return value === threshold;
+  }
+}
+
+export function computeReleaseReadiness(metrics: ReadinessMetrics, gates: QualityGateDefinition[]): ReleaseReadiness {
+  const evaluations: GateEvaluation[] = [];
   const blockingIssues: string[] = [];
-
-  if (breakdown.criticalBugs > 0) {
-    blockingIssues.push(
-      breakdown.criticalBugs === 1 ? "1 critical bug is still open." : `${breakdown.criticalBugs} critical bugs are still open.`
-    );
-  }
-
-  if (breakdown.testPassRate === null) {
-    blockingIssues.push("No test runs have been logged against this build yet.");
-  } else if (breakdown.testPassRate < RELEASE_TARGETS.testPassRate) {
-    blockingIssues.push(`Test pass rate (${breakdown.testPassRate}%) is below the ${RELEASE_TARGETS.testPassRate}% release threshold.`);
-  }
-
-  if (breakdown.regressionRate > RELEASE_TARGETS.regressionRate) {
-    blockingIssues.push(`Regression rate (${breakdown.regressionRate}%) exceeds the ${RELEASE_TARGETS.regressionRate}% threshold.`);
-  }
-
-  if (breakdown.coverage === null) {
-    blockingIssues.push("No test cases have been executed against this build yet.");
-  } else if (breakdown.coverage < RELEASE_TARGETS.coverage) {
-    blockingIssues.push(`Test coverage (${breakdown.coverage}%) is below the ${RELEASE_TARGETS.coverage}% target.`);
-  }
-
-  if (breakdown.performance !== null && breakdown.performance < RELEASE_TARGETS.performance) {
-    blockingIssues.push(`Performance test pass rate (${breakdown.performance}%) is below the ${RELEASE_TARGETS.performance}% target.`);
-  }
-
-  // Each metric costs points relative to how far it misses its own target —
-  // critical bugs and regression rate are weighted heaviest since they're
-  // the two signals most directly tied to shipping a broken build. Missing
-  // data (no runs logged at all) costs a flat penalty rather than being
-  // treated as a perfect score.
   let score = 100;
-  score -= breakdown.criticalBugs * 3;
-  score -= breakdown.testPassRate !== null ? Math.max(0, RELEASE_TARGETS.testPassRate - breakdown.testPassRate) * 0.6 : 15;
-  score -= breakdown.regressionRate * 2;
-  score -= breakdown.coverage !== null ? Math.max(0, RELEASE_TARGETS.coverage - breakdown.coverage) * 0.5 : 15;
-  score -= breakdown.performance !== null ? Math.max(0, RELEASE_TARGETS.performance - breakdown.performance) * 0.3 : 0;
+
+  for (const gate of gates) {
+    if (!gate.enabled) continue;
+
+    const label = METRIC_LABEL[gate.metric];
+    const requirementLabel = formatRequirement(gate.operator, gate.threshold, gate.metric);
+    const value = metrics[METRIC_VALUE_KEY[gate.metric]];
+    const unit = unitFor(gate.metric);
+
+    if (value === null) {
+      evaluations.push({ metric: gate.metric, label, value: null, requirementLabel, passed: false });
+      blockingIssues.push(`${label}: no data available for this build yet.`);
+      score -= 10;
+      continue;
+    }
+
+    const passed = evaluateOperator(value, gate.operator, gate.threshold);
+    evaluations.push({ metric: gate.metric, label, value, requirementLabel, passed });
+
+    if (!passed) {
+      blockingIssues.push(`${label} (${value}${unit}) does not meet the requirement: ${requirementLabel}.`);
+      const distance = Math.abs(value - gate.threshold);
+      // Critical-bug misses and larger misses cost more than a near-miss.
+      score -= 10 + Math.min(15, distance * (gate.metric === "CRITICAL_BUGS" ? 2 : 0.5));
+    }
+  }
 
   return {
     score: Math.max(0, Math.min(100, Math.round(score))),
     ready: blockingIssues.length === 0,
-    breakdown,
+    gates: evaluations,
     blockingIssues,
   };
 }

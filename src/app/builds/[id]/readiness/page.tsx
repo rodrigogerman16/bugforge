@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { getBuildReadinessData } from "@/lib/data";
-import { computeReleaseReadiness, RELEASE_TARGETS } from "@/lib/release-readiness";
+import { ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Settings2 } from "lucide-react";
+import { getBuildReadinessData, getQualityGates } from "@/lib/data";
+import { computeReleaseReadiness } from "@/lib/release-readiness";
+import { cn } from "@/lib/utils";
 
 function scoreColor(score: number): string {
   if (score >= 80) return "var(--bf-status-good)";
@@ -10,26 +11,35 @@ function scoreColor(score: number): string {
   return "var(--bf-status-critical)";
 }
 
-function BreakdownRow({
+function GateRow({
   label,
   value,
-  meetsTarget,
+  requirementLabel,
+  passed,
 }: {
   label: string;
   value: string;
-  meetsTarget: boolean | null;
+  requirementLabel: string;
+  passed: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3">
-      <span className="text-[13px] text-[color:var(--bf-ink-secondary)]">{label}</span>
-      <span className="flex items-center gap-2">
-        {meetsTarget !== null && (
-          <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: meetsTarget ? "var(--bf-status-good)" : "var(--bf-status-critical)" }}
-          />
+    <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <span className="flex items-center gap-2 min-w-0">
+        {passed ? (
+          <CheckCircle2 size={15} className="shrink-0 text-[color:var(--bf-status-good)]" />
+        ) : (
+          <XCircle size={15} className="shrink-0 text-[color:var(--bf-status-critical)]" />
         )}
-        <span className="font-mono text-sm font-semibold text-[color:var(--bf-ink-primary)]">{value}</span>
+        <span className="min-w-0">
+          <span className="block text-[13px] font-medium text-[color:var(--bf-ink-primary)]">{label}</span>
+          <span className="block text-[11px] text-[color:var(--bf-ink-muted)]">{requirementLabel}</span>
+        </span>
+      </span>
+      <span
+        className="shrink-0 font-mono text-sm font-semibold"
+        style={{ color: passed ? "var(--bf-status-good)" : "var(--bf-status-critical)" }}
+      >
+        {value}
       </span>
     </div>
   );
@@ -37,26 +47,38 @@ function BreakdownRow({
 
 export default async function BuildReadinessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await getBuildReadinessData(id);
+  const [data, gates] = await Promise.all([getBuildReadinessData(id), getQualityGates()]);
   if (!data) notFound();
 
-  const readiness = computeReleaseReadiness({
-    criticalBugs: data.criticalBugs,
-    testPassRate: data.testPassRate,
-    regressionRate: data.regressionRate,
-    coverage: data.coverage,
-    performance: data.performance,
-  });
+  const readiness = computeReleaseReadiness(
+    {
+      criticalBugs: data.criticalBugs,
+      testPassRate: data.testPassRate,
+      regressionRate: data.regressionRate,
+      coverage: data.coverage,
+      performance: data.performance,
+    },
+    gates
+  );
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-8">
-      <Link
-        href={`/builds?game=${data.gameSlug}`}
-        className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
-      >
-        <ArrowLeft size={13} />
-        Back to builds
-      </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link
+          href={`/builds?game=${data.gameSlug}`}
+          className="inline-flex items-center gap-1.5 text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
+        >
+          <ArrowLeft size={13} />
+          Back to builds
+        </Link>
+        <Link
+          href="/settings"
+          className="inline-flex items-center gap-1.5 text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
+        >
+          <Settings2 size={13} />
+          Edit requirements
+        </Link>
+      </div>
 
       <p className="text-[12px] text-[color:var(--bf-ink-muted)]">{data.gameName}</p>
       <h1 className="mt-1 font-mono text-2xl font-bold tracking-wide text-[color:var(--bf-ink-primary)] uppercase">
@@ -85,30 +107,24 @@ export default async function BuildReadinessPage({ params }: { params: Promise<{
       </div>
 
       <div className="mt-6">
-        <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Breakdown</h2>
-        <dl className="divide-y divide-[color:var(--bf-border)] rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)]">
-          <BreakdownRow label="Critical bugs" value={String(data.criticalBugs)} meetsTarget={data.criticalBugs === 0} />
-          <BreakdownRow
-            label="Test pass rate"
-            value={data.testPassRate === null ? "N/A" : `${data.testPassRate}%`}
-            meetsTarget={data.testPassRate === null ? false : data.testPassRate >= RELEASE_TARGETS.testPassRate}
-          />
-          <BreakdownRow
-            label="Regression rate"
-            value={`${data.regressionRate}%`}
-            meetsTarget={data.regressionRate <= RELEASE_TARGETS.regressionRate}
-          />
-          <BreakdownRow
-            label="Coverage"
-            value={data.coverage === null ? "N/A" : `${data.coverage}%`}
-            meetsTarget={data.coverage === null ? false : data.coverage >= RELEASE_TARGETS.coverage}
-          />
-          <BreakdownRow
-            label="Performance"
-            value={data.performance === null ? "N/A" : `${data.performance}%`}
-            meetsTarget={data.performance === null ? null : data.performance >= RELEASE_TARGETS.performance}
-          />
-        </dl>
+        <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Quality Gates</h2>
+        {readiness.gates.length === 0 ? (
+          <p className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3 text-sm text-[color:var(--bf-ink-muted)]">
+            No quality gates are configured yet.
+          </p>
+        ) : (
+          <dl className="divide-y divide-[color:var(--bf-border)] rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)]">
+            {readiness.gates.map((gate) => (
+              <GateRow
+                key={gate.metric}
+                label={gate.label}
+                value={gate.value === null ? "N/A" : `${gate.value}${gate.metric === "CRITICAL_BUGS" ? "" : "%"}`}
+                requirementLabel={gate.requirementLabel}
+                passed={gate.passed}
+              />
+            ))}
+          </dl>
+        )}
       </div>
 
       <div className="mt-6">
@@ -122,7 +138,7 @@ export default async function BuildReadinessPage({ params }: { params: Promise<{
             {readiness.blockingIssues.map((issue, i) => (
               <li
                 key={i}
-                className="flex items-start gap-2 rounded-lg border p-3 text-[13px] text-[color:var(--bf-ink-secondary)]"
+                className={cn("flex items-start gap-2 rounded-lg border p-3 text-[13px] text-[color:var(--bf-ink-secondary)]")}
                 style={{
                   borderColor: "color-mix(in srgb, var(--bf-status-critical) 30%, transparent)",
                   backgroundColor: "color-mix(in srgb, var(--bf-status-critical) 6%, transparent)",

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus, type TestCasePriority, type SessionStatus } from "@/generated/prisma/enums";
+import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus, type TestCasePriority, type SessionStatus, type QualityGateMetric } from "@/generated/prisma/enums";
 import { emptySeverityCounts, SEVERITY_ORDER, type SeverityCounts } from "@/lib/severity";
 import { PRIORITY_ORDER } from "@/lib/priority";
 import { BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
@@ -1452,4 +1452,20 @@ export async function getBuildReadinessData(buildId: string): Promise<BuildReadi
     coverage,
     performance,
   };
+}
+
+// The configured release requirements — the actual gate, editable on the
+// Settings page. A fixed order (matching the enum's declaration order)
+// keeps the settings list and every readiness checklist consistent.
+const QUALITY_GATE_ORDER: QualityGateMetric[] = [
+  "CRITICAL_BUGS",
+  "TEST_PASS_RATE",
+  "REGRESSION_RATE",
+  "COVERAGE",
+  "PERFORMANCE",
+];
+
+export async function getQualityGates() {
+  const gates = await prisma.qualityGate.findMany();
+  return gates.sort((a, b) => QUALITY_GATE_ORDER.indexOf(a.metric) - QUALITY_GATE_ORDER.indexOf(b.metric));
 }

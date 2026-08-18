@@ -59,7 +59,7 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const NAV_FOOTER_ITEMS: NavItem[] = [
-  { label: "Settings", icon: Settings, href: "/settings", enabled: false },
+  { label: "Settings", icon: Settings, href: "/settings", enabled: true },
 ];
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((group) => group.items);

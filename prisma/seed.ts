@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline } from "../src/generated/prisma/client";
+import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline, QualityGateMetric, GateOperator } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
 
 const adapter = new PrismaLibSql({
@@ -1260,6 +1260,18 @@ async function main() {
       }
     }
   }
+
+  // Default release requirements — editable afterward on the Settings page,
+  // never hardcoded again once these rows exist.
+  await prisma.qualityGate.createMany({
+    data: [
+      { metric: QualityGateMetric.CRITICAL_BUGS, operator: GateOperator.EQUAL, threshold: 0 },
+      { metric: QualityGateMetric.TEST_PASS_RATE, operator: GateOperator.GREATER_THAN, threshold: 95 },
+      { metric: QualityGateMetric.REGRESSION_RATE, operator: GateOperator.LESS_THAN, threshold: 2 },
+      { metric: QualityGateMetric.COVERAGE, operator: GateOperator.GREATER_THAN, threshold: 90 },
+      { metric: QualityGateMetric.PERFORMANCE, operator: GateOperator.GREATER_THAN, threshold: 85 },
+    ],
+  });
 
   console.log("Seed complete.");
 }
