@@ -5,7 +5,7 @@ import type {
   ReproStepsReview,
   BugSummary,
   AffectedSystem,
-  TestCaseDraft,
+  TestCaseVariant,
   RegressionRiskAnalysis,
 } from "@/lib/ai/heuristics";
 
@@ -17,7 +17,7 @@ export const AI_ACTIONS = [
   { key: "REPRO_STEPS", label: "Improve reproduction steps", description: "Flag gaps and clean up phrasing." },
   { key: "SUMMARY", label: "Summarize bug", description: "A one-paragraph triage brief." },
   { key: "AFFECTED_SYSTEMS", label: "Identify affected systems", description: "Cross-reference the area taxonomy and tags." },
-  { key: "TEST_CASE", label: "Generate test case", description: "Draft a regression-check test case from the repro steps." },
+  { key: "TEST_CASE", label: "Generate test cases", description: "Draft a small spread of related test cases from the repro steps — you approve which ones to save." },
   { key: "REGRESSION_RISK", label: "Analyze regression risk", description: "Score this area's history of regressions." },
 ] as const;
 
@@ -39,5 +39,5 @@ export type AiResult =
   | { key: "REPRO_STEPS"; data: ReproStepsReview }
   | { key: "SUMMARY"; data: BugSummary }
   | { key: "AFFECTED_SYSTEMS"; data: AffectedSystem[] }
-  | { key: "TEST_CASE"; data: TestCaseDraft }
+  | { key: "TEST_CASE"; data: TestCaseVariant[] }
   | { key: "REGRESSION_RISK"; data: RegressionRiskAnalysis };

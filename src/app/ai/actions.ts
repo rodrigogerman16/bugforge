@@ -6,6 +6,7 @@ import {
   getAreaRiskContext,
   getAreas,
   getLatestBuildVersion,
+  getGamePlatforms,
   type AiBugContext,
 } from "@/lib/data";
 import {
@@ -15,7 +16,7 @@ import {
   reviewReproSteps,
   summarizeBug,
   identifyAffectedSystems,
-  draftTestCaseFromBug,
+  generateTestCaseMatrix,
   analyzeRegressionRisk,
   buildQuickAnalysis,
   suggestReproSteps,
@@ -30,6 +31,7 @@ export type AiBugHeader = {
   title: string;
   severity: AiBugContext["severity"];
   status: AiBugContext["status"];
+  gameId: string;
   gameName: string;
   gameSlug: string;
 };
@@ -46,6 +48,7 @@ export async function getAiBugHeader(bugId: string): Promise<AiBugHeader | null>
     title: bug.title,
     severity: bug.severity,
     status: bug.status,
+    gameId: bug.gameId,
     gameName: bug.gameName,
     gameSlug: bug.gameSlug,
   };
@@ -137,8 +140,10 @@ export async function runAiAction(bugId: string, action: AiActionKey): Promise<A
       return { key: "AFFECTED_SYSTEMS", data: identifyAffectedSystems(bug, areas.map((a) => a.name)) };
     }
 
-    case "TEST_CASE":
-      return { key: "TEST_CASE", data: draftTestCaseFromBug(bug) };
+    case "TEST_CASE": {
+      const gamePlatforms = await getGamePlatforms(bug.gameId);
+      return { key: "TEST_CASE", data: generateTestCaseMatrix(bug, gamePlatforms) };
+    }
 
     case "REGRESSION_RISK": {
       const areaRisk = await getAreaRiskContext(bug.gameId, bug.areaId, bug.id);

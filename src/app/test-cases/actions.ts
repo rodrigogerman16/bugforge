@@ -69,6 +69,40 @@ export async function updateTestCase(id: string, input: TestCaseInput) {
   revalidatePath(`/test-cases/${id}`);
 }
 
+// Saves whichever AI-generated test case variants the tester approved — the
+// approve step happens client-side (checkboxes), so by the time this runs
+// every input here is one the tester explicitly chose to keep.
+export async function createTestCasesBatch(inputs: TestCaseInput[]): Promise<string[]> {
+  const uniqueGamePlatforms = new Set(inputs.map((i) => `${i.gameId}:${i.platform}`));
+  await Promise.all(
+    [...uniqueGamePlatforms].map((key) => {
+      const [gameId, platform] = key.split(":");
+      return assertGameSupportsPlatform(gameId, platform as Platform);
+    })
+  );
+
+  const created = await Promise.all(
+    inputs.map((input) =>
+      prisma.testCase.create({
+        data: {
+          gameId: input.gameId,
+          title: input.title.trim(),
+          description: input.description.trim() || null,
+          preconditions: input.preconditions.trim() || null,
+          steps: input.steps.trim(),
+          expected: input.expected.trim(),
+          categoryId: input.categoryId,
+          priority: input.priority,
+          platform: input.platform,
+        },
+      })
+    )
+  );
+
+  revalidatePath("/test-cases");
+  return created.map((tc) => tc.id);
+}
+
 export async function deleteTestCase(id: string) {
   await prisma.testCase.delete({ where: { id } });
   revalidatePath("/test-cases");

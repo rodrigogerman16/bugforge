@@ -1286,3 +1286,10 @@ export async function getLatestBuildVersion(gameId: string): Promise<string | nu
   });
   return build?.version ?? null;
 }
+
+// The game's real supported platforms — used to generate an "on another
+// platform" test case variant only when that platform actually exists.
+export async function getGamePlatforms(gameId: string): Promise<Platform[]> {
+  const rows = await prisma.gamePlatform.findMany({ where: { gameId }, select: { platform: true } });
+  return rows.map((r) => r.platform);
+}

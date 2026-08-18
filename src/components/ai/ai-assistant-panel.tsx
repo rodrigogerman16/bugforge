@@ -248,7 +248,7 @@ export function AiAssistantPanel() {
               >
                 <ArrowLeft size={12} /> Back to actions
               </button>
-              {effectiveBugId && <AiResultView bugId={effectiveBugId} result={result} />}
+              {effectiveBugId && <AiResultView bugId={effectiveBugId} gameId={header?.gameId ?? null} result={result} />}
             </div>
           ) : (
             <div className="space-y-1.5">

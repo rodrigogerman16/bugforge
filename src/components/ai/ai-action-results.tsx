@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";
@@ -10,6 +10,7 @@ import { REGRESSION_RISK_META } from "@/lib/ai/heuristics";
 import type { AiResult } from "@/lib/ai/types";
 import { updateBugSeverity, updateBugPriority } from "@/app/bugs/[id]/bug-field-actions";
 import { createRelationship } from "@/app/bugs/[id]/relationship-actions";
+import { createTestCasesBatch } from "@/app/test-cases/actions";
 import { cn } from "@/lib/utils";
 
 const CONFIDENCE_LABEL: Record<"low" | "medium" | "high", string> = {
@@ -63,7 +64,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export function AiResultView({ bugId, result }: { bugId: string; result: AiResult }) {
+export function AiResultView({ bugId, gameId, result }: { bugId: string; gameId: string | null; result: AiResult }) {
   switch (result.key) {
     case "ANALYZE":
       return (
@@ -98,7 +99,7 @@ export function AiResultView({ bugId, result }: { bugId: string; result: AiResul
     case "AFFECTED_SYSTEMS":
       return <AffectedSystemsResult data={result.data} />;
     case "TEST_CASE":
-      return <TestCaseResult bugId={bugId} data={result.data} />;
+      return <TestCaseMatrixResult gameId={gameId} data={result.data} />;
     case "REGRESSION_RISK":
       return <RegressionRiskResult data={result.data} />;
   }
@@ -326,34 +327,102 @@ function AffectedSystemsResult({ data }: { data: Extract<AiResult, { key: "AFFEC
   );
 }
 
-function TestCaseResult({ bugId, data }: { bugId: string; data: Extract<AiResult, { key: "TEST_CASE" }>["data"] }) {
+// Every generated variant starts checked (reviewed, ready to save) but
+// nothing reaches the database until "Save Approved Test Cases" is clicked —
+// unchecking any card is how the tester rejects it before that happens.
+function TestCaseMatrixResult({ gameId, data }: { gameId: string | null; data: Extract<AiResult, { key: "TEST_CASE" }>["data"] }) {
+  const [approved, setApproved] = useState<Record<string, boolean>>(() => Object.fromEntries(data.map((v) => [v.key, true])));
+  const [isPending, startTransition] = useTransition();
+  const [savedIds, setSavedIds] = useState<string[] | null>(null);
+
+  const approvedCount = data.filter((v) => approved[v.key]).length;
+
+  function save() {
+    if (!gameId || approvedCount === 0 || isPending) return;
+    const inputs = data
+      .filter((v) => approved[v.key])
+      .map((v) => ({
+        gameId,
+        title: v.title,
+        description: v.description,
+        preconditions: v.preconditions,
+        steps: v.steps,
+        expected: v.expected,
+        categoryId: v.categoryId,
+        priority: v.priority,
+        platform: v.platform,
+      }));
+    startTransition(async () => {
+      const ids = await createTestCasesBatch(inputs);
+      setSavedIds(ids);
+    });
+  }
+
+  if (savedIds) {
+    return (
+      <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
+        <p className="flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--bf-status-good)]">
+          <Check size={13} />
+          Saved {savedIds.length} test case{savedIds.length === 1 ? "" : "s"}.
+        </p>
+        <ul className="mt-2 space-y-1">
+          {savedIds.map((id, i) => (
+            <li key={id}>
+              <Link href={`/test-cases/${id}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[12px] text-[color:var(--bf-brand)] hover:underline">
+                {data[i]?.title ?? "View test case"}
+                <ExternalLink size={10} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
-        <p className="text-[12px] font-medium text-[color:var(--bf-ink-primary)]">{data.title}</p>
-        <p className="mt-1 text-[12px] text-[color:var(--bf-ink-muted)]">{data.description}</p>
-        <div className="mt-3 space-y-2 text-[12px] text-[color:var(--bf-ink-secondary)]">
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Preconditions</p>
-            <p>{data.preconditions}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Steps</p>
-            <p className="whitespace-pre-line">{data.steps}</p>
-          </div>
-          <div>
-            <p className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Expected</p>
-            <p>{data.expected}</p>
-          </div>
-        </div>
-      </div>
-      <Link
-        href={`/test-cases/new?fromBug=${bugId}`}
-        className="flex w-fit items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-2.5 py-1.5 text-[11px] font-medium text-black hover:opacity-90"
+      <p className="text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
+        AI-generated from this bug&apos;s own repro steps — a starting spread, not a finished suite. Uncheck any that don&apos;t apply, then save.
+      </p>
+      <ul className="space-y-2">
+        {data.map((variant) => (
+          <li key={variant.key} className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
+            <label className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                checked={approved[variant.key] ?? false}
+                onChange={(e) => setApproved((prev) => ({ ...prev, [variant.key]: e.target.checked }))}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-[color:var(--bf-brand)]"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[12px] font-medium text-[color:var(--bf-ink-primary)]">{variant.title}</span>
+                <span className="mt-2 block space-y-1.5 text-[12px] text-[color:var(--bf-ink-secondary)]">
+                  <span className="block">
+                    <span className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Preconditions </span>
+                    {variant.preconditions}
+                  </span>
+                  <span className="block whitespace-pre-line">
+                    <span className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Steps </span>
+                    {variant.steps}
+                  </span>
+                  <span className="block">
+                    <span className="text-[10px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Expected </span>
+                    {variant.expected}
+                  </span>
+                </span>
+              </span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <button
+        onClick={save}
+        disabled={!gameId || approvedCount === 0 || isPending}
+        className="flex items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-2.5 py-1.5 text-[11px] font-medium text-black hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Create this test case
-        <ExternalLink size={11} />
-      </Link>
+        {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+        Save Approved Test Cases ({approvedCount})
+      </button>
     </div>
   );
 }

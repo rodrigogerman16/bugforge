@@ -57,7 +57,7 @@ export default async function NewTestCasePage({
                   expected: draft.expected,
                   categoryId: draft.categoryId,
                   priority: draft.priority,
-                  platform: sourceBug.platform,
+                  platform: draft.platform,
                 }
               : undefined
           }
