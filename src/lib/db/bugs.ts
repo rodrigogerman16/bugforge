@@ -129,7 +129,7 @@ async function resolveGameIds(gameSlug: string | undefined): Promise<string[]> {
 // indexed column (see the @@index list on the Bug model), so this `where`
 // runs as an index scan even against a 100,000+ row table, never a full
 // table scan.
-function buildBugWhere(
+export function buildBugWhere(
   options: Omit<BugListOptions, "page" | "sort" | "dir">,
   gameIds: string[]
 ): Prisma.BugWhereInput {
@@ -171,7 +171,7 @@ function buildBugWhere(
 // always had. Every branch appends `number` as a tiebreaker: without one,
 // rows tied on the sort column could shuffle between pages of a skip/take
 // query, which the old whole-array-sorted-once approach never risked.
-function buildBugOrderBy(sort: BugSortField, dir: "asc" | "desc"): Prisma.BugOrderByWithRelationInput[] {
+export function buildBugOrderBy(sort: BugSortField, dir: "asc" | "desc"): Prisma.BugOrderByWithRelationInput[] {
   const rankDir = dir === "desc" ? "asc" : "desc";
   switch (sort) {
     case "number":
