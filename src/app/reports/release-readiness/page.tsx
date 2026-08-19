@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/data";
+import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/db";
 import { computeReleaseReadiness } from "@/lib/release-readiness";
-import { canViewReleaseReadiness } from "@/lib/permissions";
-import { RestrictedAccess } from "@/components/restricted-access";
+import { canViewReleaseReadiness } from "@/lib/auth/permissions";
+import { RestrictedAccess } from "@/components/ui/restricted-access";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";
 
 export default async function ReleaseReadinessReportPage({

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getSessions, getCurrentUser } from "@/lib/data";
+import { getSessions, getCurrentUser } from "@/lib/db";
 import { SessionCard } from "@/components/sessions/session-card";
-import { ExportLinks } from "@/components/export-links";
-import { hasCapability } from "@/lib/permissions";
+import { ExportLinks } from "@/components/ui/export-links";
+import { hasCapability } from "@/lib/auth/permissions";
 
 export default async function SessionsPage({
   searchParams,

@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 import { RELATIONSHIP_PICKER_OPTIONS } from "@/lib/relationships";
-import { createNotification } from "@/lib/notifications";
-import { getCurrentUser } from "@/lib/data";
-import { hasCapability, PermissionError } from "@/lib/permissions";
+import { createNotification } from "@/lib/db/notifications";
+import { getCurrentUser } from "@/lib/db";
+import { hasCapability, PermissionError } from "@/lib/auth/permissions";
 
 // Linking/unlinking two bugs isn't a single-bug edit — "own bug" doesn't
 // map cleanly onto a relationship spanning two bugs — so this checks the

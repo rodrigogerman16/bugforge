@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { PrintButton } from "@/components/reports/print-button";
-import { ExportLinks } from "@/components/export-links";
+import { ExportLinks } from "@/components/ui/export-links";
 
 const generatedFormatter = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });
 

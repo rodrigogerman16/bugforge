@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanComment } from "@/lib/permissions";
-import { createNotification } from "@/lib/notifications";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanComment } from "@/lib/auth/permissions";
+import { createNotification } from "@/lib/db/notifications";
 import { createCommentSchema, updateCommentSchema, parseOrThrow } from "@/lib/validation";
 import type { EvidenceType } from "@/generated/prisma/enums";
 

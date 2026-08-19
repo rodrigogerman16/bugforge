@@ -1,6 +1,6 @@
-import { getTesterProfiles } from "@/lib/data";
+import { getTesterProfiles } from "@/lib/db";
 import { TesterCard } from "@/components/testers/tester-card";
-import { ExportLinks } from "@/components/export-links";
+import { ExportLinks } from "@/components/ui/export-links";
 
 export default async function TestersPage() {
   const testers = await getTesterProfiles();

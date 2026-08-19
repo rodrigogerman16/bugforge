@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getBuildQaReportData } from "@/lib/data";
+import { getBuildQaReportData } from "@/lib/db";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META } from "@/lib/status-labels";

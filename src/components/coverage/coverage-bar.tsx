@@ -1,6 +1,6 @@
 import { qualityBand, QUALITY_BAND_META } from "@/lib/quality-score";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
-import type { DisciplineCoverage } from "@/lib/data";
+import type { DisciplineCoverage } from "@/lib/db";
 
 export function CoverageBar({ coverage }: { coverage: DisciplineCoverage }) {
   const { discipline, totalTestCases, executedTestCases, coveragePercent } = coverage;

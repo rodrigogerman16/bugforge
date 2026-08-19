@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanManageRoles } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanManageRoles } from "@/lib/auth/permissions";
 import type { TesterRole } from "@/generated/prisma/enums";
 
 // The one place a role actually changes — gated to Admins only. Everything

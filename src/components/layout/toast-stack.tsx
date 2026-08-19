@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { CheckCircle2, XCircle, Info, X } from "lucide-react";
-import { useShellUI, type ToastTone } from "@/components/shell-ui-provider";
-import { baseTransition } from "@/lib/motion";
+import { useShellUI, type ToastTone } from "@/components/layout/shell-ui-provider";
+import { baseTransition } from "@/lib/utils/motion";
 
 const TONE_ICON: Record<ToastTone, typeof CheckCircle2> = {
   success: CheckCircle2,

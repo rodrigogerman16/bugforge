@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 
 // Bug reporting now happens in a modal (see BugCreateModal), not a full
 // page — this route only exists so old links/bookmarks to /bugs/new still

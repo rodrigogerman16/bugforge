@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db/prisma";
 
 export async function markNotificationRead(id: string) {
   await prisma.notification.updateMany({ where: { id, read: false }, data: { read: true } });

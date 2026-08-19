@@ -8,15 +8,15 @@ import {
   ListChecks,
   HeartPulse,
 } from "lucide-react";
-import { getDashboardData, getQualityTrend } from "@/lib/data";
-import { StatTile } from "@/components/stat-tile";
-import { GameCard } from "@/components/game-card";
-import { QualityScoreCard } from "@/components/quality-score-card";
-import { QualityTrendChart } from "@/components/quality-trend-chart";
-import { TrendRangeToggle } from "@/components/trend-range-toggle";
-import { SeverityMeter } from "@/components/severity-meter";
+import { getDashboardData, getQualityTrend } from "@/lib/db";
+import { StatTile } from "@/components/ui/stat-tile";
+import { GameCard } from "@/components/dashboard/game-card";
+import { QualityScoreCard } from "@/components/dashboard/quality-score-card";
+import { QualityTrendChart } from "@/components/dashboard/quality-trend-chart";
+import { TrendRangeToggle } from "@/components/ui/trend-range-toggle";
+import { SeverityMeter } from "@/components/dashboard/severity-meter";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
-import { isTrendRangeDays, type TrendRangeDays } from "@/lib/trend-range";
+import { isTrendRangeDays, type TrendRangeDays } from "@/lib/utils/trend-range";
 
 export default async function DashboardPage({
   searchParams,

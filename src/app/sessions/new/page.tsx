@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getGamesWithBuilds } from "@/lib/data";
+import { getGamesWithBuilds } from "@/lib/db";
 import { NewSessionForm } from "@/components/sessions/new-session-form";
 
 export default async function NewSessionPage({

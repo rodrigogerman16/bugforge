@@ -4,8 +4,8 @@ import { CommentComposer } from "@/components/comments/comment-composer";
 import { CommentItem } from "@/components/comments/comment-item";
 import { countComments } from "@/components/comments/comment-utils";
 import { createComment, type CommentAttachmentInput } from "@/app/bugs/[id]/comment-actions";
-import { useShellUI } from "@/components/shell-ui-provider";
-import type { CommentNode } from "@/lib/data";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import type { CommentNode } from "@/lib/db";
 
 type Tester = { id: string; name: string; role: string };
 

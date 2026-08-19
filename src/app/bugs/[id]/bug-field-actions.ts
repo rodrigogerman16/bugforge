@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanEditBugFields, assertCanChangeBugStatus, assertCanAssignBug } from "@/lib/permissions";
-import { createNotification } from "@/lib/notifications";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanEditBugFields, assertCanChangeBugStatus, assertCanAssignBug } from "@/lib/auth/permissions";
+import { createNotification } from "@/lib/db/notifications";
 import { SEVERITY_RANK } from "@/lib/severity";
 import { PRIORITY_RANK } from "@/lib/priority";
 import { BUG_STATUS_RANK } from "@/lib/status-labels";

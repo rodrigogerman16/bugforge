@@ -4,8 +4,8 @@ import { useState } from "react";
 import { SmilePlus, Paperclip } from "lucide-react";
 import { CommentComposer } from "@/components/comments/comment-composer";
 import { REACTION_EMOJIS, ROLE_LABEL, initials, renderBodyWithMentions } from "@/components/comments/comment-utils";
-import { ATTACHMENT_RULES, formatBytes } from "@/lib/attachments";
-import { formatRelativeTime } from "@/lib/relative-time";
+import { ATTACHMENT_RULES, formatBytes } from "@/lib/validation/attachments";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
 import {
   createComment,
   updateComment,
@@ -14,7 +14,7 @@ import {
   type CommentAttachmentInput,
 } from "@/app/bugs/[id]/comment-actions";
 import { cn } from "@/lib/utils";
-import type { CommentNode } from "@/lib/data";
+import type { CommentNode } from "@/lib/db";
 
 type Tester = { id: string; name: string; role: string };
 

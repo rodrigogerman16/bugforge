@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronsUpDown, Check, Gamepad2, CalendarDays, GitBranch } from "lucide-react";
-import { Dropdown } from "@/components/dropdown";
+import { Dropdown } from "@/components/ui/dropdown";
 import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META, type QualityBand } from "@/lib/quality-score";
 import type { Platform } from "@/generated/prisma/enums";

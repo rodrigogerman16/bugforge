@@ -1,4 +1,4 @@
-import type { BuildRiskContext } from "@/lib/data";
+import type { BuildRiskContext } from "@/lib/db";
 
 // Analyze build release risk — combines four independent, real signals about
 // one build (open critical bugs, a regression-rate trend versus the previous

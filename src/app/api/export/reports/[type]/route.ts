@@ -9,10 +9,10 @@ import {
   getRegressionReportData,
   getCoverageByDiscipline,
   getShellGames,
-} from "@/lib/data";
+} from "@/lib/db";
 import { computeReleaseReadiness } from "@/lib/release-readiness";
-import { resolveAnalyticsRange } from "@/lib/analytics-range";
-import { toSectionedCsv, csvResponse, jsonResponse } from "@/lib/export";
+import { resolveAnalyticsRange } from "@/lib/utils/analytics-range";
+import { toSectionedCsv, csvResponse, jsonResponse } from "@/lib/utils/export";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { BUILD_STATUS_META } from "@/lib/build-status";

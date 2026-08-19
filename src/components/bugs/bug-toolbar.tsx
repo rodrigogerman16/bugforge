@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { Dropdown } from "@/components/dropdown";
+import { Dropdown } from "@/components/ui/dropdown";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 
 // The single-key shortcuts (⌘K/Ctrl+K for the command palette lives in
 // ShellUIProvider itself) — B for a new bug, T for a new test case, S to

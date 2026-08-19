@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getRegressionReportData, getShellGames } from "@/lib/data";
-import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { getRegressionReportData, getShellGames } from "@/lib/db";
+import { resolveAnalyticsRange } from "@/lib/utils/analytics-range";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";
 import { SEVERITY_META } from "@/lib/severity";
 

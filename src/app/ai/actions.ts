@@ -9,7 +9,7 @@ import {
   getGamePlatforms,
   getBuildRiskContext,
   type AiBugContext,
-} from "@/lib/data";
+} from "@/lib/db";
 import {
   suggestSeverity,
   suggestPriority,

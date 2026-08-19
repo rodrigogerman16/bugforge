@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { motion } from "motion/react";
-import { fadeSlideUp, baseTransition } from "@/lib/motion";
+import { fadeSlideUp, baseTransition } from "@/lib/utils/motion";
 
 // A thin client boundary that lets server-rendered content (the AI
 // analysis panel, the report quality card, a chart once its data is

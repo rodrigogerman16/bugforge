@@ -7,7 +7,7 @@ import path from "node:path";
 // `prisma migrate deploy` resolves its connection from prisma.config.ts's
 // DATABASE_URL, which has no way to carry a Turso auth token — the app
 // itself only ever connects via TURSO_DATABASE_URL/TURSO_AUTH_TOKEN through
-// the libsql driver adapter (see lib/prisma.ts). This script is the same
+// the libsql driver adapter (see lib/db/prisma.ts). This script is the same
 // migration-apply step `migrate deploy` would do, run through that same
 // adapter/connection instead, so schema changes actually reach the deployed
 // Turso database on every build instead of silently staying local-only.

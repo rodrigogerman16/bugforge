@@ -1,5 +1,5 @@
 import type { BugSeverity, BugPriority } from "@/generated/prisma/enums";
-import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext } from "@/lib/data";
+import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext } from "@/lib/db";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";

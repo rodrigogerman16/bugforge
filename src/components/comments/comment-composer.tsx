@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from "react";
 import { Paperclip, Send, X, Loader2, AlertCircle } from "lucide-react";
 import { initials } from "@/components/comments/comment-utils";
-import { validateAttachmentFile, formatBytes, ATTACHMENT_RULES } from "@/lib/attachments";
-import { uploadAttachment } from "@/lib/upload-attachment";
+import { validateAttachmentFile, formatBytes, ATTACHMENT_RULES } from "@/lib/validation/attachments";
+import { uploadAttachment } from "@/lib/utils/upload-attachment";
 import { cn } from "@/lib/utils";
 import type { CommentAttachmentInput } from "@/app/bugs/[id]/comment-actions";
 

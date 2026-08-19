@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getBuildOptions, getBuilds } from "@/lib/data";
+import { getBuildOptions, getBuilds } from "@/lib/db";
 import { BuildComparePicker } from "@/components/builds/build-compare-picker";
 import { BuildComparisonTable } from "@/components/builds/build-comparison-table";
 

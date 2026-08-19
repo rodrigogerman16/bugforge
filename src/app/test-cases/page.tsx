@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getTestCases, getCurrentUser } from "@/lib/data";
+import { getTestCases, getCurrentUser } from "@/lib/db";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { formatRelativeTime } from "@/lib/relative-time";
-import { ExportLinks } from "@/components/export-links";
-import { hasCapability } from "@/lib/permissions";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
+import { ExportLinks } from "@/components/ui/export-links";
+import { hasCapability } from "@/lib/auth/permissions";
 
 export default async function TestCasesPage({
   searchParams,

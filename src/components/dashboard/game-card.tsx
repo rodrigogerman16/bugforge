@@ -1,7 +1,7 @@
 import { GitBranch, Radio } from "lucide-react";
-import type { GameSummary } from "@/lib/data";
+import type { GameSummary } from "@/lib/db";
 import { formatPlatformList } from "@/lib/platform";
-import { SeverityMeter } from "@/components/severity-meter";
+import { SeverityMeter } from "@/components/dashboard/severity-meter";
 
 export function GameCard({ game }: { game: GameSummary }) {
   const isActive = game.activeSession?.status === "ACTIVE";

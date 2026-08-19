@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getTestCases } from "@/lib/data";
-import { toCsv, csvResponse, jsonResponse } from "@/lib/export";
+import { getTestCases } from "@/lib/db";
+import { toCsv, csvResponse, jsonResponse } from "@/lib/utils/export";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
 

@@ -1,5 +1,5 @@
 import { AlertTriangle } from "lucide-react";
-import { getCoverageByDiscipline } from "@/lib/data";
+import { getCoverageByDiscipline } from "@/lib/db";
 import { qualityBand } from "@/lib/quality-score";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { CoverageBar } from "@/components/coverage/coverage-bar";

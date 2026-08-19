@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, PackagePlus, FlaskConical, UserRound, RotateCcw, AtSign, type LucideIcon } from "lucide-react";
-import { formatRelativeTime } from "@/lib/relative-time";
-import type { NotificationSummary } from "@/lib/data";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
+import type { NotificationSummary } from "@/lib/db";
 import type { NotificationType } from "@/generated/prisma/enums";
 
 export const NOTIFICATION_TYPE_META: Record<NotificationType, { icon: LucideIcon; color: string }> = {

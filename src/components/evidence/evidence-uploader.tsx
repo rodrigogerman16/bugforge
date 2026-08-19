@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { Paperclip, Loader2, AlertCircle } from "lucide-react";
-import { validateAttachmentFile, ATTACHMENT_RULES } from "@/lib/attachments";
-import { uploadAttachment } from "@/lib/upload-attachment";
+import { validateAttachmentFile, ATTACHMENT_RULES } from "@/lib/validation/attachments";
+import { uploadAttachment } from "@/lib/utils/upload-attachment";
 import { addEvidence } from "@/app/bugs/[id]/evidence-actions";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 
 export function EvidenceUploader({ bugId }: { bugId: string }) {
   const [uploading, setUploading] = useState(false);

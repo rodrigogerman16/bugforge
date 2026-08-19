@@ -1,5 +1,5 @@
 import type { BugSeverity, TestCasePriority, Platform } from "@/generated/prisma/enums";
-import type { AiBugContext } from "@/lib/data";
+import type { AiBugContext } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { capitalizeFirst, stripTrailingPunctuation } from "@/lib/ai/provider";
 import { reviewReproSteps } from "@/lib/ai/bug-analysis";

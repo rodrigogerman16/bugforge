@@ -1,8 +1,8 @@
-import { getAreas, getAreaUsageCounts, getCurrentUser } from "@/lib/data";
+import { getAreas, getAreaUsageCounts, getCurrentUser } from "@/lib/db";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { AreaForm } from "@/components/areas/area-form";
 import { DeleteAreaButton } from "@/components/areas/delete-area-button";
-import { hasCapability } from "@/lib/permissions";
+import { hasCapability } from "@/lib/auth/permissions";
 
 export default async function AreasPage() {
   const [areas, usage, currentUser] = await Promise.all([getAreas(), getAreaUsageCounts(), getCurrentUser()]);

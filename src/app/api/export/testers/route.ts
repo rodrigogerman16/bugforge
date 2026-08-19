@@ -1,5 +1,5 @@
-import { getTesterProfiles } from "@/lib/data";
-import { toCsv, csvResponse, jsonResponse } from "@/lib/export";
+import { getTesterProfiles } from "@/lib/db";
+import { toCsv, csvResponse, jsonResponse } from "@/lib/utils/export";
 
 export async function GET(request: Request) {
   const format = new URL(request.url).searchParams.get("format") === "json" ? "json" : "csv";

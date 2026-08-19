@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanUploadEvidence } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanUploadEvidence } from "@/lib/auth/permissions";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
 // The file itself is already in Supabase Storage by the time this runs (see

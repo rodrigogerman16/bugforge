@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getTestCaseDetail, getAreas } from "@/lib/data";
+import { getTestCaseDetail, getAreas } from "@/lib/db";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 
 export default async function EditTestCasePage({ params }: { params: Promise<{ id: string }> }) {

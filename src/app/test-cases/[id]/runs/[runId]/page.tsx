@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, XCircle, ShieldAlert, SkipForward } from "lucide-react";
-import { getTestRunDetail } from "@/lib/data";
+import { getTestRunDetail } from "@/lib/db";
 import { TEST_RUN_RESULT_META } from "@/lib/test-case";
-import { formatRelativeTime } from "@/lib/relative-time";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
 
 const RESULT_ICON: Record<string, typeof CheckCircle2> = {
   PASS: CheckCircle2,

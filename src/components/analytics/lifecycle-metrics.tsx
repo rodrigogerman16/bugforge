@@ -1,5 +1,5 @@
 import { CircleDot, Wrench, BadgeCheck, CheckCheck, type LucideIcon } from "lucide-react";
-import type { BugLifecycleMetrics, LifecycleStageMetric } from "@/lib/data";
+import type { BugLifecycleMetrics, LifecycleStageMetric } from "@/lib/db";
 
 function formatDuration(hours: number): string {
   if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;

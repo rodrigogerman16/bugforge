@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Users, Timer, Bug as BugIcon, AlertTriangle, ListChecks } from "lucide-react";
 import { formatPlatformList } from "@/lib/platform";
-import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/session";
-import type { SessionSummary } from "@/lib/data";
+import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/auth/session";
+import type { SessionSummary } from "@/lib/db";
 
 export function SessionCard({ session }: { session: SessionSummary }) {
   const statusMeta = SESSION_STATUS_META[session.status];

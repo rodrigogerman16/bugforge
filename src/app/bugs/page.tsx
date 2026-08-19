@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/data";
-import { hasCapability } from "@/lib/permissions";
+import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/db";
+import { hasCapability } from "@/lib/auth/permissions";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { BugWorkflowLegend } from "@/components/bug-workflow-legend";
+import { BugWorkflowLegend } from "@/components/bugs/bug-workflow-legend";
 import { BugToolbar } from "@/components/bugs/bug-toolbar";
 import { BugTable } from "@/components/bugs/bug-table";
 import { ReportBugButton } from "@/components/bugs/report-bug-button";
-import { ExportLinks } from "@/components/export-links";
+import { ExportLinks } from "@/components/ui/export-links";
 import { BugSeverity, BugPriority, BugStatus, Platform } from "@/generated/prisma/enums";
 
 function isBugSeverity(value: string | undefined): value is BugSeverity {

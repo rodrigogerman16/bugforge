@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/auth/supabase/server";
 
 // Every Supabase redirect lands here: an OAuth provider callback, or a
 // password-recovery email link — both hand back a `code` that's exchanged

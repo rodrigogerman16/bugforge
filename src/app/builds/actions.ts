@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanManageBuilds } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanManageBuilds } from "@/lib/auth/permissions";
 import type { BuildStatus } from "@/generated/prisma/enums";
 
 export async function updateBuildStatus(buildId: string, status: BuildStatus) {

@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { Sparkles, Loader2, TriangleAlert } from "lucide-react";
 import { getBuildReleaseRisk } from "@/app/ai/actions";
 import { RELEASE_RISK_META, type BuildReleaseRiskAnalysis } from "@/lib/ai/release-analysis";
-import { fadeSlideUp, baseTransition } from "@/lib/motion";
+import { fadeSlideUp, baseTransition } from "@/lib/utils/motion";
 import { cn } from "@/lib/utils";
 
 // On-demand, not eager — a build risk analysis touches several real queries

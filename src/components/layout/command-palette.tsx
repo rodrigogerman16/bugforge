@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/utils/motion";
 import {
   Search,
   CornerDownLeft,
@@ -23,13 +23,13 @@ import {
   FileText,
   ShieldCheck,
 } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 import { NAV_ITEMS, NAV_FOOTER_ITEMS } from "@/lib/nav-items";
 import { formatPlatformList } from "@/lib/platform";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META, SESSION_STATUS_LABEL } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
-import type { GameOption } from "@/components/game-switcher";
+import type { GameOption } from "@/components/layout/game-switcher";
 import type { BugSeverity, BugStatus, SessionStatus } from "@/generated/prisma/enums";
 
 type PaletteGroup =

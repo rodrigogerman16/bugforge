@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { fadeIn, fastTransition } from "@/lib/motion";
+import { fadeIn, fastTransition } from "@/lib/utils/motion";
 
 // Wraps the routed page content so navigating between routes gets a quick,
 // subtle cross-fade instead of an abrupt swap. initial={false} skips the

@@ -1,7 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 
 export function AskAiButton() {
   const { setAiPanelOpen } = useShellUI();

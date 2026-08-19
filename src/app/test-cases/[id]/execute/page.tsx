@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getTestCaseDetail, getGameSessions } from "@/lib/data";
+import { getTestCaseDetail, getGameSessions } from "@/lib/db";
 import { ExecuteTestCaseForm } from "@/components/test-cases/execute-test-case-form";
 
 function parseSteps(raw: string): string[] {

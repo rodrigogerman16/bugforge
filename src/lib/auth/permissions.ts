@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/data";
+import { getCurrentUser } from "@/lib/db";
 import type { TesterRole, BugStatus } from "@/generated/prisma/enums";
 
 // The real, granular permission matrix — item 47 only had a blanket

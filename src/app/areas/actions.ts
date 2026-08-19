@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanManageAreas } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanManageAreas } from "@/lib/auth/permissions";
 import { createAreaSchema, parseOrThrow } from "@/lib/validation";
 import type { QADiscipline } from "@/generated/prisma/enums";
 

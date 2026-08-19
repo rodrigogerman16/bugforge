@@ -3,12 +3,12 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 import { useNotificationsState } from "@/components/notifications/use-notifications-state";
 import { NotificationRow } from "@/components/notifications/notification-row";
-import { fadeIn, fastTransition } from "@/lib/motion";
-import { useFocusTrap } from "@/lib/use-focus-trap";
-import type { NotificationSummary } from "@/lib/data";
+import { fadeIn, fastTransition } from "@/lib/utils/motion";
+import { useFocusTrap } from "@/lib/utils/use-focus-trap";
+import type { NotificationSummary } from "@/lib/db";
 
 // The bottom nav's "Notifications" tab has nowhere to route to (there's no
 // /notifications page) — it opens this full-screen sheet instead, the

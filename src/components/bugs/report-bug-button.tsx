@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 
 // Opens the bug report modal instead of navigating to a page — the same
 // game context (if any) the caller already has just gets passed straight

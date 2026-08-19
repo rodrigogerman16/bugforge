@@ -4,12 +4,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Loader2 } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 import { getBugCreateOptions } from "@/app/bugs/actions";
-import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/data";
+import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/db";
 import { BugCreateForm } from "@/components/bugs/bug-create-form";
-import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
-import { useFocusTrap } from "@/lib/use-focus-trap";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/utils/motion";
+import { useFocusTrap } from "@/lib/utils/use-focus-trap";
 
 type Options = { games: GameCreateOption[]; areas: AreaSummary[]; tags: TagSummary[] };
 

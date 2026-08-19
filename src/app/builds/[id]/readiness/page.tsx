@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Settings2 } from "lucide-react";
-import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/data";
+import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/db";
 import { computeReleaseReadiness } from "@/lib/release-readiness";
-import { canViewReleaseReadiness } from "@/lib/permissions";
-import { RestrictedAccess } from "@/components/restricted-access";
+import { canViewReleaseReadiness } from "@/lib/auth/permissions";
+import { RestrictedAccess } from "@/components/ui/restricted-access";
 import { cn } from "@/lib/utils";
 
 function scoreColor(score: number): string {

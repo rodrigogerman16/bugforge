@@ -1,10 +1,10 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { Dropdown } from "@/components/dropdown";
+import { Dropdown } from "@/components/ui/dropdown";
 import { useNotificationsState } from "@/components/notifications/use-notifications-state";
 import { NotificationRow } from "@/components/notifications/notification-row";
-import type { NotificationSummary } from "@/lib/data";
+import type { NotificationSummary } from "@/lib/db";
 
 // Every notification here is a real Notification row (see lib/data.ts's
 // getNotifications) created at the moment its underlying event happened —

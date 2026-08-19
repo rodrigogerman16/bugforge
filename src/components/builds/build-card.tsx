@@ -4,7 +4,7 @@ import { formatPlatformList } from "@/lib/platform";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
 import { BuildStatusControl } from "@/components/builds/build-status-control";
 import { BuildRiskPanel } from "@/components/ai/build-risk-panel";
-import type { BuildSummary } from "@/lib/data";
+import type { BuildSummary } from "@/lib/db";
 
 const releasedFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
 

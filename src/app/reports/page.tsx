@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { getGamesForReports } from "@/lib/data";
+import { getGamesForReports } from "@/lib/db";
 
 const selectClass =
   "rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-2.5 py-1.5 text-[12px] text-[color:var(--bf-ink-primary)] outline-none focus:border-[color:var(--bf-border-strong)]";

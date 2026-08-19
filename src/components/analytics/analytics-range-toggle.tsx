@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ANALYTICS_RANGE_PRESETS, formatDateInput, type AnalyticsRangeSelection } from "@/lib/analytics-range";
+import { ANALYTICS_RANGE_PRESETS, formatDateInput, type AnalyticsRangeSelection } from "@/lib/utils/analytics-range";
 import { cn } from "@/lib/utils";
 
 export function AnalyticsRangeToggle({

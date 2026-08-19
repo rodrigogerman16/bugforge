@@ -1,5 +1,5 @@
-import { getDashboardData, getAnalyticsData, getBugLifecycleMetrics } from "@/lib/data";
-import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { getDashboardData, getAnalyticsData, getBugLifecycleMetrics } from "@/lib/db";
+import { resolveAnalyticsRange } from "@/lib/utils/analytics-range";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";
 import { SEVERITY_META } from "@/lib/severity";
 import { QUALITY_BAND_META } from "@/lib/quality-score";

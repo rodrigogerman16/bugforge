@@ -1,6 +1,6 @@
 "use client";
 
-import type { AttachmentKind } from "@/lib/attachments";
+import type { AttachmentKind } from "@/lib/validation/attachments";
 
 export type UploadedAttachment = {
   url: string;

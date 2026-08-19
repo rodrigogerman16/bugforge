@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanCreateBug, assertCanBulkActOnBugs } from "@/lib/permissions";
-import { createNotification } from "@/lib/notifications";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanCreateBug, assertCanBulkActOnBugs } from "@/lib/auth/permissions";
+import { createNotification } from "@/lib/db/notifications";
 import { createBugSchema, parseOrThrow } from "@/lib/validation";
-import { getGamesForBugCreation, getAreas, getTags, getNextBugNumber, type GameCreateOption, type AreaSummary, type TagSummary } from "@/lib/data";
+import { getGamesForBugCreation, getAreas, getTags, getNextBugNumber, type GameCreateOption, type AreaSummary, type TagSummary } from "@/lib/db";
 import { SEVERITY_RANK } from "@/lib/severity";
 import { PRIORITY_RANK } from "@/lib/priority";
 import { BUG_STATUS_RANK } from "@/lib/status-labels";

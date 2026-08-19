@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { User, Settings, LogOut } from "lucide-react";
-import { Dropdown } from "@/components/dropdown";
+import { Dropdown } from "@/components/ui/dropdown";
 import { TESTER_ROLE_META } from "@/lib/tester";
 import { signOut } from "@/app/auth/actions";
 import type { TesterRole } from "@/generated/prisma/enums";

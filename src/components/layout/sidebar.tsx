@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { NAV_GROUPS, NAV_FOOTER_ITEMS, type NavItem } from "@/lib/nav-items";
-import { useShellUI } from "@/components/shell-ui-provider";
-import { Brand } from "@/components/brand";
-import { GameSwitcher, type GameOption } from "@/components/game-switcher";
-import { useFocusTrap } from "@/lib/use-focus-trap";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { Brand } from "@/components/layout/brand";
+import { GameSwitcher, type GameOption } from "@/components/layout/game-switcher";
+import { useFocusTrap } from "@/lib/utils/use-focus-trap";
 import { cn } from "@/lib/utils";
 
 function NavLink({

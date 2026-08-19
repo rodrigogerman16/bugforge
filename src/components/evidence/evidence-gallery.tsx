@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Play } from "lucide-react";
 import { EvidenceViewer, type EvidenceItem, TYPE_META } from "@/components/evidence/evidence-viewer";
-import { formatBytes } from "@/lib/attachments";
+import { formatBytes } from "@/lib/validation/attachments";
 
 export type { EvidenceItem } from "@/components/evidence/evidence-viewer";
 

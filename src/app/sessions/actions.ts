@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanManageTestSessions } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanManageTestSessions } from "@/lib/auth/permissions";
 
 export async function createSession({ gameId, buildId, name }: { gameId: string; buildId: string; name: string }) {
   await assertCanManageTestSessions();

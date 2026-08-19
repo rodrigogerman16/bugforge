@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TESTER_ROLE_META, initials } from "@/lib/tester";
-import type { TesterProfileSummary } from "@/lib/data";
+import type { TesterProfileSummary } from "@/lib/db";
 
 export function TesterCard({ tester }: { tester: TesterProfileSummary }) {
   const roleMeta = TESTER_ROLE_META[tester.role];

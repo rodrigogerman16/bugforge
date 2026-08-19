@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ChevronDown, TriangleAlert } from "lucide-react";
 import { SEVERITY_META } from "@/lib/severity";
 import { REGRESSION_RISK_META, type BugQuickAnalysis } from "@/lib/ai/bug-analysis";
-import { fadeSlideUp, fadeIn, baseTransition, fastTransition } from "@/lib/motion";
+import { fadeSlideUp, fadeIn, baseTransition, fastTransition } from "@/lib/utils/motion";
 import { cn } from "@/lib/utils";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {

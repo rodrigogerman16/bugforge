@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { TREND_RANGE_DAYS, type TrendRangeDays } from "@/lib/trend-range";
+import { TREND_RANGE_DAYS, type TrendRangeDays } from "@/lib/utils/trend-range";
 import { cn } from "@/lib/utils";
 
 export function TrendRangeToggle({ active }: { active: TrendRangeDays }) {

@@ -15,7 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatBytes } from "@/lib/attachments";
+import { formatBytes } from "@/lib/validation/attachments";
 
 export type EvidenceType = "IMAGE" | "VIDEO" | "LOG" | "ATTACHMENT";
 

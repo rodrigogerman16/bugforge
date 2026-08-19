@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil, Play } from "lucide-react";
-import { getTestCaseDetail, getGameSessions } from "@/lib/data";
+import { getTestCaseDetail, getGameSessions } from "@/lib/db";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META, TEST_RUN_RESULT_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { formatRelativeTime } from "@/lib/relative-time";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { DeleteTestCaseButton } from "@/components/test-cases/delete-test-case-button";
 import { LogTestRunForm } from "@/components/test-cases/log-test-run-form";
 

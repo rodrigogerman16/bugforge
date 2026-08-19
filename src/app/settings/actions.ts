@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { assertCanManageSettings } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { assertCanManageSettings } from "@/lib/auth/permissions";
 import type { GateOperator } from "@/generated/prisma/enums";
 
 export async function updateQualityGate(

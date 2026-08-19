@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo, getAreas } from "@/lib/data";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo, getAreas } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/platform";
-import { formatRelativeTime } from "@/lib/relative-time";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { EvidenceUploader } from "@/components/evidence/evidence-uploader";
 import { CommentSection } from "@/components/comments/comment-section";
 import { BugFieldControls, BugAssigneeControl, BugAreaControl, ALL_BUG_STATUS_OPTIONS } from "@/components/bugs/bug-field-controls";
-import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVELOPER_ALLOWED_STATUSES } from "@/lib/permissions";
+import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVELOPER_ALLOWED_STATUSES } from "@/lib/auth/permissions";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
 import { BugReportQualityCard } from "@/components/bugs/bug-report-quality-card";

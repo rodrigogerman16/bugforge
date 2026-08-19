@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Bug, ListChecks, Bell, Plus } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 import { cn } from "@/lib/utils";
 
 // The five things a tester reaches for constantly on a phone (see the

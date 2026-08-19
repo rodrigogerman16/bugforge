@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { GitCompare } from "lucide-react";
-import { getBuilds } from "@/lib/data";
+import { getBuilds } from "@/lib/db";
 import { BuildCard } from "@/components/builds/build-card";
-import { ExportLinks } from "@/components/export-links";
+import { ExportLinks } from "@/components/ui/export-links";
 
 export default async function BuildsPage({
   searchParams,

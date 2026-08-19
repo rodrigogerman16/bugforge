@@ -1,5 +1,5 @@
-import { getQualityGates, getCurrentUser } from "@/lib/data";
-import { canManageSettings } from "@/lib/permissions";
+import { getQualityGates, getCurrentUser } from "@/lib/db";
+import { canManageSettings } from "@/lib/auth/permissions";
 import { QualityGatesForm } from "@/components/settings/quality-gates-form";
 
 export default async function SettingsPage() {

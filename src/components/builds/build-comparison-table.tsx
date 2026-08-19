@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowRight, ArrowUp, TrendingDown, TrendingUp } from "lucide-react";
-import type { BuildSummary } from "@/lib/data";
+import type { BuildSummary } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 type Metric = {

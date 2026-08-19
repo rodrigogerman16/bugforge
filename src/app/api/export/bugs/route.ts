@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getBugsForExport, isBugSortField } from "@/lib/data";
-import { toCsv, csvResponse, jsonResponse } from "@/lib/export";
+import { getBugsForExport, isBugSortField } from "@/lib/db";
+import { toCsv, csvResponse, jsonResponse } from "@/lib/utils/export";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";

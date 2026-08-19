@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { motion } from "motion/react";
-import { changeHighlight, changeHighlightTransition } from "@/lib/motion";
+import { changeHighlight, changeHighlightTransition } from "@/lib/utils/motion";
 import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
 import { PRIORITY_META, PRIORITY_ORDER } from "@/lib/priority";
 import { SEVERITY_META, SEVERITY_ORDER } from "@/lib/severity";

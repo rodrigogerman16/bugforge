@@ -1,5 +1,5 @@
 import type { BugSeverity, BugStatus } from "@/generated/prisma/enums";
-import type { DuplicateCandidateBug } from "@/lib/data";
+import type { DuplicateCandidateBug } from "@/lib/db";
 
 // Token-overlap (Jaccard) similarity over title + description, restricted to
 // the same game. No ML, no embeddings — just a real, explainable text-

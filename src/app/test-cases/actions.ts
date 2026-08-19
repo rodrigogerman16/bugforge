@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
-import { getTestCaseNumberMap, getNextBugNumber } from "@/lib/data";
-import { assertCanManageTestCases, assertCanExecuteTests } from "@/lib/permissions";
+import { prisma } from "@/lib/db/prisma";
+import { getTestCaseNumberMap, getNextBugNumber } from "@/lib/db";
+import { assertCanManageTestCases, assertCanExecuteTests } from "@/lib/auth/permissions";
 import { testCaseInputSchema, logTestRunSchema, executeTestCaseSchema, parseOrThrow } from "@/lib/validation";
 import {
   computeOverallResult,

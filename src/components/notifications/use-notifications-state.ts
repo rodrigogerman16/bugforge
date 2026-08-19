@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { markNotificationRead, markAllNotificationsRead } from "@/app/notifications/actions";
-import type { NotificationSummary } from "@/lib/data";
+import type { NotificationSummary } from "@/lib/db";
 
 // Shared read/unread state + mutation handlers behind both the desktop
 // notifications dropdown and the mobile full-screen sheet — one real

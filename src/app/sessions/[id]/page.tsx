@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getSessionDetail } from "@/lib/data";
+import { getSessionDetail } from "@/lib/db";
 import { formatPlatformList } from "@/lib/platform";
-import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/session";
+import { SESSION_STATUS_META, sessionDurationLabel } from "@/lib/auth/session";
 import { SEVERITY_META } from "@/lib/severity";
 import { TEST_RUN_RESULT_META } from "@/lib/test-case";
-import { formatRelativeTime } from "@/lib/relative-time";
+import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { SessionStatusControl } from "@/components/sessions/session-status-control";
 import { SessionNotesForm } from "@/components/sessions/session-notes-form";
 import { DeleteSessionButton } from "@/components/sessions/delete-session-button";

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getTesterProfileDetail, getCurrentUser } from "@/lib/data";
+import { getTesterProfileDetail, getCurrentUser } from "@/lib/db";
 import { TESTER_ROLE_META, initials } from "@/lib/tester";
-import { canManageRoles } from "@/lib/permissions";
+import { canManageRoles } from "@/lib/auth/permissions";
 import { TesterActivityFeed } from "@/components/testers/tester-activity-feed";
 import { RoleSelect } from "@/components/testers/role-select";
 

@@ -1,4 +1,4 @@
-import { getCoverageByDiscipline, getShellGames } from "@/lib/data";
+import { getCoverageByDiscipline, getShellGames } from "@/lib/db";
 import { qualityBand } from "@/lib/quality-score";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";

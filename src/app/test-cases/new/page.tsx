@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getShellGames, getAreas, getBugForAi } from "@/lib/data";
+import { getShellGames, getAreas, getBugForAi } from "@/lib/db";
 import { draftTestCaseFromBug } from "@/lib/ai/test-generation";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 

@@ -1,4 +1,4 @@
-import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext } from "@/lib/data";
+import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext } from "@/lib/db";
 import {
   suggestSeverity,
   suggestPriority,

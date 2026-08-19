@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getSessions } from "@/lib/data";
-import { toCsv, csvResponse, jsonResponse } from "@/lib/export";
+import { getSessions } from "@/lib/db";
+import { toCsv, csvResponse, jsonResponse } from "@/lib/utils/export";
 import { SESSION_STATUS_LABEL } from "@/lib/status-labels";
 
 export async function GET(request: NextRequest) {

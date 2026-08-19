@@ -1,11 +1,11 @@
 "use client";
 
 import { Menu, Search, Sparkles, Keyboard } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
-import { Brand } from "@/components/brand";
-import { NotificationsMenu } from "@/components/notifications-menu";
-import { UserMenu } from "@/components/user-menu";
-import type { NotificationSummary } from "@/lib/data";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { Brand } from "@/components/layout/brand";
+import { NotificationsMenu } from "@/components/layout/notifications-menu";
+import { UserMenu } from "@/components/layout/user-menu";
+import type { NotificationSummary } from "@/lib/db";
 
 export function TopBar({
   user,

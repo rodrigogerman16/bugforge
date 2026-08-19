@@ -1,7 +1,7 @@
-import { getAnalyticsData, getBugLifecycleMetrics, getCurrentUser } from "@/lib/data";
-import { resolveAnalyticsRange } from "@/lib/analytics-range";
-import { canViewAnalytics } from "@/lib/permissions";
-import { RestrictedAccess } from "@/components/restricted-access";
+import { getAnalyticsData, getBugLifecycleMetrics, getCurrentUser } from "@/lib/db";
+import { resolveAnalyticsRange } from "@/lib/utils/analytics-range";
+import { canViewAnalytics } from "@/lib/auth/permissions";
+import { RestrictedAccess } from "@/components/ui/restricted-access";
 import { AnalyticsRangeToggle } from "@/components/analytics/analytics-range-toggle";
 import { TrendChart } from "@/components/analytics/trend-chart";
 import { CategoryBarChart } from "@/components/analytics/category-bar-chart";

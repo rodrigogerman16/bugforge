@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
-import { validateAttachmentFile } from "@/lib/attachments";
-import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/supabase";
-import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/lib/permissions";
+import { validateAttachmentFile } from "@/lib/validation/attachments";
+import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/utils/supabase-storage";
+import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/lib/auth/permissions";
 import { uploadContextSchema } from "@/lib/validation";
 
 // The one real upload path in the app — the comment composer and the

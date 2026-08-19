@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { QUALITY_BAND_META, qualityBand } from "@/lib/quality-score";
-import type { QualityTrendPoint } from "@/lib/data";
+import type { QualityTrendPoint } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 const WIDTH = 720;

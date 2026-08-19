@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { drawerTransition, fadeSlideUp, baseTransition } from "@/lib/motion";
+import { drawerTransition, fadeSlideUp, baseTransition } from "@/lib/utils/motion";
 import {
   X,
   Sparkles,
@@ -20,7 +20,7 @@ import {
   FlaskConical,
   ShieldAlert,
 } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { AI_ACTIONS, type AiActionKey, type AiResult } from "@/lib/ai/chat";

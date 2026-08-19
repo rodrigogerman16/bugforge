@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
-import { useShellUI } from "@/components/shell-ui-provider";
-import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
-import { useFocusTrap } from "@/lib/use-focus-trap";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/utils/motion";
+import { useFocusTrap } from "@/lib/utils/use-focus-trap";
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["⌘", "K"], label: "Command palette" },
