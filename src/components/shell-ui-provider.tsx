@@ -13,6 +13,10 @@ type ShellUIContextValue = {
   setAiPanelOpen: (open: boolean) => void;
   sidebarCollapsed: boolean;
   toggleSidebarCollapsed: () => void;
+  bugCreateModalOpen: boolean;
+  bugCreateModalGameSlug: string | null;
+  openBugCreateModal: (gameSlug?: string) => void;
+  closeBugCreateModal: () => void;
 };
 
 const ShellUIContext = createContext<ShellUIContextValue | null>(null);
@@ -22,6 +26,16 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [bugCreateModalOpen, setBugCreateModalOpen] = useState(false);
+  const [bugCreateModalGameSlug, setBugCreateModalGameSlug] = useState<string | null>(null);
+
+  function openBugCreateModal(gameSlug?: string) {
+    setBugCreateModalGameSlug(gameSlug ?? null);
+    setBugCreateModalOpen(true);
+  }
+  function closeBugCreateModal() {
+    setBugCreateModalOpen(false);
+  }
 
   useEffect(() => {
     const stored = window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
@@ -58,6 +72,10 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
         setAiPanelOpen,
         sidebarCollapsed,
         toggleSidebarCollapsed,
+        bugCreateModalOpen,
+        bugCreateModalGameSlug,
+        openBugCreateModal,
+        closeBugCreateModal,
       }}
     >
       {children}

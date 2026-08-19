@@ -426,3 +426,54 @@ export function suggestReproSteps(rawText: string, latestBuildVersion: string | 
 
   return steps;
 }
+
+// ---------------------------------------------------------------------------
+// Bug report quality checklist — a live readout on the report modal itself
+// (see BugCreateModal), before submission: not a suggestion to apply, just
+// an honest checklist of what a well-formed bug report needs, computed
+// straight from what the tester has actually typed so far. Every check is a
+// real, visible property of the draft — no field is scored on content it
+// doesn't actually have.
+// ---------------------------------------------------------------------------
+
+export type BugDraftQualityCheck = { key: string; label: string; met: boolean };
+export type BugDraftQuality = { percent: number; checks: BugDraftQualityCheck[] };
+
+// Catches an explicit statement of how often the bug happens — "always",
+// "about 1 in 5", "rarely", a bare percentage, etc. Deliberately narrow: it
+// only recognizes real frequency language the tester actually wrote, never
+// infers a frequency that isn't there.
+const FREQUENCY_PATTERN =
+  /\b(always|every time|consistently|constantly|sometimes|occasionally|intermittent(ly)?|randomly|rarely|repeatedly|once|\d{1,3}\s?%|\d+\s?(out of|\/)\s?\d+)\b/i;
+
+export function assessBugDraftQuality(draft: {
+  title: string;
+  description: string;
+  stepsToReproduce: string;
+  expectedResult: string;
+  actualResult: string;
+  hasBuild: boolean;
+}): BugDraftQuality {
+  const { issues, originalSteps } = reviewReproSteps({
+    stepsToReproduce: draft.stepsToReproduce,
+    expectedResult: draft.expectedResult || null,
+    actualResult: draft.actualResult || null,
+  });
+  const frequencyText = `${draft.title} ${draft.description} ${draft.stepsToReproduce} ${draft.actualResult}`;
+
+  const checks: BugDraftQualityCheck[] = [
+    { key: "title", label: "Descriptive title", met: draft.title.trim().length >= 15 },
+    {
+      key: "repro",
+      label: "Reproduction steps",
+      met: originalSteps.length >= 2 && !issues.some((i) => i.level === "error"),
+    },
+    { key: "expected", label: "Expected result", met: draft.expectedResult.trim().length > 0 },
+    { key: "actual", label: "Actual result", met: draft.actualResult.trim().length > 0 },
+    { key: "environment", label: "Environment", met: draft.hasBuild },
+    { key: "frequency", label: "Frequency", met: FREQUENCY_PATTERN.test(frequencyText) },
+  ];
+
+  const metCount = checks.filter((c) => c.met).length;
+  return { percent: Math.round((metCount / checks.length) * 100), checks };
+}

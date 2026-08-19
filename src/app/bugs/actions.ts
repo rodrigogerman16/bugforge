@@ -5,7 +5,16 @@ import { prisma } from "@/lib/prisma";
 import { assertCanCreateBug, assertCanBulkActOnBugs } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
 import { createBugSchema, parseOrThrow } from "@/lib/validation";
-import type { BugStatus, BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
+import { getGamesForBugCreation, getAreas, getTags, type GameCreateOption, type AreaSummary, type TagSummary } from "@/lib/data";
+import type { BugStatus, BugSeverity, BugPriority, Platform, EvidenceType } from "@/generated/prisma/enums";
+
+export type CreateBugEvidenceInput = {
+  type: EvidenceType;
+  url: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  content?: string | null;
+};
 
 export type CreateBugInput = {
   gameId: string;
@@ -19,7 +28,22 @@ export type CreateBugInput = {
   stepsToReproduce: string;
   expectedResult: string;
   actualResult: string;
+  tagIds: string[];
+  evidence: CreateBugEvidenceInput[];
 };
+
+// Everything the bug-report modal needs to render its own selects — fetched
+// on demand when the modal actually opens, not eagerly on every page load
+// (see BugCreateModal), the same "don't pull the full payload before it's
+// actually used" principle the AI assistant panel follows.
+export async function getBugCreateOptions(): Promise<{
+  games: GameCreateOption[];
+  areas: AreaSummary[];
+  tags: TagSummary[];
+}> {
+  const [games, areas, tags] = await Promise.all([getGamesForBugCreation(), getAreas(), getTags()]);
+  return { games, areas, tags };
+}
 
 async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
   const supported = await prisma.gamePlatform.findUnique({
@@ -48,6 +72,8 @@ export async function createBug(rawInput: CreateBugInput): Promise<string> {
       actualResult: input.actualResult.trim() || null,
       status: "NEW",
       reportedById: user.id,
+      tags: input.tagIds.length ? { connect: input.tagIds.map((id) => ({ id })) } : undefined,
+      evidence: input.evidence.length ? { create: input.evidence } : undefined,
     },
     include: { game: { select: { name: true } } },
   });

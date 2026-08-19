@@ -7,6 +7,7 @@ import { ShellUIProvider } from "@/components/shell-ui-provider";
 import { TopBar } from "@/components/topbar";
 import { CommandPalette } from "@/components/command-palette";
 import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
+import { BugCreateModal } from "@/components/bugs/bug-create-modal";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -74,6 +75,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <CommandPalette games={games} />
           </Suspense>
           <AiAssistantPanel aiProviderTagline={AI_PROVIDER_META[getAiProviderName()].tagline} />
+          <BugCreateModal />
         </ShellUIProvider>
       </body>
     </html>

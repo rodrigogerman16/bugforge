@@ -19,12 +19,18 @@ import {
   analyzeRegressionRisk,
   buildQuickAnalysis,
   suggestReproSteps,
+  assessBugDraftQuality,
   type BugQuickAnalysis,
+  type BugDraftQuality,
+  type SeveritySuggestion,
+  type PrioritySuggestion,
 } from "@/lib/ai/bug-analysis";
 import { findDuplicateCandidates, type DuplicateCandidate } from "@/lib/ai/duplicate-detection";
 import { generateTestCaseMatrix } from "@/lib/ai/test-generation";
 import { analyzeBuildReleaseRisk, type BuildReleaseRiskAnalysis } from "@/lib/ai/release-analysis";
 import { composeAnalyzeReport, type AiActionKey, type AiResult, type AnalyzeReport } from "@/lib/ai/chat";
+import { capitalizeSentence } from "@/lib/ai/provider";
+import type { BugSeverity, BuildStatus } from "@/generated/prisma/enums";
 
 export type AiBugHeader = {
   id: string;
@@ -85,12 +91,107 @@ export async function searchDuplicateBugsForDraft(
   return findDuplicateCandidates({ title, description }, candidates);
 }
 
-// Suggests a reproduction-steps scaffold for a bug that's still being
-// drafted, from whatever short description the tester has typed so far.
-export async function suggestReproStepsForDraft(gameId: string, text: string): Promise<string[]> {
-  if (text.trim().length < 8) return [];
-  const latestBuildVersion = await getLatestBuildVersion(gameId);
-  return suggestReproSteps(text, latestBuildVersion);
+export type BugDraftAiInput = {
+  gameId: string;
+  areaId: string | null;
+  areaName: string | null;
+  tags: string[];
+  buildStatus: BuildStatus;
+  title: string;
+  description: string;
+  severity: BugSeverity;
+  stepsToReproduce: string;
+  actualResult: string;
+};
+
+export type BugDraftAiSuggestions = {
+  stepsToReproduce: string[];
+  actualResult: string | null;
+  area: { id: string; name: string; confidence: "primary" | "possible" } | null;
+  severity: SeveritySuggestion;
+  priority: PrioritySuggestion;
+};
+
+// Powers "Analyze with AI" on the bug report modal — the bug doesn't exist
+// yet, so there's no bugId to key off of like every other AI action here.
+// Every suggestion below is computed from the draft's own real field values
+// (plus real sibling data: this area's open-bug/regression counts, this
+// game's real areas and latest build) — the modal decides what to actually
+// fill in from these, never silently overwriting something the tester
+// already wrote. There's deliberately no "expected result" suggestion: what
+// SHOULD happen isn't something BugForge AI can safely infer from a title
+// and description without inventing a fact the tester never stated.
+export async function analyzeBugDraft(input: BugDraftAiInput): Promise<BugDraftAiSuggestions> {
+  const draftBug: AiBugContext = {
+    id: "draft",
+    number: 0,
+    title: input.title,
+    description: input.description,
+    severity: input.severity,
+    priority: "P2",
+    status: "NEW",
+    isRegression: false,
+    platform: "PC",
+    stepsToReproduce: input.stepsToReproduce || null,
+    expectedResult: null,
+    actualResult: input.actualResult || null,
+    map: null,
+    gameMode: null,
+    createdAt: new Date(),
+    evidenceCount: 0,
+    tags: input.tags,
+    gameId: input.gameId,
+    gameName: "",
+    gameSlug: "",
+    areaId: input.areaId,
+    areaName: input.areaName,
+    areaDiscipline: null,
+    buildVersion: "",
+    buildStatus: input.buildStatus,
+  };
+
+  const [areaRisk, areas, latestBuildVersion] = await Promise.all([
+    getAreaRiskContext(input.gameId, input.areaId),
+    getAreas(),
+    getLatestBuildVersion(input.gameId),
+  ]);
+
+  const stepsToReproduce = input.stepsToReproduce.trim()
+    ? []
+    : suggestReproSteps(`${input.title} ${input.description}`.trim(), latestBuildVersion);
+
+  const actualResultSource = input.actualResult.trim() ? null : input.description.trim() || input.title.trim();
+  const actualResult = actualResultSource ? capitalizeSentence(actualResultSource) : null;
+
+  let area: BugDraftAiSuggestions["area"] = null;
+  if (!input.areaId) {
+    const topSystem = identifyAffectedSystems(draftBug, areas.map((a) => a.name))[0];
+    const match = topSystem && areas.find((a) => a.name === topSystem.name);
+    if (match) area = { id: match.id, name: match.name, confidence: topSystem.confidence };
+  }
+
+  return {
+    stepsToReproduce,
+    actualResult,
+    area,
+    severity: suggestSeverity(draftBug),
+    priority: suggestPriority(draftBug, areaRisk),
+  };
+}
+
+// The live "Bug quality" checklist on the report modal — a pure function of
+// whatever the tester has typed so far (see assessBugDraftQuality), kept
+// behind a Server Action like every other AI computation rather than
+// imported straight into the modal component.
+export async function getBugDraftQuality(draft: {
+  title: string;
+  description: string;
+  stepsToReproduce: string;
+  expectedResult: string;
+  actualResult: string;
+  hasBuild: boolean;
+}): Promise<BugDraftQuality> {
+  return assessBugDraftQuality(draft);
 }
 
 // Powers the on-demand "Analyze build risk" panel on each build card.

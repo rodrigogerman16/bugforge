@@ -62,7 +62,7 @@ type SearchResults = {
 const EMPTY_RESULTS: SearchResults = { bugs: [], testCases: [], builds: [], sessions: [], testers: [] };
 
 export function CommandPalette({ games }: { games: GameOption[] }) {
-  const { commandPaletteOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
+  const { commandPaletteOpen, setCommandPaletteOpen, setAiPanelOpen, openBugCreateModal } = useShellUI();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
@@ -139,7 +139,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
         sublabel: contextGame ? `Report a bug in ${contextGame.name}` : "Report a new bug",
         enabled: true,
         icon: Plus,
-        run: () => router.push(contextGame ? `/bugs/new?game=${contextGame.slug}` : "/bugs/new"),
+        run: () => openBugCreateModal(contextGame?.slug),
       },
       {
         key: "action-start-session",
@@ -189,7 +189,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
         run: () => setAiPanelOpen(true),
       },
     ],
-    [contextGame, router, setAiPanelOpen]
+    [contextGame, router, setAiPanelOpen, openBugCreateModal]
   );
 
   const staticItems = useMemo<PaletteItem[]>(() => {

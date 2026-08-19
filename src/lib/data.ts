@@ -181,12 +181,15 @@ export type GameCreateOption = {
   name: string;
   slug: string;
   platforms: Platform[];
-  builds: { id: string; version: string }[];
+  builds: { id: string; version: string; status: BuildStatus }[];
 };
 
 // Everything the new-bug form needs about every game: which builds it has
 // (a bug must be filed against a real one) and which platforms it supports
 // (a bug's platform must be one of them — see the Platform Support feature).
+// Build status rides along too — BugForge AI's "Analyze with AI" action
+// needs it (severity/priority/regression-risk all weigh how close a build
+// is to release) and it's already a real, free column on the same row.
 export async function getGamesForBugCreation(): Promise<GameCreateOption[]> {
   const games = await prisma.game.findMany({
     orderBy: { name: "asc" },
@@ -195,7 +198,7 @@ export async function getGamesForBugCreation(): Promise<GameCreateOption[]> {
       name: true,
       slug: true,
       platforms: { select: { platform: true } },
-      builds: { orderBy: { releasedAt: "desc" }, select: { id: true, version: true } },
+      builds: { orderBy: { releasedAt: "desc" }, select: { id: true, version: true, status: true } },
     },
   });
   return games.map((g) => ({
@@ -905,6 +908,15 @@ export async function getAreas(): Promise<AreaSummary[]> {
   });
 }
 
+export type TagSummary = { id: string; name: string; color: string };
+
+export async function getTags(): Promise<TagSummary[]> {
+  return prisma.tag.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, color: true },
+  });
+}
+
 export async function getAreaUsageCounts(): Promise<Map<string, { bugs: number; testCases: number }>> {
   const areas = await prisma.area.findMany({
     select: { id: true, _count: { select: { bugs: true, testCases: true } } },
@@ -1304,13 +1316,21 @@ export type AreaRiskContext = { openBugsInArea: number; regressionCountInArea: n
 export async function getAreaRiskContext(
   gameId: string,
   areaId: string | null,
-  excludeBugId: string
+  // Omitted for a bug that doesn't exist yet (see analyzeBugDraft) — there's
+  // no real id to exclude, and every other open bug in the area is a
+  // genuine signal either way.
+  excludeBugId?: string
 ): Promise<AreaRiskContext> {
   if (!areaId) return { openBugsInArea: 0, regressionCountInArea: 0 };
 
   const [openBugsInArea, regressionCountInArea] = await Promise.all([
     prisma.bug.count({
-      where: { gameId, areaId, id: { not: excludeBugId }, status: { in: OPEN_STATUSES } },
+      where: {
+        gameId,
+        areaId,
+        ...(excludeBugId ? { id: { not: excludeBugId } } : {}),
+        status: { in: OPEN_STATUSES },
+      },
     }),
     prisma.bugRelationship.count({
       where: { type: "REGRESSION_OF", sourceBug: { gameId, areaId } },

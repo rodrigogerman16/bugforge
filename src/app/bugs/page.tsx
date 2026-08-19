@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/data";
 import { hasCapability } from "@/lib/permissions";
 import { SEVERITY_META } from "@/lib/severity";
@@ -9,6 +9,7 @@ import { PLATFORM_LABEL } from "@/lib/platform";
 import { BugWorkflowLegend } from "@/components/bug-workflow-legend";
 import { BugToolbar } from "@/components/bugs/bug-toolbar";
 import { BugTable } from "@/components/bugs/bug-table";
+import { ReportBugButton } from "@/components/bugs/report-bug-button";
 import { ExportLinks } from "@/components/export-links";
 import { BugSeverity, BugPriority, BugStatus, Platform } from "@/generated/prisma/enums";
 
@@ -192,15 +193,7 @@ export default async function BugsPage({
               dir,
             }}
           />
-          {canCreateBug && (
-            <Link
-              href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
-              className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
-            >
-              <Plus size={13} />
-              Report Bug
-            </Link>
-          )}
+          {canCreateBug && <ReportBugButton gameSlug={params.game} />}
         </div>
       </header>
 

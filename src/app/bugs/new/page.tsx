@@ -1,41 +1,33 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { getGamesForBugCreation, getAreas } from "@/lib/data";
-import { BugCreateForm } from "@/components/bugs/bug-create-form";
+"use client";
 
-export default async function NewBugPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ game?: string }>;
-}) {
-  const { game: gameSlug } = await searchParams;
-  const [games, areas] = await Promise.all([getGamesForBugCreation(), getAreas()]);
-  const defaultGame = games.find((g) => g.slug === gameSlug) ?? games[0];
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useShellUI } from "@/components/shell-ui-provider";
 
+// Bug reporting now happens in a modal (see BugCreateModal), not a full
+// page — this route only exists so old links/bookmarks to /bugs/new still
+// work: it opens the modal with the same game context the query string
+// carried, then lands on /bugs behind it.
+function NewBugRedirect() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { openBugCreateModal } = useShellUI();
+  const gameSlug = searchParams.get("game") ?? undefined;
+
+  useEffect(() => {
+    openBugCreateModal(gameSlug);
+    router.replace(gameSlug ? `/bugs?game=${gameSlug}` : "/bugs");
+    // Only run once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
+export default function NewBugRedirectPage() {
   return (
-    <div className="mx-auto max-w-2xl px-8 py-8">
-      <Link
-        href="/bugs"
-        className="mb-4 inline-flex items-center gap-1.5 text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
-      >
-        <ArrowLeft size={13} />
-        Back to bugs
-      </Link>
-
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-wide text-[color:var(--bf-ink-primary)] uppercase">
-          Report a Bug
-        </h1>
-        <p className="mt-1 text-[12px] text-[color:var(--bf-ink-muted)]">
-          BugForge AI checks for possible duplicates as you type — it&apos;s a suggestion, not a block.
-        </p>
-      </header>
-
-      {!defaultGame ? (
-        <p className="text-sm text-[color:var(--bf-ink-muted)]">No games exist yet.</p>
-      ) : (
-        <BugCreateForm gameId={defaultGame.id} games={games} areas={areas} />
-      )}
-    </div>
+    <Suspense fallback={null}>
+      <NewBugRedirect />
+    </Suspense>
   );
 }

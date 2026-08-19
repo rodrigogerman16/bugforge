@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Sparkles, ExternalLink, Loader2, Check } from "lucide-react";
+import { Sparkles, ExternalLink, Loader2, Check, Paperclip, X, TriangleAlert } from "lucide-react";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
 import { BUG_STATUS_META } from "@/lib/status-labels";
-import { createBug, type CreateBugInput } from "@/app/bugs/actions";
-import { searchDuplicateBugsForDraft, suggestReproStepsForDraft } from "@/app/ai/actions";
+import { validateAttachmentFile, formatBytes, ATTACHMENT_RULES } from "@/lib/attachments";
+import { uploadAttachment } from "@/lib/upload-attachment";
+import { createBug, type CreateBugInput, type CreateBugEvidenceInput } from "@/app/bugs/actions";
+import { searchDuplicateBugsForDraft, analyzeBugDraft, getBugDraftQuality } from "@/app/ai/actions";
 import type { DuplicateCandidate } from "@/lib/ai/duplicate-detection";
+import type { BugDraftQuality } from "@/lib/ai/bug-analysis";
+import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/data";
 import type { BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 
@@ -18,18 +21,28 @@ const inputClass =
   "w-full rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-2 text-sm text-[color:var(--bf-ink-primary)] outline-none placeholder:text-[color:var(--bf-ink-muted)] focus:border-[color:var(--bf-border-strong)]";
 const labelClass = "mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]";
 
-type GameOption = { id: string; name: string; platforms: Platform[]; builds: { id: string; version: string }[] };
+const QUALITY_COLOR = (percent: number) =>
+  percent >= 80
+    ? "var(--bf-status-good)"
+    : percent >= 50
+      ? "var(--bf-status-warning)"
+      : "var(--bf-status-critical)";
 
 export function BugCreateForm({
   gameId,
   games,
   areas,
+  tags,
+  onCancel,
+  onCreated,
 }: {
   gameId: string;
-  games: GameOption[];
-  areas: { id: string; name: string }[];
+  games: GameCreateOption[];
+  areas: AreaSummary[];
+  tags: TagSummary[];
+  onCancel: () => void;
+  onCreated: (bugId: string) => void;
 }) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [selectedGameId, setSelectedGameId] = useState(gameId);
@@ -40,11 +53,14 @@ export function BugCreateForm({
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<BugSeverity>("MEDIUM");
   const [priority, setPriority] = useState<BugPriority>("P2");
+  const [severityTouched, setSeverityTouched] = useState(false);
+  const [priorityTouched, setPriorityTouched] = useState(false);
   const [areaId, setAreaId] = useState("");
   const [platform, setPlatform] = useState<Platform>(selectedGame?.platforms[0] ?? "PC");
   const [stepsToReproduce, setStepsToReproduce] = useState("");
   const [expectedResult, setExpectedResult] = useState("");
   const [actualResult, setActualResult] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // Both the build list and the platform picker adapt to whichever game is
   // selected — never offer a build or platform that game doesn't actually have.
@@ -59,27 +75,6 @@ export function BugCreateForm({
 
   const [duplicates, setDuplicates] = useState<DuplicateCandidate[]>([]);
   const [searchingDuplicates, setSearchingDuplicates] = useState(false);
-
-  const [suggestedSteps, setSuggestedSteps] = useState<string[]>([]);
-  const [isSuggestingSteps, startSuggestingSteps] = useTransition();
-
-  // On-demand, not live — the tester asks for a starting point rather than
-  // having one appear mid-sentence. Nothing here invents specifics the
-  // tester didn't write: it's real build data plus their own words, scaffolded
-  // into steps.
-  function requestReproStepsSuggestion() {
-    const source = `${title} ${description}`.trim();
-    if (source.length < 8 || isSuggestingSteps) return;
-    startSuggestingSteps(async () => {
-      const steps = await suggestReproStepsForDraft(selectedGameId, source);
-      setSuggestedSteps(steps);
-    });
-  }
-
-  function acceptReproStepsSuggestion() {
-    setStepsToReproduce(suggestedSteps.map((s, i) => `${i + 1}. ${s}`).join("\n"));
-    setSuggestedSteps([]);
-  }
 
   // Live duplicate search: fires as the tester types the title/description,
   // debounced, scoped to the selected game. It only ever surfaces
@@ -107,6 +102,109 @@ export function BugCreateForm({
     };
   }, [title, description, selectedGameId]);
 
+  // "Analyze with AI" — fills in whatever's still blank (steps, actual
+  // result, area) and, if the tester hasn't touched severity/priority away
+  // from their defaults yet, applies those suggestions too. Never overwrites
+  // anything the tester already wrote.
+  const [isAnalyzing, startAnalyzing] = useTransition();
+  const [aiFillSummary, setAiFillSummary] = useState<string[] | null>(null);
+
+  function runAnalyzeWithAi() {
+    const source = `${title} ${description}`.trim();
+    if (source.length < 8 || isAnalyzing || !selectedGame) return;
+    startAnalyzing(async () => {
+      const result = await analyzeBugDraft({
+        gameId: selectedGameId,
+        areaId: areaId || null,
+        areaName: areas.find((a) => a.id === areaId)?.name ?? null,
+        tags: selectedTagIds.map((id) => tags.find((t) => t.id === id)?.name).filter((n): n is string => Boolean(n)),
+        buildStatus: selectedGame.builds.find((b) => b.id === buildId)?.status ?? "INTERNAL",
+        title,
+        description,
+        severity,
+        stepsToReproduce,
+        actualResult,
+      });
+
+      const filled: string[] = [];
+      if (result.stepsToReproduce.length > 0 && !stepsToReproduce.trim()) {
+        setStepsToReproduce(result.stepsToReproduce.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+        filled.push("Steps to reproduce");
+      }
+      if (result.actualResult && !actualResult.trim()) {
+        setActualResult(result.actualResult);
+        filled.push("Actual result");
+      }
+      if (result.area && !areaId) {
+        setAreaId(result.area.id);
+        filled.push(`Area — ${result.area.name}`);
+      }
+      if (!severityTouched && result.severity.changed) {
+        setSeverity(result.severity.suggested);
+        filled.push(`Severity — ${SEVERITY_META[result.severity.suggested].label}`);
+      }
+      if (!priorityTouched && result.priority.changed) {
+        setPriority(result.priority.suggested);
+        filled.push(`Priority — ${PRIORITY_META[result.priority.suggested].code}`);
+      }
+
+      setAiFillSummary(
+        filled.length > 0 ? filled : ["Nothing left it could safely fill in — this draft already has what BugForge AI can add."]
+      );
+    });
+  }
+
+  // Attachments — uploaded immediately (so a slow/failed upload surfaces
+  // right away, not at submit time) but only persisted as real Evidence
+  // rows once the bug itself is created.
+  const [attachments, setAttachments] = useState<CreateBugEvidenceInput[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const validation = validateAttachmentFile(file);
+    if (!validation.ok) {
+      setUploadError(validation.error);
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const uploaded = await uploadAttachment(file, "evidence");
+      setAttachments((prev) => [
+        ...prev,
+        {
+          type: uploaded.kind,
+          url: uploaded.url,
+          fileName: uploaded.fileName,
+          fileSizeBytes: uploaded.fileSizeBytes,
+          content: uploaded.content,
+        },
+      ]);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // Bug quality checklist — recomputed shortly after the tester stops
+  // typing in any of the fields it scores, so it always reflects the
+  // current draft without hammering the server on every keystroke.
+  const [quality, setQuality] = useState<BugDraftQuality | null>(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      getBugDraftQuality({ title, description, stepsToReproduce, expectedResult, actualResult, hasBuild: Boolean(buildId) }).then(
+        setQuality
+      );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [title, description, stepsToReproduce, expectedResult, actualResult, buildId]);
+
   const canSubmit = title.trim() && description.trim() && buildId;
 
   function handleSubmit() {
@@ -123,10 +221,12 @@ export function BugCreateForm({
       stepsToReproduce,
       expectedResult,
       actualResult,
+      tagIds: selectedTagIds,
+      evidence: attachments,
     };
     startTransition(async () => {
       const newId = await createBug(input);
-      router.push(`/bugs/${newId}`);
+      onCreated(newId);
     });
   }
 
@@ -176,6 +276,33 @@ export function BugCreateForm({
       <div>
         <label className={labelClass}>Description</label>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} />
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={runAnalyzeWithAi}
+          disabled={`${title} ${description}`.trim().length < 8 || isAnalyzing}
+          className="flex items-center gap-1.5 rounded-md border border-[color:var(--bf-brand)]/30 px-3 py-1.5 text-[12px] font-medium text-[color:var(--bf-brand)] hover:bg-[color:var(--bf-brand-soft)] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {isAnalyzing ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+          Analyze with AI
+        </button>
+
+        {aiFillSummary && (
+          <div className="mt-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
+            <p className="mb-1 text-[12px] font-semibold text-[color:var(--bf-ink-primary)]">BugForge AI filled in:</p>
+            <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-[color:var(--bf-ink-secondary)]">
+              {aiFillSummary.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
+              Computed from your title, description, and this game&apos;s real data — review and edit anything before
+              submitting. Expected Result isn&apos;t auto-filled; only you know what should happen instead.
+            </p>
+          </div>
+        )}
       </div>
 
       {(searchingDuplicates || duplicates.length > 0) && (
@@ -229,7 +356,14 @@ export function BugCreateForm({
       <div className="grid grid-cols-3 gap-4">
         <div>
           <label className={labelClass}>Severity</label>
-          <select value={severity} onChange={(e) => setSeverity(e.target.value as BugSeverity)} className={inputClass}>
+          <select
+            value={severity}
+            onChange={(e) => {
+              setSeverity(e.target.value as BugSeverity);
+              setSeverityTouched(true);
+            }}
+            className={inputClass}
+          >
             {SEVERITY_ORDER.map((s) => (
               <option key={s} value={s}>
                 {SEVERITY_META[s].label}
@@ -239,7 +373,14 @@ export function BugCreateForm({
         </div>
         <div>
           <label className={labelClass}>Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value as BugPriority)} className={inputClass}>
+          <select
+            value={priority}
+            onChange={(e) => {
+              setPriority(e.target.value as BugPriority);
+              setPriorityTouched(true);
+            }}
+            className={inputClass}
+          >
             {PRIORITY_ORDER.map((p) => (
               <option key={p} value={p}>
                 {PRIORITY_META[p].code} — {PRIORITY_META[p].label}
@@ -272,52 +413,34 @@ export function BugCreateForm({
       </div>
 
       <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <label className={labelClass}>Steps to Reproduce</label>
-          <button
-            type="button"
-            onClick={requestReproStepsSuggestion}
-            disabled={`${title} ${description}`.trim().length < 8 || isSuggestingSteps}
-            className="flex items-center gap-1.5 text-[11px] font-medium text-[color:var(--bf-brand)] hover:underline disabled:cursor-not-allowed disabled:text-[color:var(--bf-ink-muted)] disabled:no-underline"
-          >
-            {isSuggestingSteps ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-            Suggest steps with BugForge AI
-          </button>
+        <label className={labelClass}>Tags</label>
+        <div className="flex flex-wrap gap-1.5">
+          {tags.map((t) => {
+            const active = selectedTagIds.includes(t.id);
+            return (
+              <button
+                type="button"
+                key={t.id}
+                onClick={() =>
+                  setSelectedTagIds((prev) => (active ? prev.filter((id) => id !== t.id) : [...prev, t.id]))
+                }
+                className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium"
+                style={
+                  active
+                    ? { backgroundColor: `${t.color}26`, color: t.color, borderColor: `${t.color}66` }
+                    : { borderColor: "var(--bf-border)", color: "var(--bf-ink-secondary)" }
+                }
+              >
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: t.color }} />
+                {t.name}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {suggestedSteps.length > 0 && (
-          <div className="mb-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">
-              Suggested reproduction steps
-            </p>
-            <ol className="list-decimal space-y-1 pl-5 text-[12px] text-[color:var(--bf-ink-secondary)]">
-              {suggestedSteps.map((step, i) => (
-                <li key={i}>{step}</li>
-              ))}
-            </ol>
-            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
-              AI-generated scaffold from your description and this game&apos;s real build — not a verified repro. Accept it and edit freely, or write your own.
-            </p>
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={acceptReproStepsSuggestion}
-                className="flex items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-2.5 py-1.5 text-[11px] font-medium text-black hover:opacity-90"
-              >
-                <Check size={11} />
-                Use these steps
-              </button>
-              <button
-                type="button"
-                onClick={() => setSuggestedSteps([])}
-                className="rounded-md border border-[color:var(--bf-border)] px-2.5 py-1.5 text-[11px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
+      <div>
+        <label className={labelClass}>Steps to Reproduce</label>
         <textarea
           value={stepsToReproduce}
           onChange={(e) => setStepsToReproduce(e.target.value)}
@@ -338,9 +461,82 @@ export function BugCreateForm({
         </div>
       </div>
 
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label className={labelClass}>Attachments</label>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            title={`Add an attachment (${Object.values(ATTACHMENT_RULES).map((r) => r.label.toLowerCase()).join(", ")})`}
+            className="flex items-center gap-1.5 rounded-md border border-[color:var(--bf-border)] px-2.5 py-1 text-[11px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] disabled:opacity-50"
+          >
+            {uploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
+            {uploading ? "Uploading…" : "Add Attachment"}
+          </button>
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFile} />
+        </div>
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((a, i) => (
+              <span
+                key={i}
+                className="flex items-center gap-1.5 rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-2 py-1 text-[12px] text-[color:var(--bf-ink-secondary)]"
+              >
+                <Paperclip size={11} />
+                {a.fileName}
+                <span className="text-[color:var(--bf-ink-muted)]">
+                  · {a.type} · {formatBytes(a.fileSizeBytes)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                  aria-label="Remove attachment"
+                  className="text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        {uploadError && (
+          <p className="mt-1.5 text-[11px] text-[color:var(--bf-status-critical)]">{uploadError}</p>
+        )}
+      </div>
+
+      {quality && (
+        <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">Bug quality</span>
+            <span className="text-sm font-bold" style={{ color: QUALITY_COLOR(quality.percent) }}>
+              {quality.percent}%
+            </span>
+          </div>
+          <ul className="space-y-1">
+            {quality.checks.map((c) => (
+              <li
+                key={c.key}
+                className={cn(
+                  "flex items-center gap-1.5 text-[12px]",
+                  c.met ? "text-[color:var(--bf-ink-secondary)]" : "text-[color:var(--bf-status-warning)]"
+                )}
+              >
+                {c.met ? (
+                  <Check size={12} className="shrink-0 text-[color:var(--bf-status-good)]" />
+                ) : (
+                  <TriangleAlert size={12} className="shrink-0" />
+                )}
+                {c.met ? c.label : `Missing ${c.label.toLowerCase()}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 pt-2">
         <button
-          onClick={() => router.back()}
+          onClick={onCancel}
           className="rounded-md border border-[color:var(--bf-border)] px-3 py-1.5 text-[12px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]"
         >
           Cancel

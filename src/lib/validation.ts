@@ -33,6 +33,14 @@ const longText = (max: number) => z.string().max(max);
 
 // ── Bugs ─────────────────────────────────────────────────────────────────
 
+const bugEvidenceSchema = z.object({
+  type: z.enum(["IMAGE", "VIDEO", "LOG", "ATTACHMENT"]),
+  url: z.url("Attachment url must be a real URL"),
+  fileName: z.string().max(255).optional(),
+  fileSizeBytes: z.number().int().nonnegative().optional(),
+  content: z.string().nullable().optional(),
+});
+
 export const createBugSchema = z.object({
   gameId: nonEmptyId,
   buildId: nonEmptyId,
@@ -45,6 +53,8 @@ export const createBugSchema = z.object({
   stepsToReproduce: longText(4000),
   expectedResult: longText(2000),
   actualResult: longText(2000),
+  tagIds: z.array(nonEmptyId).max(10),
+  evidence: z.array(bugEvidenceSchema).max(10),
 });
 
 // ── Comments ─────────────────────────────────────────────────────────────
