@@ -52,7 +52,7 @@ export async function getShellGames() {
       platforms: { select: { platform: true } },
       coverColor: true,
       releaseDate: true,
-      builds: { orderBy: { releasedAt: "desc" }, take: 1, select: { version: true } },
+      builds: { orderBy: { releasedAt: "desc" }, take: 1, select: { id: true, version: true } },
       bugs: { select: { severity: true, status: true } },
     },
   });
@@ -70,6 +70,7 @@ export async function getShellGames() {
       slug: game.slug,
       platforms: game.platforms.map((p) => p.platform),
       coverColor: game.coverColor,
+      latestBuildId: game.builds[0]?.id ?? null,
       latestBuildVersion: game.builds[0]?.version ?? null,
       qualityScore,
       qualityBand: qualityBand(qualityScore),

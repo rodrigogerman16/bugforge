@@ -18,6 +18,8 @@ import {
   Sparkles,
   X,
   Loader2,
+  FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { NAV_ITEMS, NAV_FOOTER_ITEMS } from "@/lib/nav-items";
@@ -144,20 +146,20 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
       {
         key: "action-start-session",
         group: "Quick Actions",
-        label: "Start QA session",
-        sublabel: "Coming soon",
-        enabled: false,
+        label: "Start test session",
+        sublabel: contextGame ? `New session in ${contextGame.name}` : "Start a new QA session",
+        enabled: Boolean(contextGame),
         icon: PlayCircle,
-        run: () => {},
+        run: () => contextGame && router.push(`/sessions/new?game=${contextGame.slug}`),
       },
       {
         key: "action-create-test-case",
         group: "Quick Actions",
         label: "Create test case",
-        sublabel: "Coming soon",
-        enabled: false,
+        sublabel: contextGame ? `Add a test case to ${contextGame.name}` : "Add a new test case",
+        enabled: Boolean(contextGame),
         icon: FilePlus2,
-        run: () => {},
+        run: () => contextGame && router.push(`/test-cases/new?game=${contextGame.slug}`),
       },
       {
         key: "action-search-bugs",
@@ -187,6 +189,26 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
         enabled: true,
         icon: Sparkles,
         run: () => setAiPanelOpen(true),
+      },
+      {
+        key: "action-generate-report",
+        group: "Quick Actions",
+        label: "Generate QA report",
+        sublabel: "Build QA, release readiness, weekly, regression, or coverage",
+        enabled: true,
+        icon: FileText,
+        run: () => router.push("/reports"),
+      },
+      {
+        key: "action-open-release-readiness",
+        group: "Quick Actions",
+        label: "Open release readiness",
+        sublabel: contextGame?.latestBuildVersion
+          ? `${contextGame.name} · v${contextGame.latestBuildVersion}`
+          : "No builds tracked yet",
+        enabled: Boolean(contextGame?.latestBuildId),
+        icon: ShieldCheck,
+        run: () => contextGame?.latestBuildId && router.push(`/builds/${contextGame.latestBuildId}/readiness`),
       },
     ],
     [contextGame, router, setAiPanelOpen, openBugCreateModal]

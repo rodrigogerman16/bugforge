@@ -14,6 +14,7 @@ export type GameOption = {
   slug: string;
   platforms: Platform[];
   coverColor: string;
+  latestBuildId: string | null;
   latestBuildVersion: string | null;
   qualityScore: number;
   qualityBand: QualityBand;
