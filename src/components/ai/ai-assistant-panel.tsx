@@ -45,7 +45,7 @@ type BugSearchResult = { id: string; number: number; title: string; severity: Bu
 // AI "available globally" rather than scoped to a single page. It reads the
 // bug id straight out of the URL when you're already on a bug's page; off a
 // bug page it falls back to a small search box instead of doing nothing.
-export function AiAssistantPanel() {
+export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: string }) {
   const { aiPanelOpen, setAiPanelOpen } = useShellUI();
   const pathname = usePathname();
 
@@ -156,7 +156,7 @@ export function AiAssistantPanel() {
           </span>
           <div className="flex-1">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">BugForge AI</p>
-            <p className="text-[11px] text-[color:var(--bf-ink-muted)]">Internal QA assistant · heuristic, not generative</p>
+            <p className="text-[11px] text-[color:var(--bf-ink-muted)]">Internal QA assistant · {aiProviderTagline}</p>
           </div>
           <button
             onClick={close}

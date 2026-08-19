@@ -10,6 +10,7 @@ import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAiProviderName, AI_PROVIDER_META } from "@/lib/ai/provider";
 import "./globals.css";
 
 const inter = Inter({
@@ -72,7 +73,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Suspense fallback={null}>
             <CommandPalette games={games} />
           </Suspense>
-          <AiAssistantPanel />
+          <AiAssistantPanel aiProviderTagline={AI_PROVIDER_META[getAiProviderName()].tagline} />
         </ShellUIProvider>
       </body>
     </html>
