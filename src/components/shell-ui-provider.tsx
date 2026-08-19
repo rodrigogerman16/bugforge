@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { MotionConfig } from "motion/react";
 
 const SIDEBAR_COLLAPSED_KEY = "bugforge:sidebar-collapsed";
 
@@ -20,7 +21,13 @@ type ShellUIContextValue = {
   shortcutsHelpOpen: boolean;
   openShortcutsHelp: () => void;
   closeShortcutsHelp: () => void;
+  toasts: Toast[];
+  pushToast: (message: string, tone?: ToastTone) => void;
+  dismissToast: (id: string) => void;
 };
+
+export type ToastTone = "success" | "error" | "info";
+export type Toast = { id: string; message: string; tone: ToastTone };
 
 const ShellUIContext = createContext<ShellUIContextValue | null>(null);
 
@@ -46,6 +53,16 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
   }
   function closeShortcutsHelp() {
     setShortcutsHelpOpen(false);
+  }
+
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  function dismissToast(id: string) {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }
+  function pushToast(message: string, tone: ToastTone = "info") {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, message, tone }]);
+    setTimeout(() => dismissToast(id), 3200);
   }
 
   useEffect(() => {
@@ -90,9 +107,15 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
         shortcutsHelpOpen,
         openShortcutsHelp,
         closeShortcutsHelp,
+        toasts,
+        pushToast,
+        dismissToast,
       }}
     >
-      {children}
+      {/* reducedMotion="user" makes every Motion animation in the app
+          automatically respect prefers-reduced-motion — transform/layout
+          animation is dropped, opacity fades remain (see src/lib/motion.ts). */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
     </ShellUIContext.Provider>
   );
 }

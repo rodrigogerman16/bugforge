@@ -10,6 +10,8 @@ import { AiAssistantPanel } from "@/components/ai/ai-assistant-panel";
 import { BugCreateModal } from "@/components/bugs/bug-create-modal";
 import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts";
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
+import { ToastStack } from "@/components/toast-stack";
+import { PageTransition } from "@/components/page-transition";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -70,7 +72,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Suspense fallback={null}>
                 <ShellMobileNav games={games} />
               </Suspense>
-              <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
+              <main className="min-w-0 flex-1 overflow-y-auto">
+                <PageTransition>{children}</PageTransition>
+              </main>
             </div>
           </div>
           <Suspense fallback={null}>
@@ -82,6 +86,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <GlobalKeyboardShortcuts />
           </Suspense>
           <KeyboardShortcutsModal />
+          <ToastStack />
         </ShellUIProvider>
       </body>
     </html>

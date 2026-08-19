@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const WIDTH = 640;
@@ -155,11 +156,32 @@ export function TrendChart({
             ))}
 
             {segments.map((seg, i) => (
-              <path key={i} d={seg} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+              <motion.path
+                key={i}
+                d={seg}
+                fill="none"
+                stroke={color}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              />
             ))}
 
             {lastDefined && lastDefinedIndex !== null && lastDefined.value !== null && (
-              <circle cx={x(lastDefinedIndex)} cy={y(lastDefined.value)} r={4} fill={color} stroke="var(--bf-surface)" strokeWidth={2} />
+              <motion.circle
+                cx={x(lastDefinedIndex)}
+                cy={y(lastDefined.value)}
+                r={4}
+                fill={color}
+                stroke="var(--bf-surface)"
+                strokeWidth={2}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.25, delay: 0.55 }}
+              />
             )}
 
             {hovered && hovered.value !== null && hoverIndex !== null && (

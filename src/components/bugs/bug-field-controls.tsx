@@ -1,6 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
+import { motion } from "motion/react";
+import { changeHighlight, changeHighlightTransition } from "@/lib/motion";
 import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
 import { PRIORITY_META, PRIORITY_ORDER } from "@/lib/priority";
 import { SEVERITY_META, SEVERITY_ORDER } from "@/lib/severity";
@@ -44,19 +46,28 @@ export function BugFieldControls({
   return (
     <>
       {canEditFields ? (
-        <select
-          value={severity}
-          disabled={isPending}
-          onChange={(e) => startTransition(() => updateBugSeverity(bugId, e.target.value as BugSeverity))}
-          style={{ color: SEVERITY_META[severity].color }}
-          className={selectClass}
+        <motion.span
+          key={severity}
+          variants={changeHighlight}
+          initial="initial"
+          animate="animate"
+          transition={changeHighlightTransition}
+          className="inline-block rounded-md"
         >
-          {SEVERITY_ORDER.map((s) => (
-            <option key={s} value={s} style={{ color: "initial" }}>
-              {SEVERITY_META[s].label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={severity}
+            disabled={isPending}
+            onChange={(e) => startTransition(() => updateBugSeverity(bugId, e.target.value as BugSeverity))}
+            style={{ color: SEVERITY_META[severity].color }}
+            className={selectClass}
+          >
+            {SEVERITY_ORDER.map((s) => (
+              <option key={s} value={s} style={{ color: "initial" }}>
+                {SEVERITY_META[s].label}
+              </option>
+            ))}
+          </select>
+        </motion.span>
       ) : (
         <span className="text-[13px] font-medium" style={{ color: SEVERITY_META[severity].color }}>
           {SEVERITY_META[severity].label}
@@ -64,19 +75,28 @@ export function BugFieldControls({
       )}
       <span className="text-[color:var(--bf-ink-muted)]">·</span>
       {canEditFields ? (
-        <select
-          value={priority}
-          disabled={isPending}
-          onChange={(e) => startTransition(() => updateBugPriority(bugId, e.target.value as BugPriority))}
-          style={{ color: PRIORITY_META[priority].color }}
-          className={selectClass}
+        <motion.span
+          key={priority}
+          variants={changeHighlight}
+          initial="initial"
+          animate="animate"
+          transition={changeHighlightTransition}
+          className="inline-block rounded-md"
         >
-          {PRIORITY_ORDER.map((p) => (
-            <option key={p} value={p} style={{ color: "initial" }}>
-              {PRIORITY_META[p].code} — {PRIORITY_META[p].label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={priority}
+            disabled={isPending}
+            onChange={(e) => startTransition(() => updateBugPriority(bugId, e.target.value as BugPriority))}
+            style={{ color: PRIORITY_META[priority].color }}
+            className={selectClass}
+          >
+            {PRIORITY_ORDER.map((p) => (
+              <option key={p} value={p} style={{ color: "initial" }}>
+                {PRIORITY_META[p].code} — {PRIORITY_META[p].label}
+              </option>
+            ))}
+          </select>
+        </motion.span>
       ) : (
         <span className="text-[13px] font-medium" style={{ color: PRIORITY_META[priority].color }}>
           {PRIORITY_META[priority].code} — {PRIORITY_META[priority].label}
@@ -84,23 +104,32 @@ export function BugFieldControls({
       )}
       <span className="text-[color:var(--bf-ink-muted)]">·</span>
       {canChangeStatus ? (
-        <select
-          value={status}
-          disabled={isPending}
-          onChange={(e) => startTransition(() => updateBugStatus(bugId, e.target.value as BugStatus))}
-          style={{ color: BUG_STATUS_META[status].color }}
-          className={selectClass}
+        <motion.span
+          key={status}
+          variants={changeHighlight}
+          initial="initial"
+          animate="animate"
+          transition={changeHighlightTransition}
+          className="inline-block rounded-md"
         >
-          {/* The current status always shows even if this role couldn't
-              have set it themselves (e.g. a Developer viewing a Verified
-              bug) — only the *other* options are limited to what they're
-              allowed to move it to. */}
-          {(statusOptions.includes(status) ? statusOptions : [status, ...statusOptions]).map((s) => (
-            <option key={s} value={s} style={{ color: "initial" }}>
-              {BUG_STATUS_META[s].label}
-            </option>
-          ))}
-        </select>
+          <select
+            value={status}
+            disabled={isPending}
+            onChange={(e) => startTransition(() => updateBugStatus(bugId, e.target.value as BugStatus))}
+            style={{ color: BUG_STATUS_META[status].color }}
+            className={selectClass}
+          >
+            {/* The current status always shows even if this role couldn't
+                have set it themselves (e.g. a Developer viewing a Verified
+                bug) — only the *other* options are limited to what they're
+                allowed to move it to. */}
+            {(statusOptions.includes(status) ? statusOptions : [status, ...statusOptions]).map((s) => (
+              <option key={s} value={s} style={{ color: "initial" }}>
+                {BUG_STATUS_META[s].label}
+              </option>
+            ))}
+          </select>
+        </motion.span>
       ) : (
         <span className="text-[13px] font-medium" style={{ color: BUG_STATUS_META[status].color }}>
           {BUG_STATUS_META[status].label}

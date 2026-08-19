@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
+import { motion } from "motion/react";
+import { drawerTransition, fadeSlideUp, baseTransition } from "@/lib/motion";
 import {
   X,
   Sparkles,
@@ -140,15 +142,16 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
 
   return (
     <div className={cn("fixed inset-0 z-40", aiPanelOpen ? "pointer-events-auto" : "pointer-events-none")} aria-hidden={!aiPanelOpen}>
-      <div
+      <motion.div
         onClick={close}
-        className={cn("absolute inset-0 bg-black/40 transition-opacity md:bg-transparent", aiPanelOpen ? "opacity-100" : "opacity-0")}
+        animate={{ opacity: aiPanelOpen ? 1 : 0 }}
+        transition={drawerTransition}
+        className="absolute inset-0 bg-black/40 md:bg-transparent"
       />
-      <aside
-        className={cn(
-          "absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-[color:var(--bf-border)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50 transition-transform duration-200",
-          aiPanelOpen ? "translate-x-0" : "translate-x-full"
-        )}
+      <motion.aside
+        animate={{ x: aiPanelOpen ? "0%" : "100%" }}
+        transition={drawerTransition}
+        className="absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-[color:var(--bf-border)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
       >
         <div className="flex shrink-0 items-center gap-2.5 border-b border-[color:var(--bf-border)] px-4 py-3">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[color:var(--bf-brand-soft)] text-[color:var(--bf-brand)]">
@@ -241,7 +244,13 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
           {result ? (
-            <div>
+            <motion.div
+              key={result.key}
+              variants={fadeSlideUp}
+              initial="initial"
+              animate="animate"
+              transition={baseTransition}
+            >
               <button
                 onClick={() => setResult(null)}
                 className="mb-3 flex items-center gap-1 text-[11px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
@@ -249,7 +258,7 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
                 <ArrowLeft size={12} /> Back to actions
               </button>
               {effectiveBugId && <AiResultView bugId={effectiveBugId} gameId={header?.gameId ?? null} result={result} />}
-            </div>
+            </motion.div>
           ) : (
             <div className="space-y-1.5">
               {AI_ACTIONS.map((action) => {
@@ -278,7 +287,7 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
             </div>
           )}
         </div>
-      </aside>
+      </motion.aside>
     </div>
   );
 }

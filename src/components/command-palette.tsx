@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
 import {
   Search,
   CornerDownLeft,
@@ -354,15 +356,31 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
     }
   }
 
-  if (!commandPaletteOpen) return null;
-
   const searchTooShort = query.trim().length > 0 && query.trim().length < 2;
   let lastGroup = "";
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center bg-black/60 pt-[12vh] backdrop-blur-sm">
-      <div className="absolute inset-0" onClick={close} aria-hidden />
-      <div className="relative z-10 h-fit w-full max-w-lg overflow-hidden rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface-raised)] shadow-lg shadow-black/40">
+    <AnimatePresence>
+      {commandPaletteOpen && (
+        <div className="fixed inset-0 z-50 flex justify-center pt-[12vh]">
+          <motion.div
+            variants={fadeIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={close}
+            aria-hidden
+          />
+          <motion.div
+            variants={fadeScaleIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            className="relative z-10 h-fit w-full max-w-lg overflow-hidden rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface-raised)] shadow-lg shadow-black/40"
+          >
         <div className="flex items-center gap-2.5 border-b border-[color:var(--bf-border)] px-4 py-3">
           <Search size={16} className="text-[color:var(--bf-ink-muted)]" />
           {scope === "bugs" && (
@@ -450,7 +468,9 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
             );
           })}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

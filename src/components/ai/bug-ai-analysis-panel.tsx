@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ChevronDown, TriangleAlert } from "lucide-react";
 import { SEVERITY_META } from "@/lib/severity";
 import { REGRESSION_RISK_META, type BugQuickAnalysis } from "@/lib/ai/bug-analysis";
+import { fadeSlideUp, fadeIn, baseTransition, fastTransition } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -28,7 +30,13 @@ export function BugAiAnalysisPanel({ analysis }: { analysis: BugQuickAnalysis | 
   const riskMeta = REGRESSION_RISK_META[analysis.regressionProbability.band];
 
   return (
-    <section className="mb-6 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)]">
+    <motion.section
+      variants={fadeSlideUp}
+      initial="initial"
+      animate="animate"
+      transition={baseTransition}
+      className="mb-6 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)]"
+    >
       <button
         onClick={() => setCollapsed((c) => !c)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left"
@@ -45,8 +53,16 @@ export function BugAiAnalysisPanel({ analysis }: { analysis: BugQuickAnalysis | 
         <ChevronDown size={15} className={cn("shrink-0 text-[color:var(--bf-ink-muted)] transition-transform", !collapsed && "rotate-180")} />
       </button>
 
+      <AnimatePresence>
       {!collapsed && (
-        <div className="border-t border-[color:var(--bf-border)] px-4 py-3">
+        <motion.div
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={fastTransition}
+          className="border-t border-[color:var(--bf-border)] px-4 py-3"
+        >
           <h3 className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-muted)]">Analysis</h3>
           <dl className="divide-y divide-[color:var(--bf-border)]">
             <Row label="Likely subsystem">
@@ -101,8 +117,9 @@ export function BugAiAnalysisPanel({ analysis }: { analysis: BugQuickAnalysis | 
             <TriangleAlert size={12} className="mt-0.5 shrink-0" />
             AI-generated from this bug&apos;s own data — a starting point for triage, not a confirmed finding. Verify before acting on it.
           </p>
-        </div>
+        </motion.div>
       )}
-    </section>
+      </AnimatePresence>
+    </motion.section>
   );
 }

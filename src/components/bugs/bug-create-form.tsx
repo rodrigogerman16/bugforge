@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, ExternalLink, Loader2, Check, Paperclip, X, TriangleAlert } from "lucide-react";
+import { fadeSlideUp, baseTransition, fastTransition } from "@/lib/motion";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
@@ -295,24 +297,40 @@ export function BugCreateForm({
           Analyze with AI
         </button>
 
-        {aiFillSummary && (
-          <div className="mt-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
-            <p className="mb-1 text-[12px] font-semibold text-[color:var(--bf-ink-primary)]">BugForge AI filled in:</p>
-            <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-[color:var(--bf-ink-secondary)]">
-              {aiFillSummary.map((s, i) => (
-                <li key={i}>{s}</li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
-              Computed from your title, description, and this game&apos;s real data — review and edit anything before
-              submitting. Expected Result isn&apos;t auto-filled; only you know what should happen instead.
-            </p>
-          </div>
-        )}
+        <AnimatePresence>
+          {aiFillSummary && (
+            <motion.div
+              variants={fadeSlideUp}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={baseTransition}
+              className="mt-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3"
+            >
+              <p className="mb-1 text-[12px] font-semibold text-[color:var(--bf-ink-primary)]">BugForge AI filled in:</p>
+              <ul className="list-disc space-y-0.5 pl-4 text-[12px] text-[color:var(--bf-ink-secondary)]">
+                {aiFillSummary.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
+                Computed from your title, description, and this game&apos;s real data — review and edit anything before
+                submitting. Expected Result isn&apos;t auto-filled; only you know what should happen instead.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
+      <AnimatePresence>
       {(searchingDuplicates || duplicates.length > 0) && (
-        <div className="rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
+        <motion.div
+          variants={fadeSlideUp}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={baseTransition}
+          className="rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3">
           <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">
             <Sparkles size={12} className="text-[color:var(--bf-brand)]" />
             Possible duplicates
@@ -356,8 +374,9 @@ export function BugCreateForm({
           <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
             AI-generated matches from text overlap — not confirmed duplicates. Review before deciding; creating this bug is always your call.
           </p>
-        </div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       <div className="grid grid-cols-3 gap-4">
         <div>
@@ -511,34 +530,53 @@ export function BugCreateForm({
         )}
       </div>
 
-      {quality && (
-        <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">Report Quality</span>
-            <span className="text-sm font-bold" style={{ color: QUALITY_COLOR(quality.score) }}>
-              {quality.score} / 100
-            </span>
-          </div>
-          <ul className="space-y-1">
-            {quality.checks.map((c) => (
-              <li
-                key={c.key}
-                className={cn(
-                  "flex items-center gap-1.5 text-[12px]",
-                  c.met ? "text-[color:var(--bf-ink-secondary)]" : "text-[color:var(--bf-status-warning)]"
-                )}
-              >
-                {c.met ? (
-                  <Check size={12} className="shrink-0 text-[color:var(--bf-status-good)]" />
-                ) : (
-                  <TriangleAlert size={12} className="shrink-0" />
-                )}
-                {c.met ? c.label : `Missing ${c.label.toLowerCase()}`}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <AnimatePresence>
+        {quality && (
+          <motion.div
+            variants={fadeSlideUp}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={baseTransition}
+            className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">Report Quality</span>
+              <AnimatePresence mode="popLayout">
+                <motion.span
+                  key={quality.score}
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 4 }}
+                  transition={fastTransition}
+                  className="text-sm font-bold"
+                  style={{ color: QUALITY_COLOR(quality.score) }}
+                >
+                  {quality.score} / 100
+                </motion.span>
+              </AnimatePresence>
+            </div>
+            <ul className="space-y-1">
+              {quality.checks.map((c) => (
+                <li
+                  key={c.key}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[12px]",
+                    c.met ? "text-[color:var(--bf-ink-secondary)]" : "text-[color:var(--bf-status-warning)]"
+                  )}
+                >
+                  {c.met ? (
+                    <Check size={12} className="shrink-0 text-[color:var(--bf-status-good)]" />
+                  ) : (
+                    <TriangleAlert size={12} className="shrink-0" />
+                  )}
+                  {c.met ? c.label : `Missing ${c.label.toLowerCase()}`}
+                </li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex justify-end gap-2 pt-2">
         <button

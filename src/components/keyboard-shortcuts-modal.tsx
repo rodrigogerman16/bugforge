@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["⌘", "K"], label: "Command palette" },
@@ -27,18 +29,31 @@ export function KeyboardShortcutsModal() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [shortcutsHelpOpen, closeShortcutsHelp]);
 
-  if (!shortcutsHelpOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div onClick={closeShortcutsHelp} className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
+    <AnimatePresence>
+      {shortcutsHelpOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            variants={fadeIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            onClick={closeShortcutsHelp}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+          />
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="keyboard-shortcuts-title"
-        className="relative w-full max-w-sm overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
-      >
+          <motion.div
+            variants={fadeScaleIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="keyboard-shortcuts-title"
+            className="relative w-full max-w-sm overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
+          >
         <div className="flex items-center justify-between border-b border-[color:var(--bf-border)] px-5 py-4">
           <h2 id="keyboard-shortcuts-title" className="text-[13px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">
             Keyboard Shortcuts
@@ -73,7 +88,9 @@ export function KeyboardShortcutsModal() {
         <p className="border-t border-[color:var(--bf-border)] px-5 py-3 text-[11px] leading-relaxed text-[color:var(--bf-ink-muted)]">
           Shortcuts never fire while you&apos;re typing in a field.
         </p>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

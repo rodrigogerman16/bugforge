@@ -1,3 +1,7 @@
+"use client";
+
+import { motion } from "motion/react";
+
 export type CategoryBarDatum = { label: string; value: number; color?: string };
 
 // A single-series "magnitude by category" bar chart — the value is printed
@@ -28,8 +32,9 @@ export function CategoryBarChart({
         <p className="py-10 text-center text-sm text-[color:var(--bf-ink-muted)]">{emptyMessage}</p>
       ) : (
         <ul className="space-y-2.5">
-          {data.map((d) => {
+          {data.map((d, i) => {
             const pct = (d.value / max) * 100;
+            const width = `${d.value > 0 ? Math.max(pct, 2) : 0}%`;
             return (
               <li key={d.label}>
                 <div className="mb-1 flex items-center justify-between gap-3 text-[12px]">
@@ -37,9 +42,12 @@ export function CategoryBarChart({
                   <span className="shrink-0 font-mono font-semibold text-[color:var(--bf-ink-primary)]">{format(d.value)}</span>
                 </div>
                 <div className="h-3.5 w-full overflow-hidden rounded bg-[color:var(--bf-page)]">
-                  <div
+                  <motion.div
                     className="h-full rounded"
-                    style={{ width: `${d.value > 0 ? Math.max(pct, 2) : 0}%`, backgroundColor: d.color ?? color }}
+                    style={{ backgroundColor: d.color ?? color }}
+                    initial={{ width: 0 }}
+                    animate={{ width }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: Math.min(i * 0.03, 0.3) }}
                   />
                 </div>
               </li>

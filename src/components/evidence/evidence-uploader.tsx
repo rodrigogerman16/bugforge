@@ -5,11 +5,13 @@ import { Paperclip, Loader2, AlertCircle } from "lucide-react";
 import { validateAttachmentFile, ATTACHMENT_RULES } from "@/lib/attachments";
 import { uploadAttachment } from "@/lib/upload-attachment";
 import { addEvidence } from "@/app/bugs/[id]/evidence-actions";
+import { useShellUI } from "@/components/shell-ui-provider";
 
 export function EvidenceUploader({ bugId }: { bugId: string }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { pushToast } = useShellUI();
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -34,8 +36,11 @@ export function EvidenceUploader({ bugId }: { bugId: string }) {
         fileSizeBytes: uploaded.fileSizeBytes,
         content: uploaded.content,
       });
+      pushToast("Evidence uploaded.", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      setError(message);
+      pushToast(message, "error");
     } finally {
       setUploading(false);
     }

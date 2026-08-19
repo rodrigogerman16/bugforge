@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { motion } from "motion/react";
 import { Sparkles, Loader2, TriangleAlert } from "lucide-react";
 import { getBuildReleaseRisk } from "@/app/ai/actions";
 import { RELEASE_RISK_META, type BuildReleaseRiskAnalysis } from "@/lib/ai/release-analysis";
+import { fadeSlideUp, baseTransition } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 // On-demand, not eager — a build risk analysis touches several real queries
@@ -37,7 +39,13 @@ export function BuildRiskPanel({ buildId }: { buildId: string }) {
   const meta = RELEASE_RISK_META[result.band];
 
   return (
-    <div className="mt-3 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-page)] p-3">
+    <motion.div
+      variants={fadeSlideUp}
+      initial="initial"
+      animate="animate"
+      transition={baseTransition}
+      className="mt-3 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-page)] p-3"
+    >
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-muted)]">
         <Sparkles size={10} className="text-[color:var(--bf-brand)]" />
         Release Risk
@@ -63,6 +71,6 @@ export function BuildRiskPanel({ buildId }: { buildId: string }) {
         <TriangleAlert size={10} className="mt-0.5 shrink-0" />
         AI recommendations are suggestions, not authoritative decisions.
       </p>
-    </div>
+    </motion.div>
   );
 }

@@ -2,11 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Loader2 } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { getBugCreateOptions } from "@/app/bugs/actions";
 import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/data";
 import { BugCreateForm } from "@/components/bugs/bug-create-form";
+import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
 
 type Options = { games: GameCreateOption[]; areas: AreaSummary[]; tags: TagSummary[] };
 
@@ -16,7 +18,7 @@ type Options = { games: GameCreateOption[]; areas: AreaSummary[]; tags: TagSumma
 // first open rather than on every page load, since most page loads never
 // touch bug creation at all.
 export function BugCreateModal() {
-  const { bugCreateModalOpen, bugCreateModalGameSlug, closeBugCreateModal } = useShellUI();
+  const { bugCreateModalOpen, bugCreateModalGameSlug, closeBugCreateModal, pushToast } = useShellUI();
   const router = useRouter();
 
   const [options, setOptions] = useState<Options | null>(null);
@@ -41,22 +43,35 @@ export function BugCreateModal() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [bugCreateModalOpen, closeBugCreateModal]);
 
-  if (!bugCreateModalOpen) return null;
-
   const defaultGame = bugCreateModalGameSlug
     ? options?.games.find((g) => g.slug === bugCreateModalGameSlug)
     : undefined;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div onClick={closeBugCreateModal} className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
+    <AnimatePresence>
+      {bugCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            variants={fadeIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            onClick={closeBugCreateModal}
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+          />
 
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bug-create-modal-title"
-        className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
-      >
+          <motion.div
+            variants={fadeScaleIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={fastTransition}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bug-create-modal-title"
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
+          >
         <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--bf-border)] px-5 py-4">
           <div>
             <h2 id="bug-create-modal-title" className="text-lg font-bold tracking-wide text-[color:var(--bf-ink-primary)] uppercase">
@@ -92,12 +107,15 @@ export function BugCreateModal() {
               onCancel={closeBugCreateModal}
               onCreated={(bugId) => {
                 closeBugCreateModal();
+                pushToast("Bug reported successfully.", "success");
                 router.push(`/bugs/${bugId}`);
               }}
             />
           )}
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 }

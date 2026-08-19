@@ -12,6 +12,7 @@ import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVE
 import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
 import { BugReportQualityCard } from "@/components/bugs/bug-report-quality-card";
+import { AnimateIn } from "@/components/motion/animate-in";
 import { getBugQuickAnalysis, getBugQuality } from "@/app/ai/actions";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
@@ -130,7 +131,11 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
       </header>
 
       <BugAiAnalysisPanel analysis={aiAnalysis} />
-      {quality && <BugReportQualityCard quality={quality} />}
+      {quality && (
+        <AnimateIn delay={0.05}>
+          <BugReportQualityCard quality={quality} />
+        </AnimateIn>
+      )}
 
       <section className="mb-6">
         <h2 className="mb-2 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Description</h2>

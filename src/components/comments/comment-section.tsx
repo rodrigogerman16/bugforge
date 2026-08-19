@@ -4,6 +4,7 @@ import { CommentComposer } from "@/components/comments/comment-composer";
 import { CommentItem } from "@/components/comments/comment-item";
 import { countComments } from "@/components/comments/comment-utils";
 import { createComment, type CommentAttachmentInput } from "@/app/bugs/[id]/comment-actions";
+import { useShellUI } from "@/components/shell-ui-provider";
 import type { CommentNode } from "@/lib/data";
 
 type Tester = { id: string; name: string; role: string };
@@ -22,9 +23,11 @@ export function CommentSection({
   canComment: boolean;
 }) {
   const total = countComments(comments);
+  const { pushToast } = useShellUI();
 
   async function handleCreate(data: { body: string; mentionIds: string[]; attachments: CommentAttachmentInput[] }) {
     await createComment({ bugId, ...data });
+    pushToast("Comment posted.", "success");
   }
 
   return (

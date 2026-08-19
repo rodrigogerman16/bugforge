@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { QUALITY_BAND_META, qualityBand } from "@/lib/quality-score";
 import type { QualityTrendPoint } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -181,24 +182,36 @@ export function QualityTrendChart({ points }: { points: QualityTrendPoint[] }) {
               </text>
             ))}
 
-            <path d={areaPath} fill="var(--bf-brand)" opacity={0.08} />
-            <path
+            <motion.path
+              d={areaPath}
+              fill="var(--bf-brand)"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.08 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+            />
+            <motion.path
               d={linePath}
               fill="none"
               stroke="var(--bf-brand)"
               strokeWidth={2}
               strokeLinejoin="round"
               strokeLinecap="round"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
             />
 
             {latest && latestBand && (
-              <circle
+              <motion.circle
                 cx={x(n - 1)}
                 cy={y(latest.score)}
                 r={4}
                 fill={latestBand.color}
                 stroke="var(--bf-surface)"
                 strokeWidth={2}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.25, delay: 0.55 }}
               />
             )}
 

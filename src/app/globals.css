@@ -40,3 +40,22 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+/* Global reduced-motion safety net — Motion components respect this via
+   <MotionConfig reducedMotion="user"> (see shell-ui-provider.tsx), which
+   drops transform/layout animation but keeps opacity fades so state
+   changes are still visible. This rule is the backstop for everything
+   else: plain CSS transitions (hover states, the AI drawer's slide,
+   dropdown open/close) that aren't going through Motion at all. Together
+   they mean no meaningful motion survives this preference anywhere in the
+   app, not just in the handful of components built with Motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
