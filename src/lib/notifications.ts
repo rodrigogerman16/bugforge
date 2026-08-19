@@ -23,12 +23,3 @@ export async function createNotification(input: {
     },
   });
 }
-
-// BUG-numbers are derived from creation order across the whole bug table
-// (see getBugNumberMap in lib/data.ts) — this is the same computation for
-// one bug, taking the createdAt the caller already has on hand rather than
-// re-fetching the bug row just to number it.
-export async function getBugNumber(bugCreatedAt: Date): Promise<number> {
-  const earlierCount = await prisma.bug.count({ where: { createdAt: { lt: bugCreatedAt } } });
-  return earlierCount + 1;
-}

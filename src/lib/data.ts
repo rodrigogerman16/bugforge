@@ -1,8 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { BugStatus, type BugPriority, type BugSeverity, type Platform, type BuildStatus, type TestCasePriority, type SessionStatus, type QualityGateMetric, type NotificationType } from "@/generated/prisma/enums";
 import { emptySeverityCounts, SEVERITY_ORDER, type SeverityCounts } from "@/lib/severity";
-import { PRIORITY_ORDER } from "@/lib/priority";
-import { BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
 import { computeQualityScore, qualityBand, type QualityBand } from "@/lib/quality-score";
 import { formatReleaseDate } from "@/lib/utils";
 import type { TrendRangeDays } from "@/lib/trend-range";
@@ -274,7 +273,7 @@ export async function getTestCases(gameSlug?: string): Promise<TestCaseSummary[]
 }
 
 export async function getTestCaseDetail(id: string) {
-  const [testCase, numberMap, bugNumberMap] = await Promise.all([
+  const [testCase, numberMap] = await Promise.all([
     prisma.testCase.findUnique({
       where: { id },
       include: {
@@ -285,13 +284,12 @@ export async function getTestCaseDetail(id: string) {
           include: {
             tester: { select: { id: true, name: true } },
             session: { select: { id: true, name: true, build: { select: { version: true } } } },
-            createdBug: { select: { id: true, title: true } },
+            createdBug: { select: { id: true, number: true, title: true } },
           },
         },
       },
     }),
     getTestCaseNumberMap(),
-    getBugNumberMap(),
   ]);
   if (!testCase) return null;
 
@@ -300,12 +298,7 @@ export async function getTestCaseDetail(id: string) {
     game: { ...testCase.game, platforms: testCase.game.platforms.map((p) => p.platform) },
     number: numberMap.get(testCase.id) ?? 0,
     status: deriveTestCaseStatus(testCase.runs[0]?.result),
-    runs: testCase.runs.map((run) => ({
-      ...run,
-      createdBug: run.createdBug
-        ? { ...run.createdBug, number: bugNumberMap.get(run.createdBug.id) ?? 0 }
-        : null,
-    })),
+    runs: testCase.runs,
   };
 }
 
@@ -317,19 +310,16 @@ export async function getTestRunDetail(runId: string) {
       tester: { select: { id: true, name: true } },
       session: { select: { id: true, name: true, build: { select: { version: true } } } },
       stepResults: { orderBy: { stepIndex: "asc" } },
-      createdBug: { select: { id: true, title: true } },
+      createdBug: { select: { id: true, number: true, title: true } },
     },
   });
   if (!run) return null;
 
-  const [testCaseNumberMap, bugNumberMap] = await Promise.all([getTestCaseNumberMap(), getBugNumberMap()]);
+  const testCaseNumberMap = await getTestCaseNumberMap();
 
   return {
     ...run,
     testCase: { ...run.testCase, number: testCaseNumberMap.get(run.testCase.id) ?? 0 },
-    createdBug: run.createdBug
-      ? { ...run.createdBug, number: bugNumberMap.get(run.createdBug.id) ?? 0 }
-      : null,
   };
 }
 
@@ -459,7 +449,7 @@ export async function getSessionDetail(id: string) {
     { ...session, game: { ...session.game, platforms: session.game.platforms.map((p) => p.platform) } },
   ]);
 
-  const [testers, bugs, testRuns, numberMap] = await Promise.all([
+  const [testers, bugs, testRuns] = await Promise.all([
     prisma.tester.findMany({
       where: { id: { in: [...new Set([...session.bugs.map((b) => b.reportedById), ...session.testRuns.map((r) => r.testerId)].filter((x): x is string => !!x))] } },
       select: { id: true, name: true, role: true },
@@ -467,7 +457,7 @@ export async function getSessionDetail(id: string) {
     prisma.bug.findMany({
       where: { sessionId: id },
       orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, severity: true, status: true },
+      select: { id: true, number: true, title: true, severity: true, status: true },
     }),
     prisma.testRun.findMany({
       where: { sessionId: id },
@@ -480,13 +470,12 @@ export async function getSessionDetail(id: string) {
         tester: { select: { id: true, name: true } },
       },
     }),
-    getBugNumberMap(),
   ]);
 
   return {
     ...summary,
     testers,
-    bugs: bugs.map((b) => ({ ...b, number: numberMap.get(b.id) ?? 0 })),
+    bugs,
     testRuns,
   };
 }
@@ -553,7 +542,7 @@ export async function getTesterProfileDetail(id: string) {
   });
   if (!tester) return null;
 
-  const [profiles, activityEvents, numberMap] = await Promise.all([
+  const [profiles, activityEvents] = await Promise.all([
     getTesterProfiles(),
     prisma.activityEvent.findMany({
       where: { actorId: id },
@@ -562,19 +551,15 @@ export async function getTesterProfileDetail(id: string) {
       include: {
         actor: { select: { id: true, name: true, role: true } },
         targetTester: { select: { id: true, name: true, role: true } },
-        bug: { select: { id: true, title: true } },
+        bug: { select: { id: true, number: true, title: true } },
       },
     }),
-    getBugNumberMap(),
   ]);
 
   const summary = profiles.find((p) => p.id === id);
   if (!summary) return null;
 
-  const activity: TesterActivityRow[] = activityEvents.map((e) => ({
-    ...e,
-    bug: { id: e.bug.id, number: numberMap.get(e.bug.id) ?? 0, title: e.bug.title },
-  }));
+  const activity: TesterActivityRow[] = activityEvents;
 
   return { ...summary, activityByDay: groupActivityByDay(activity) };
 }
@@ -851,8 +836,6 @@ export function isBugSortField(value: string | undefined): value is BugSortField
 
 export const BUG_PAGE_SIZE = 20;
 
-const STATUS_SORT_ORDER: BugStatus[] = [...BUG_WORKFLOW_MAIN, ...BUG_WORKFLOW_EXITS];
-
 export type BugListOptions = {
   gameSlug?: string;
   severity?: BugSeverity;
@@ -925,27 +908,19 @@ export async function getAreaUsageCounts(): Promise<Map<string, { bugs: number; 
   return new Map(areas.map((a) => [a.id, { bugs: a._count.bugs, testCases: a._count.testCases }]));
 }
 
-// Every bug gets a stable, human-friendly ticket number (BUG-1, BUG-2, …)
-// derived from its creation order across the whole database — not stored,
-// since it's fully determined by createdAt and cheap to recompute for the
-// small volumes this app deals with, and it stays stable across sorting
-// because it's assigned before any display sort/filter is applied.
-export async function getBugNumberMap(): Promise<Map<string, number>> {
-  const allBugs = await prisma.bug.findMany({
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
-  });
-  return new Map(allBugs.map((b, i) => [b.id, i + 1]));
+// Every bug's BUG-N ticket number is a real, indexed, unique column
+// (Bug.number) assigned once at creation from the "bugNumber" Counter row —
+// see getNextBugNumber below. This atomically increments-and-returns in one
+// statement, so two concurrent bug creations can never collide on the same
+// number the way a naive "count existing rows + 1" would under concurrency.
+export async function getNextBugNumber(): Promise<number> {
+  const rows = await prisma.$queryRaw<{ value: bigint | number }[]>`
+    UPDATE "Counter" SET "value" = "value" + 1 WHERE "id" = 'bugNumber' RETURNING "value"
+  `;
+  return Number(rows[0].value);
 }
 
-// Shared by getBugList (which paginates the result) and getBugsForExport
-// (which doesn't) — same filters, same sort, single source of truth for
-// what "matches the current bug list filters" means.
-async function queryMatchingBugs(options: Omit<BugListOptions, "page">) {
-  const { gameSlug, severity, priority, status, areaId, build, platform, reporterId, assigneeId, dateFrom, dateTo, tagId, q } = options;
-  const sort = options.sort ?? "updatedAt";
-  const dir = options.dir ?? "desc";
-
+async function resolveGameIds(gameSlug: string | undefined): Promise<string[]> {
   const showAll = gameSlug === "all";
   const games = await prisma.game.findMany({
     where: !showAll && gameSlug ? { slug: gameSlug } : undefined,
@@ -953,131 +928,169 @@ async function queryMatchingBugs(options: Omit<BugListOptions, "page">) {
     take: !showAll && !gameSlug ? 1 : undefined,
     select: { id: true },
   });
-  const gameIds = games.map((g) => g.id);
-
-  const [allMatching, numberMap] = await Promise.all([
-    prisma.bug.findMany({
-      where: {
-        gameId: { in: gameIds },
-        ...(severity ? { severity } : {}),
-        ...(priority ? { priority } : {}),
-        ...(status ? { status } : {}),
-        ...(areaId ? { areaId } : {}),
-        ...(build ? { build: { version: build } } : {}),
-        ...(platform ? { platform } : {}),
-        ...(reporterId ? { reportedById: reporterId } : {}),
-        ...(assigneeId ? { assignedToId: assigneeId === "unassigned" ? null : assigneeId } : {}),
-        ...(tagId ? { tags: { some: { id: tagId } } } : {}),
-        ...(dateFrom || dateTo
-          ? { createdAt: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } }
-          : {}),
-        ...(q
-          ? {
-              OR: [
-                { title: { contains: q } },
-                { description: { contains: q } },
-                { area: { name: { contains: q } } },
-              ],
-            }
-          : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        severity: true,
-        priority: true,
-        status: true,
-        isRegression: true,
-        platform: true,
-        area: { select: { id: true, name: true } },
-        createdAt: true,
-        updatedAt: true,
-        game: { select: { name: true, slug: true, coverColor: true } },
-        build: { select: { version: true } },
-        reportedBy: { select: { name: true } },
-        assignedTo: { select: { name: true } },
-      },
-    }),
-    getBugNumberMap(),
-  ]);
-
-  const bugs = allMatching.map((bug) => ({ ...bug, number: numberMap.get(bug.id) ?? 0 }));
-
-  const dirMul = dir === "asc" ? 1 : -1;
-  const comparators: Record<BugSortField, (a: (typeof bugs)[number], b: (typeof bugs)[number]) => number> = {
-    number: (a, b) => a.number - b.number,
-    title: (a, b) => a.title.localeCompare(b.title),
-    // Reversed vs. their definition-order arrays so "desc" — the default
-    // direction on a fresh column click — surfaces the most severe/highest
-    // priority/furthest-along bug first, matching how desc already behaves
-    // for numbers and dates elsewhere in this table.
-    severity: (a, b) => SEVERITY_ORDER.indexOf(b.severity) - SEVERITY_ORDER.indexOf(a.severity),
-    priority: (a, b) => PRIORITY_ORDER.indexOf(b.priority) - PRIORITY_ORDER.indexOf(a.priority),
-    status: (a, b) => STATUS_SORT_ORDER.indexOf(b.status) - STATUS_SORT_ORDER.indexOf(a.status),
-    area: (a, b) => (a.area?.name ?? "").localeCompare(b.area?.name ?? ""),
-    build: (a, b) => a.build.version.localeCompare(b.build.version),
-    reporter: (a, b) => (a.reportedBy?.name ?? "").localeCompare(b.reportedBy?.name ?? ""),
-    assignee: (a, b) => (a.assignedTo?.name ?? "").localeCompare(b.assignedTo?.name ?? ""),
-    updatedAt: (a, b) => a.updatedAt.getTime() - b.updatedAt.getTime(),
-  };
-  bugs.sort((a, b) => dirMul * comparators[sort](a, b));
-
-  return bugs;
+  return games.map((g) => g.id);
 }
 
-export async function getBugList(options: BugListOptions) {
-  const { page = 1 } = options;
-  const bugs = await queryMatchingBugs(options);
+// Shared by getBugList (which paginates) and getBugsForExport (which
+// doesn't) — same filter logic, single source of truth for what "matches
+// the current bug list filters" means. Every field here maps onto an
+// indexed column (see the @@index list on the Bug model), so this `where`
+// runs as an index scan even against a 100,000+ row table, never a full
+// table scan.
+function buildBugWhere(
+  options: Omit<BugListOptions, "page" | "sort" | "dir">,
+  gameIds: string[]
+): Prisma.BugWhereInput {
+  const { severity, priority, status, areaId, build, platform, reporterId, assigneeId, dateFrom, dateTo, tagId, q } = options;
+  return {
+    gameId: { in: gameIds },
+    ...(severity ? { severity } : {}),
+    ...(priority ? { priority } : {}),
+    ...(status ? { status } : {}),
+    ...(areaId ? { areaId } : {}),
+    ...(build ? { build: { version: build } } : {}),
+    ...(platform ? { platform } : {}),
+    ...(reporterId ? { reportedById: reporterId } : {}),
+    ...(assigneeId ? { assignedToId: assigneeId === "unassigned" ? null : assigneeId } : {}),
+    ...(tagId ? { tags: { some: { id: tagId } } } : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } }
+      : {}),
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q } },
+            { description: { contains: q } },
+            { area: { name: { contains: q } } },
+          ],
+        }
+      : {}),
+  };
+}
 
-  const totalCount = bugs.length;
+// Translates the bug table's public sort field into a real Prisma orderBy —
+// pushed down to the database instead of loading every matching row into
+// Node to sort in memory. Severity/priority/status sort by their Rank
+// mirror column (see severityRank on the Bug model): that column stores a
+// 0-based position in this app's domain order (0 = Blocker/P0/New), the
+// *inverse* of what "desc" should show first, so the requested direction is
+// flipped for just these three — matching the "desc surfaces the most
+// severe/highest-priority/furthest-along bug first" behavior this table has
+// always had. Every branch appends `number` as a tiebreaker: without one,
+// rows tied on the sort column could shuffle between pages of a skip/take
+// query, which the old whole-array-sorted-once approach never risked.
+function buildBugOrderBy(sort: BugSortField, dir: "asc" | "desc"): Prisma.BugOrderByWithRelationInput[] {
+  const rankDir = dir === "desc" ? "asc" : "desc";
+  switch (sort) {
+    case "number":
+      return [{ number: dir }];
+    case "title":
+      return [{ title: dir }, { number: "desc" }];
+    case "severity":
+      return [{ severityRank: rankDir }, { number: "desc" }];
+    case "priority":
+      return [{ priorityRank: rankDir }, { number: "desc" }];
+    case "status":
+      return [{ statusRank: rankDir }, { number: "desc" }];
+    case "area":
+      return [{ area: { name: dir } }, { number: "desc" }];
+    case "build":
+      return [{ build: { version: dir } }, { number: "desc" }];
+    case "reporter":
+      return [{ reportedBy: { name: dir } }, { number: "desc" }];
+    case "assignee":
+      return [{ assignedTo: { name: dir } }, { number: "desc" }];
+    case "updatedAt":
+      return [{ updatedAt: dir }, { number: "desc" }];
+  }
+}
+
+const BUG_LIST_SELECT = {
+  id: true,
+  number: true,
+  title: true,
+  severity: true,
+  priority: true,
+  status: true,
+  isRegression: true,
+  platform: true,
+  area: { select: { id: true, name: true } },
+  createdAt: true,
+  updatedAt: true,
+  game: { select: { name: true, slug: true, coverColor: true } },
+  build: { select: { version: true } },
+  reportedBy: { select: { name: true } },
+  assignedTo: { select: { name: true } },
+} satisfies Prisma.BugSelect;
+
+// Real server-side pagination: the total count and the one requested page
+// are two indexed queries, not "load every matching bug, then slice it in
+// JS" — the page size never grows even if the filtered set is 100,000 rows.
+export async function getBugList(options: BugListOptions) {
+  const { page = 1, sort = "updatedAt", dir = "desc" } = options;
+  const gameIds = await resolveGameIds(options.gameSlug);
+  const where = buildBugWhere(options, gameIds);
+  const orderBy = buildBugOrderBy(sort, dir);
+
+  const totalCount = await prisma.bug.count({ where });
   const pageCount = Math.max(1, Math.ceil(totalCount / BUG_PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), pageCount);
-  const start = (safePage - 1) * BUG_PAGE_SIZE;
-  const pageBugs = bugs.slice(start, start + BUG_PAGE_SIZE);
 
-  return { bugs: pageBugs, totalCount, page: safePage, pageCount };
+  const bugs = await prisma.bug.findMany({
+    where,
+    orderBy,
+    select: BUG_LIST_SELECT,
+    skip: (safePage - 1) * BUG_PAGE_SIZE,
+    take: BUG_PAGE_SIZE,
+  });
+
+  return { bugs, totalCount, page: safePage, pageCount };
 }
 
 // The unpaginated counterpart of getBugList, for exporting the full set of
-// bugs matching the current filters (CSV/JSON) rather than one page of them.
+// bugs matching the current filters (CSV/JSON) rather than one page of
+// them — the filtering and sorting still happen in the database, this just
+// omits skip/take because "every matching row" is the actual point of an
+// export.
 export async function getBugsForExport(options: Omit<BugListOptions, "page">) {
-  return queryMatchingBugs(options);
+  const { sort = "updatedAt", dir = "desc" } = options;
+  const gameIds = await resolveGameIds(options.gameSlug);
+  const where = buildBugWhere(options, gameIds);
+  const orderBy = buildBugOrderBy(sort, dir);
+  return prisma.bug.findMany({ where, orderBy, select: BUG_LIST_SELECT });
 }
 
 export async function getBugDetail(id: string) {
-  const [bug, numberMap] = await Promise.all([
-    prisma.bug.findUnique({
-      where: { id },
-      include: {
-        game: { select: { name: true, slug: true, coverColor: true } },
-        build: { select: { version: true, branch: true } },
-        session: { select: { name: true } },
-        area: { select: { id: true, name: true } },
-        reportedBy: { select: { id: true, name: true, email: true } },
-        assignedTo: { select: { id: true, name: true, email: true } },
-        tags: { select: { id: true, name: true, color: true } },
-        evidence: {
-          select: {
-            id: true,
-            type: true,
-            url: true,
-            content: true,
-            fileName: true,
-            fileSizeBytes: true,
-            caption: true,
-          },
-          orderBy: { createdAt: "asc" },
+  const bug = await prisma.bug.findUnique({
+    where: { id },
+    include: {
+      game: { select: { name: true, slug: true, coverColor: true } },
+      build: { select: { version: true, branch: true } },
+      session: { select: { name: true } },
+      area: { select: { id: true, name: true } },
+      reportedBy: { select: { id: true, name: true, email: true } },
+      assignedTo: { select: { id: true, name: true, email: true } },
+      tags: { select: { id: true, name: true, color: true } },
+      evidence: {
+        select: {
+          id: true,
+          type: true,
+          url: true,
+          content: true,
+          fileName: true,
+          fileSizeBytes: true,
+          caption: true,
         },
-        // A bug auto-created from a failed test execution keeps a real link
-        // back to that run, so the origin is traceable, not just prose.
-        originatingTestRuns: {
-          take: 1,
-          select: { id: true, testCase: { select: { id: true, title: true } } },
-        },
+        orderBy: { createdAt: "asc" },
       },
-    }),
-    getBugNumberMap(),
-  ]);
+      // A bug auto-created from a failed test execution keeps a real link
+      // back to that run, so the origin is traceable, not just prose.
+      originatingTestRuns: {
+        take: 1,
+        select: { id: true, testCase: { select: { id: true, title: true } } },
+      },
+    },
+  });
 
   if (!bug) return null;
 
@@ -1093,7 +1106,7 @@ export async function getBugDetail(id: string) {
     };
   }
 
-  return { ...bug, number: numberMap.get(bug.id) ?? 0, originatingTestCase };
+  return { ...bug, originatingTestCase };
 }
 
 export async function getTesters() {
@@ -1142,19 +1155,16 @@ export async function getBugComments(bugId: string): Promise<CommentNode[]> {
 }
 
 export async function getBugRelationships(bugId: string) {
-  const [rows, numberMap] = await Promise.all([
-    prisma.bugRelationship.findMany({
-      where: { OR: [{ sourceBugId: bugId }, { targetBugId: bugId }] },
-      orderBy: { createdAt: "desc" },
-      include: {
-        sourceBug: { select: { id: true, title: true, status: true } },
-        targetBug: { select: { id: true, title: true, status: true } },
-      },
-    }),
-    getBugNumberMap(),
-  ]);
+  const rows = await prisma.bugRelationship.findMany({
+    where: { OR: [{ sourceBugId: bugId }, { targetBugId: bugId }] },
+    orderBy: { createdAt: "desc" },
+    include: {
+      sourceBug: { select: { id: true, number: true, title: true, status: true } },
+      targetBug: { select: { id: true, number: true, title: true, status: true } },
+    },
+  });
 
-  return resolveRelationships(bugId, rows, (id) => numberMap.get(id) ?? 0);
+  return resolveRelationships(bugId, rows);
 }
 
 export async function getRegressionInfo(bugId: string) {
@@ -1163,16 +1173,15 @@ export async function getRegressionInfo(bugId: string) {
     orderBy: { createdAt: "asc" },
     include: {
       sourceBug: { select: { build: { select: { version: true } } } },
-      targetBug: { select: { id: true, title: true, build: { select: { version: true } } } },
+      targetBug: { select: { id: true, number: true, title: true, build: { select: { version: true } } } },
     },
   });
   if (!relationship) return null;
 
-  const numberMap = await getBugNumberMap();
   return {
     originalBugId: relationship.targetBug.id,
     originalBugTitle: relationship.targetBug.title,
-    originalBugNumber: numberMap.get(relationship.targetBug.id) ?? 0,
+    originalBugNumber: relationship.targetBug.number,
     previouslyFixedBuild: relationship.targetBug.build.version,
     reproducedBuild: relationship.sourceBug.build.version,
   };
@@ -1221,38 +1230,36 @@ export type AiBugContext = {
 };
 
 export async function getBugForAi(bugId: string): Promise<AiBugContext | null> {
-  const [bug, numberMap] = await Promise.all([
-    prisma.bug.findUnique({
-      where: { id: bugId },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        severity: true,
-        priority: true,
-        status: true,
-        isRegression: true,
-        platform: true,
-        stepsToReproduce: true,
-        expectedResult: true,
-        actualResult: true,
-        map: true,
-        gameMode: true,
-        createdAt: true,
-        _count: { select: { evidence: true } },
-        tags: { select: { name: true } },
-        game: { select: { id: true, name: true, slug: true } },
-        area: { select: { id: true, name: true, discipline: true } },
-        build: { select: { version: true, status: true } },
-      },
-    }),
-    getBugNumberMap(),
-  ]);
+  const bug = await prisma.bug.findUnique({
+    where: { id: bugId },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      description: true,
+      severity: true,
+      priority: true,
+      status: true,
+      isRegression: true,
+      platform: true,
+      stepsToReproduce: true,
+      expectedResult: true,
+      actualResult: true,
+      map: true,
+      gameMode: true,
+      createdAt: true,
+      _count: { select: { evidence: true } },
+      tags: { select: { name: true } },
+      game: { select: { id: true, name: true, slug: true } },
+      area: { select: { id: true, name: true, discipline: true } },
+      build: { select: { version: true, status: true } },
+    },
+  });
   if (!bug) return null;
 
   return {
     id: bug.id,
-    number: numberMap.get(bug.id) ?? 0,
+    number: bug.number,
     title: bug.title,
     description: bug.description,
     severity: bug.severity,
@@ -1294,19 +1301,15 @@ export async function getGameBugsForDuplicateScan(
   gameId: string,
   excludeBugId?: string
 ): Promise<DuplicateCandidateBug[]> {
-  const [bugs, numberMap] = await Promise.all([
-    prisma.bug.findMany({
-      where: {
-        gameId,
-        ...(excludeBugId ? { id: { not: excludeBugId } } : {}),
-        status: { not: "DUPLICATE" },
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, title: true, description: true, status: true, severity: true },
-    }),
-    getBugNumberMap(),
-  ]);
-  return bugs.map((b) => ({ ...b, number: numberMap.get(b.id) ?? 0 }));
+  return prisma.bug.findMany({
+    where: {
+      gameId,
+      ...(excludeBugId ? { id: { not: excludeBugId } } : {}),
+      status: { not: "DUPLICATE" },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, number: true, title: true, description: true, status: true, severity: true },
+  });
 }
 
 export type AreaRiskContext = { openBugsInArea: number; regressionCountInArea: number };
@@ -1827,13 +1830,10 @@ export async function getBuildQaReportData(buildId: string): Promise<BuildQaRepo
   });
   if (!build) return null;
 
-  const [bugs, numberMap] = await Promise.all([
-    prisma.bug.findMany({
-      where: { buildId },
-      select: { id: true, title: true, severity: true, status: true, isRegression: true },
-    }),
-    getBugNumberMap(),
-  ]);
+  const bugs = await prisma.bug.findMany({
+    where: { buildId },
+    select: { id: true, number: true, title: true, severity: true, status: true, isRegression: true },
+  });
 
   const bySeverity = new Map<BugSeverity, { total: number; open: number }>();
   for (const severity of SEVERITY_ORDER) bySeverity.set(severity, { total: 0, open: 0 });
@@ -1847,7 +1847,7 @@ export async function getBuildQaReportData(buildId: string): Promise<BuildQaRepo
   const topOpenBugs = [...openBugs]
     .sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity))
     .slice(0, 10)
-    .map((b) => ({ number: numberMap.get(b.id) ?? 0, title: b.title, severity: b.severity, status: b.status }));
+    .map((b) => ({ number: b.number, title: b.title, severity: b.severity, status: b.status }));
 
   const testRuns = await prisma.testRun.findMany({
     where: { session: { buildId } },
@@ -1909,41 +1909,39 @@ export async function getRegressionReportData(
   });
   const gameIds = games.map((g) => g.id);
 
-  const [relationships, numberMap] = await Promise.all([
-    prisma.bugRelationship.findMany({
-      where: {
-        type: "REGRESSION_OF",
-        sourceBug: { gameId: { in: gameIds }, createdAt: { gte: from, lte: to } },
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        sourceBug: {
-          select: {
-            id: true,
-            title: true,
-            severity: true,
-            createdAt: true,
-            area: { select: { name: true } },
-            build: { select: { version: true } },
-            game: { select: { name: true } },
-          },
+  const relationships = await prisma.bugRelationship.findMany({
+    where: {
+      type: "REGRESSION_OF",
+      sourceBug: { gameId: { in: gameIds }, createdAt: { gte: from, lte: to } },
+    },
+    orderBy: { createdAt: "desc" },
+    include: {
+      sourceBug: {
+        select: {
+          id: true,
+          number: true,
+          title: true,
+          severity: true,
+          createdAt: true,
+          area: { select: { name: true } },
+          build: { select: { version: true } },
+          game: { select: { name: true } },
         },
-        targetBug: { select: { id: true, build: { select: { version: true } } } },
       },
-    }),
-    getBugNumberMap(),
-  ]);
+      targetBug: { select: { id: true, number: true, build: { select: { version: true } } } },
+    },
+  });
 
   const entries: RegressionReportEntry[] = relationships.map((r) => ({
     regressionBugId: r.sourceBug.id,
-    regressionBugNumber: numberMap.get(r.sourceBug.id) ?? 0,
+    regressionBugNumber: r.sourceBug.number,
     title: r.sourceBug.title,
     severity: r.sourceBug.severity,
     areaName: r.sourceBug.area?.name ?? null,
     gameName: r.sourceBug.game.name,
     reproducedBuild: r.sourceBug.build.version,
     originalBugId: r.targetBug.id,
-    originalBugNumber: numberMap.get(r.targetBug.id) ?? 0,
+    originalBugNumber: r.targetBug.number,
     originalFixedBuild: r.targetBug.build.version,
     createdAt: r.sourceBug.createdAt,
   }));

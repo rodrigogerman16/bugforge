@@ -8,6 +8,13 @@ export const PRIORITY_ORDER: BugPriority[] = [
   BugPriority.P4,
 ];
 
+// Mirrors SEVERITY_RANK — the Bug.priorityRank column stores this 0-based
+// position so priority can be sorted/filtered at the database level. Every
+// write path that sets priority must set priorityRank to match.
+export const PRIORITY_RANK: Record<BugPriority, number> = Object.fromEntries(
+  PRIORITY_ORDER.map((p, i) => [p, i])
+) as Record<BugPriority, number>;
+
 // Priority is a separate axis from severity — how urgently a bug should be
 // worked, not how technically damaging it is. The two can and do diverge, so
 // they're stored as independent fields and never derived from one another.

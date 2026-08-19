@@ -37,27 +37,23 @@ export type RelationshipRow = {
   type: RelationshipType;
   sourceBugId: string;
   targetBugId: string;
-  sourceBug: { id: string; title: string; status: string };
-  targetBug: { id: string; title: string; status: string };
+  sourceBug: { id: string; number: number; title: string; status: string };
+  targetBug: { id: string; number: number; title: string; status: string };
 };
 
 export type RelationshipDisplayItem = {
   id: string;
   label: string;
-  bug: { id: string; title: string; status: string; number: number };
+  bug: { id: string; number: number; title: string; status: string };
 };
 
 // Resolves each raw edge into a "from this bug's perspective" display item —
 // picking the forward or inverse label depending on which side `bugId` is on.
-export function resolveRelationships(
-  bugId: string,
-  rows: RelationshipRow[],
-  numberOf: (id: string) => number
-): RelationshipDisplayItem[] {
+export function resolveRelationships(bugId: string, rows: RelationshipRow[]): RelationshipDisplayItem[] {
   return rows.map((row) => {
     const isSource = row.sourceBugId === bugId;
     const other = isSource ? row.targetBug : row.sourceBug;
     const label = isSource ? RELATIONSHIP_FORWARD_LABEL[row.type] : RELATIONSHIP_INVERSE_LABEL[row.type];
-    return { id: row.id, label, bug: { ...other, number: numberOf(other.id) } };
+    return { id: row.id, label, bug: other };
   });
 }

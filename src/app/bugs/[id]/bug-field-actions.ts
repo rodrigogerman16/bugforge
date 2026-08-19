@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertCanEditBugFields, assertCanChangeBugStatus, assertCanAssignBug } from "@/lib/permissions";
-import { createNotification, getBugNumber } from "@/lib/notifications";
+import { createNotification } from "@/lib/notifications";
+import { SEVERITY_RANK } from "@/lib/severity";
+import { PRIORITY_RANK } from "@/lib/priority";
+import { BUG_STATUS_RANK } from "@/lib/status-labels";
 import type { BugStatus, BugPriority, BugSeverity } from "@/generated/prisma/enums";
 
 function revalidateBug(bugId: string) {
@@ -15,23 +18,22 @@ function revalidateBug(bugId: string) {
 export async function updateBugStatus(bugId: string, status: BugStatus) {
   const bug = await prisma.bug.findUnique({
     where: { id: bugId },
-    select: { status: true, title: true, createdAt: true, reportedById: true, game: { select: { name: true } } },
+    select: { number: true, status: true, title: true, reportedById: true, game: { select: { name: true } } },
   });
   if (!bug || bug.status === status) return;
   const user = await assertCanChangeBugStatus(bug, status);
 
   await prisma.$transaction([
-    prisma.bug.update({ where: { id: bugId }, data: { status } }),
+    prisma.bug.update({ where: { id: bugId }, data: { status, statusRank: BUG_STATUS_RANK[status] } }),
     prisma.activityEvent.create({
       data: { type: "STATUS_CHANGED", fromValue: bug.status, toValue: status, bugId, actorId: user.id },
     }),
   ]);
 
   if (status === "READY_FOR_QA") {
-    const number = await getBugNumber(bug.createdAt);
     await createNotification({
       type: "BUG_READY_FOR_QA",
-      title: `BUG-${number} marked Ready for QA`,
+      title: `BUG-${bug.number} marked Ready for QA`,
       detail: `${bug.title} — ${bug.game.name}`,
       link: `/bugs/${bugId}`,
     });
@@ -46,7 +48,7 @@ export async function updateBugPriority(bugId: string, priority: BugPriority) {
   const user = await assertCanEditBugFields(bug);
 
   await prisma.$transaction([
-    prisma.bug.update({ where: { id: bugId }, data: { priority } }),
+    prisma.bug.update({ where: { id: bugId }, data: { priority, priorityRank: PRIORITY_RANK[priority] } }),
     prisma.activityEvent.create({
       data: { type: "PRIORITY_CHANGED", fromValue: bug.priority, toValue: priority, bugId, actorId: user.id },
     }),
@@ -61,7 +63,7 @@ export async function updateBugSeverity(bugId: string, severity: BugSeverity) {
   const user = await assertCanEditBugFields(bug);
 
   await prisma.$transaction([
-    prisma.bug.update({ where: { id: bugId }, data: { severity } }),
+    prisma.bug.update({ where: { id: bugId }, data: { severity, severityRank: SEVERITY_RANK[severity] } }),
     prisma.activityEvent.create({
       data: { type: "SEVERITY_CHANGED", fromValue: bug.severity, toValue: severity, bugId, actorId: user.id },
     }),
@@ -81,7 +83,7 @@ export async function updateBugArea(bugId: string, areaId: string | null) {
 export async function updateBugAssignee(bugId: string, assigneeId: string | null) {
   const bug = await prisma.bug.findUnique({
     where: { id: bugId },
-    select: { assignedToId: true, title: true, createdAt: true, game: { select: { name: true } } },
+    select: { number: true, assignedToId: true, title: true, game: { select: { name: true } } },
   });
   if (!bug || bug.assignedToId === assigneeId) return;
   const user = await assertCanAssignBug();
@@ -100,10 +102,9 @@ export async function updateBugAssignee(bugId: string, assigneeId: string | null
   ]);
 
   if (assigneeId) {
-    const number = await getBugNumber(bug.createdAt);
     await createNotification({
       type: "BUG_ASSIGNED",
-      title: `BUG-${number} assigned to you`,
+      title: `BUG-${bug.number} assigned to you`,
       detail: `${bug.title} — ${bug.game.name}`,
       link: `/bugs/${bugId}`,
       recipientId: assigneeId,

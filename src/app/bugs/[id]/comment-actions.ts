@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertCanComment } from "@/lib/permissions";
-import { createNotification, getBugNumber } from "@/lib/notifications";
+import { createNotification } from "@/lib/notifications";
 import { createCommentSchema, updateCommentSchema, parseOrThrow } from "@/lib/validation";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
@@ -48,16 +48,15 @@ export async function createComment(rawInput: {
   if (recipients.length > 0) {
     const bug = await prisma.bug.findUnique({
       where: { id: bugId },
-      select: { title: true, createdAt: true, game: { select: { name: true } } },
+      select: { number: true, title: true, game: { select: { name: true } } },
     });
     if (bug) {
-      const number = await getBugNumber(bug.createdAt);
       const excerpt = trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed;
       for (const recipientId of recipients) {
         await createNotification({
           type: "COMMENT_MENTION",
           title: `${user.name} mentioned you`,
-          detail: `BUG-${number} — ${bug.title}: "${excerpt}"`,
+          detail: `BUG-${bug.number} — ${bug.title}: "${excerpt}"`,
           link: `/bugs/${bugId}#comment-${comment.id}`,
           recipientId,
         });

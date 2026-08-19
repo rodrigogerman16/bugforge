@@ -172,11 +172,25 @@ model Tester {
 
 model Bug {
   id          String      @id @default(cuid())
+  // The stable, human-facing BUG-N ticket number, assigned once at creation
+  // from the Counter row "bugNumber" (see getNextBugNumber in lib/data.ts)
+  // and never recomputed — replaces the old approach of scanning every bug
+  // in the table, ordered by createdAt, on every single read.
+  number      Int         @unique
   title       String
   description String
   severity    BugSeverity
+  // A 0-based mirror of severity's position in SEVERITY_ORDER (lib/severity.ts),
+  // kept in sync by every write path that sets severity. Lets the database sort
+  // and filter by severity's domain order (Blocker worst) using a plain indexed
+  // integer instead of loading every matching row into Node to sort in memory.
+  severityRank Int        @default(0)
   priority    BugPriority @default(P2)
+  // Mirrors severityRank for priority's position in PRIORITY_ORDER (lib/priority.ts).
+  priorityRank Int        @default(0)
   status      BugStatus   @default(NEW)
+  // Mirrors severityRank for status's position in BUG_STATUS_SORT_ORDER (lib/status-labels.ts).
+  statusRank  Int         @default(0)
   isRegression Boolean    @default(false)
   // Which of the game's supported platforms this bug was found on — never
   // assume a game's whole platform lineup shares one bug list.
@@ -217,6 +231,21 @@ model Bug {
   relationshipsAsTarget BugRelationship[] @relation("RelationshipTarget")
 
   originatingTestRuns TestRun[] @relation("TestRunCreatedBug")
+
+  // gameId is present in every /bugs query (the list is always scoped to a
+  // game, or "all"), so it's the leading column in every composite index
+  // below — one per sortable/filterable column the bug list's server-side
+  // sort and filter options actually use.
+  @@index([gameId, updatedAt])
+  @@index([gameId, createdAt])
+  @@index([gameId, severityRank])
+  @@index([gameId, priorityRank])
+  @@index([gameId, statusRank])
+  @@index([buildId])
+  @@index([areaId])
+  @@index([sessionId])
+  @@index([reportedById])
+  @@index([assignedToId])
 }
 
 enum RelationshipType {
@@ -500,4 +529,14 @@ model QualityGate {
   threshold Float
   enabled   Boolean           @default(true)
   updatedAt DateTime          @updatedAt
+}
+
+// A tiny table of named atomic counters — currently just the one row
+// ("bugNumber") backing Bug.number. A single `UPDATE ... SET value = value
+// + 1 ... RETURNING value` against this row is how a new bug gets its
+// ticket number without a full-table scan or a race condition between two
+// concurrent bug creations (see getNextBugNumber in lib/data.ts).
+model Counter {
+  id    String @id
+  value Int    @default(0)
 }

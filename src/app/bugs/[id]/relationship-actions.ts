@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { RELATIONSHIP_PICKER_OPTIONS } from "@/lib/relationships";
-import { createNotification, getBugNumber } from "@/lib/notifications";
+import { createNotification } from "@/lib/notifications";
 import { getCurrentUser } from "@/lib/data";
 import { hasCapability, PermissionError } from "@/lib/permissions";
 
@@ -54,13 +54,12 @@ export async function createRelationship({
     const sourceBug = await prisma.bug.update({
       where: { id: sourceBugId },
       data: { isRegression: true },
-      select: { title: true, createdAt: true, game: { select: { name: true } } },
+      select: { number: true, title: true, game: { select: { name: true } } },
     });
-    const number = await getBugNumber(sourceBug.createdAt);
     await createNotification({
       type: "REGRESSION_DETECTED",
       title: "Regression detected",
-      detail: `BUG-${number} — ${sourceBug.title} (${sourceBug.game.name})`,
+      detail: `BUG-${sourceBug.number} — ${sourceBug.title} (${sourceBug.game.name})`,
       link: `/bugs/${sourceBugId}`,
     });
   }

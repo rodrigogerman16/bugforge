@@ -9,6 +9,15 @@ export const SEVERITY_ORDER: BugSeverity[] = [
   BugSeverity.LOW,
 ];
 
+// The Bug.severityRank column stores this same 0-based position (0 =
+// Blocker) so the database can sort/filter by severity using a plain
+// indexed integer column instead of loading every row into Node to sort by
+// SEVERITY_ORDER.indexOf() — see queryBugOrderBy in lib/data.ts. Every write
+// path that sets severity must set severityRank to match.
+export const SEVERITY_RANK: Record<BugSeverity, number> = Object.fromEntries(
+  SEVERITY_ORDER.map((s, i) => [s, i])
+) as Record<BugSeverity, number>;
+
 // Severity is meant to be visually obvious without relying on color alone
 // (see BUG_STATUS_META's same principle) — every level pairs a distinct
 // icon and label with its color, so it's still unambiguous in grayscale,

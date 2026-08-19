@@ -43,6 +43,17 @@ export const BUG_WORKFLOW_MAIN: BugStatus[] = [
 // ...or one of two alternate exits, taken instead of the main path.
 export const BUG_WORKFLOW_EXITS: BugStatus[] = [BugStatus.REJECTED, BugStatus.DUPLICATE];
 
+// The full sort order used everywhere a bug list is ordered "by workflow
+// progress" — the main pipeline in order, then the two exits.
+export const BUG_STATUS_SORT_ORDER: BugStatus[] = [...BUG_WORKFLOW_MAIN, ...BUG_WORKFLOW_EXITS];
+
+// Mirrors SEVERITY_RANK/PRIORITY_RANK — the Bug.statusRank column stores
+// this 0-based position so status can be sorted/filtered at the database
+// level. Every write path that sets status must set statusRank to match.
+export const BUG_STATUS_RANK: Record<BugStatus, number> = Object.fromEntries(
+  BUG_STATUS_SORT_ORDER.map((s, i) => [s, i])
+) as Record<BugStatus, number>;
+
 export const SESSION_STATUS_LABEL: Record<SessionStatus, string> = {
   PLANNED: "Planned",
   ACTIVE: "Active",

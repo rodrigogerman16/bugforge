@@ -2,6 +2,9 @@ import "dotenv/config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient, BugSeverity, BugPriority, BugStatus, EvidenceType, Platform, SessionStatus, TesterRole, ActivityEventType, RelationshipType, BuildStatus, TestCasePriority, QADiscipline, QualityGateMetric, GateOperator, NotificationType } from "../src/generated/prisma/client";
 import type { Bug } from "../src/generated/prisma/client";
+import { SEVERITY_RANK } from "../src/lib/severity";
+import { PRIORITY_RANK } from "../src/lib/priority";
+import { BUG_STATUS_RANK } from "../src/lib/status-labels";
 
 const adapter = new PrismaLibSql({
   url: process.env.TURSO_DATABASE_URL ?? process.env.DATABASE_URL ?? "file:./dev.db",
@@ -1259,6 +1262,18 @@ function buildStepResults(
   });
 }
 
+// Bug.number must be unique and non-null at insert time, but its real,
+// chronologically-ordered value isn't known until every bug (across every
+// game's loop below, each backdated independently) has been created — see
+// the ROW_NUMBER backfill in the notifications section. This just hands out
+// a distinct placeholder per insert so the NOT NULL/UNIQUE constraint is
+// satisfied; every value it produces gets overwritten by that backfill.
+let placeholderBugNumber = 0;
+function nextPlaceholderBugNumber(): number {
+  placeholderBugNumber += 1;
+  return placeholderBugNumber;
+}
+
 async function main() {
   console.log("Seeding BugForge...");
 
@@ -1268,6 +1283,7 @@ async function main() {
   await prisma.testRun.deleteMany();
   await prisma.testCase.deleteMany();
   await prisma.bug.deleteMany();
+  await prisma.counter.deleteMany();
   await prisma.qASession.deleteMany();
   await prisma.build.deleteMany();
   await prisma.tester.deleteMany();
@@ -1573,6 +1589,7 @@ async function main() {
 
       const bug = await prisma.bug.create({
         data: {
+          number: nextPlaceholderBugNumber(),
           gameId: game.id,
           buildId: build.id,
           sessionId: session.id,
@@ -1592,8 +1609,11 @@ async function main() {
           environmentGpu,
           platform,
           severity,
+          severityRank: SEVERITY_RANK[severity],
           priority,
+          priorityRank: PRIORITY_RANK[priority],
           status,
+          statusRank: BUG_STATUS_RANK[status],
           isRegression: false,
           areaId: area.id,
           reportedById,
@@ -1656,6 +1676,7 @@ async function main() {
 
       const regressionBug = await prisma.bug.create({
         data: {
+          number: nextPlaceholderBugNumber(),
           gameId: game.id,
           buildId: regressionBuild.id,
           sessionId: regressionSession.id,
@@ -1670,8 +1691,11 @@ async function main() {
           environmentGpu: original.environmentGpu,
           platform: original.platform,
           severity: original.severity,
+          severityRank: SEVERITY_RANK[original.severity],
           priority: original.priority,
+          priorityRank: PRIORITY_RANK[original.priority],
           status: regressionStatus,
+          statusRank: BUG_STATUS_RANK[regressionStatus],
           isRegression: true,
           areaId: original.areaId,
           reportedById,
@@ -1945,11 +1969,35 @@ async function main() {
   // opens it, given the 0–45-day spread bug/build timestamps are seeded over.
   console.log("Seeding notifications...");
 
-  const allBugsForNumbering = await prisma.bug.findMany({
-    orderBy: { createdAt: "asc" },
-    select: { id: true },
+  // Bug.number is a real, UNIQUE column now (see the bug_number_ranks_and_
+  // indexes migration), but every bug above was created with createdAt
+  // backdated to a randomly-picked "discovered N days ago" rather than in
+  // chronological order — so it's assigned here, once, in the same
+  // createdAt-ascending order the app's ticket numbers have always used,
+  // rather than trying to predict it during the creation loop above.
+  //
+  // This has to happen in two passes: every row already holds a small
+  // placeholder number (1, 2, 3, ...) from creation, and reassigning target
+  // numbers 1..N directly would momentarily try to give one row the same
+  // number another not-yet-updated row still holds, tripping the UNIQUE
+  // constraint mid-statement (SQLite checks it immediately per row, not at
+  // the end of the statement). Shifting everything out of the target range
+  // first removes any possibility of overlap.
+  await prisma.$executeRaw`UPDATE "Bug" SET "number" = "number" + 10000000`;
+  await prisma.$executeRaw`
+    UPDATE "Bug" SET "number" = (
+      SELECT "rn" FROM (
+        SELECT "id", ROW_NUMBER() OVER (ORDER BY "createdAt" ASC, "id" ASC) AS "rn" FROM "Bug"
+      ) "ranked" WHERE "ranked"."id" = "Bug"."id"
+    )
+  `;
+  const numberedBugs = await prisma.bug.findMany({ select: { id: true, number: true } });
+  const bugNumberMap = new Map(numberedBugs.map((b) => [b.id, b.number]));
+  await prisma.counter.upsert({
+    where: { id: "bugNumber" },
+    create: { id: "bugNumber", value: numberedBugs.length },
+    update: { value: numberedBugs.length },
   });
-  const bugNumberMap = new Map(allBugsForNumbering.map((b, i) => [b.id, i + 1]));
   const unreadCutoff = new Date(Date.now() - 3 * 86_400_000);
 
   const notificationRows: {

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { getBugNumberMap, getTestCaseNumberMap } from "@/lib/data";
+import { getTestCaseNumberMap, getNextBugNumber } from "@/lib/data";
 import { assertCanManageTestCases, assertCanExecuteTests } from "@/lib/permissions";
 import { testCaseInputSchema, logTestRunSchema, executeTestCaseSchema, parseOrThrow } from "@/lib/validation";
 import {
@@ -10,6 +10,9 @@ import {
   TEST_CASE_PRIORITY_TO_BUG_SEVERITY,
   TEST_CASE_PRIORITY_TO_BUG_PRIORITY,
 } from "@/lib/test-case";
+import { SEVERITY_RANK } from "@/lib/severity";
+import { PRIORITY_RANK } from "@/lib/priority";
+import { BUG_STATUS_RANK } from "@/lib/status-labels";
 import type { TestCasePriority, Platform } from "@/generated/prisma/enums";
 
 export type TestCaseInput = {
@@ -192,9 +195,13 @@ export async function executeTestCase(rawInput: {
 
     const testCaseNumberMap = await getTestCaseNumberMap();
     const testCaseNumber = testCaseNumberMap.get(testCaseId) ?? 0;
+    const bugSeverity = TEST_CASE_PRIORITY_TO_BUG_SEVERITY[testCase.priority];
+    const bugPriority = TEST_CASE_PRIORITY_TO_BUG_PRIORITY[testCase.priority];
+    const number = await getNextBugNumber();
 
     const bug = await prisma.bug.create({
       data: {
+        number,
         gameId: testCase.gameId,
         buildId: session.buildId,
         sessionId,
@@ -203,10 +210,13 @@ export async function executeTestCase(rawInput: {
         stepsToReproduce: steps.map((s) => `${s.stepIndex + 1}. ${s.stepText}`).join("\n"),
         expectedResult: testCase.expected,
         actualResult,
-        severity: TEST_CASE_PRIORITY_TO_BUG_SEVERITY[testCase.priority],
-        priority: TEST_CASE_PRIORITY_TO_BUG_PRIORITY[testCase.priority],
+        severity: bugSeverity,
+        severityRank: SEVERITY_RANK[bugSeverity],
+        priority: bugPriority,
+        priorityRank: PRIORITY_RANK[bugPriority],
         platform: testCase.platform,
         status: "NEW",
+        statusRank: BUG_STATUS_RANK.NEW,
         areaId: testCase.categoryId,
         reportedById: user.id,
       },
@@ -217,8 +227,7 @@ export async function executeTestCase(rawInput: {
       prisma.testRun.update({ where: { id: testRun.id }, data: { createdBugId: bug.id } }),
     ]);
 
-    const bugNumberMap = await getBugNumberMap();
-    createdBug = { id: bug.id, number: bugNumberMap.get(bug.id) ?? 0 };
+    createdBug = { id: bug.id, number: bug.number };
   }
 
   revalidatePath(`/test-cases/${testCaseId}`);
