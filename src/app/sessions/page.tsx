@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getSessions } from "@/lib/data";
+import { getSessions, getCurrentUser } from "@/lib/data";
 import { SessionCard } from "@/components/sessions/session-card";
 import { ExportLinks } from "@/components/export-links";
+import { hasCapability } from "@/lib/permissions";
 
 export default async function SessionsPage({
   searchParams,
@@ -10,7 +11,8 @@ export default async function SessionsPage({
   searchParams: Promise<{ game?: string }>;
 }) {
   const { game: gameSlug } = await searchParams;
-  const sessions = await getSessions(gameSlug);
+  const [sessions, currentUser] = await Promise.all([getSessions(gameSlug), getCurrentUser()]);
+  const canManageSessions = hasCapability(currentUser.role, "MANAGE_TEST_SESSIONS");
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
@@ -25,13 +27,15 @@ export default async function SessionsPage({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ExportLinks base="/api/export/sessions" params={{ game: gameSlug }} />
-          <Link
-            href={`/sessions/new${gameSlug ? `?game=${gameSlug}` : ""}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
-          >
-            <Plus size={13} />
-            New Session
-          </Link>
+          {canManageSessions && (
+            <Link
+              href={`/sessions/new${gameSlug ? `?game=${gameSlug}` : ""}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+            >
+              <Plus size={13} />
+              New Session
+            </Link>
+          )}
         </div>
       </header>
 

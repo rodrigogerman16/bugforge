@@ -1,23 +1,28 @@
 import type { NextRequest } from "next/server";
 import { validateAttachmentFile } from "@/lib/attachments";
 import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/supabase";
-import { assertCanWrite, PermissionError } from "@/lib/permissions";
+import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/lib/permissions";
 
 // The one real upload path in the app — the comment composer and the
 // bug-evidence uploader both post here, never straight to Supabase from the
 // client. That keeps the service-role key server-only and gives every
 // upload the same server-side validation regardless of what the client
 // already checked (a client-side check is a UX nicety, not a trust
-// boundary — this route re-validates from scratch).
+// boundary — this route re-validates from scratch), including which
+// capability applies: attaching a file to a comment only requires COMMENT,
+// separately from the UPLOAD_EVIDENCE capability bug evidence needs.
 export async function POST(request: NextRequest) {
+  const formData = await request.formData().catch(() => null);
+  const context = formData?.get("context");
+
   try {
-    await assertCanWrite();
+    if (context === "comment") await assertCanComment();
+    else await assertCanUploadEvidence();
   } catch (err) {
     if (err instanceof PermissionError) return new Response(err.message, { status: 403 });
     throw err;
   }
 
-  const formData = await request.formData().catch(() => null);
   const file = formData?.get("file");
   if (!file || typeof file === "string") {
     return new Response("No file provided.", { status: 400 });

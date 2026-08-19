@@ -25,7 +25,7 @@ export function EvidenceUploader({ bugId }: { bugId: string }) {
     setError(null);
     setUploading(true);
     try {
-      const uploaded = await uploadAttachment(file);
+      const uploaded = await uploadAttachment(file, "evidence");
       await addEvidence({
         bugId,
         type: uploaded.kind,

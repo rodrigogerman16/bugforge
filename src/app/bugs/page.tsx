@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { X, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE } from "@/lib/data";
+import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/data";
+import { hasCapability } from "@/lib/permissions";
 import { SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";
@@ -65,7 +66,7 @@ export default async function BugsPage({
   const dir = params.dir === "asc" ? "asc" : "desc";
   const page = Number(params.page) > 0 ? Number(params.page) : 1;
 
-  const [{ bugs, totalCount, pageCount }, filterOptions] = await Promise.all([
+  const [{ bugs, totalCount, pageCount }, filterOptions, currentUser] = await Promise.all([
     getBugList({
       gameSlug: params.game,
       severity,
@@ -85,7 +86,9 @@ export default async function BugsPage({
       page,
     }),
     getBugFilterOptions(params.game),
+    getCurrentUser(),
   ]);
+  const canCreateBug = hasCapability(currentUser.role, "CREATE_BUG");
 
   const showGameColumn = params.game === "all";
 
@@ -189,13 +192,15 @@ export default async function BugsPage({
               dir,
             }}
           />
-          <Link
-            href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
-          >
-            <Plus size={13} />
-            Report Bug
-          </Link>
+          {canCreateBug && (
+            <Link
+              href={`/bugs/new${params.game ? `?game=${params.game}` : ""}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+            >
+              <Plus size={13} />
+              Report Bug
+            </Link>
+          )}
         </div>
       </header>
 

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { getTestCases } from "@/lib/data";
+import { getTestCases, getCurrentUser } from "@/lib/data";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { ExportLinks } from "@/components/export-links";
+import { hasCapability } from "@/lib/permissions";
 
 export default async function TestCasesPage({
   searchParams,
@@ -12,7 +13,8 @@ export default async function TestCasesPage({
   searchParams: Promise<{ game?: string }>;
 }) {
   const { game: gameSlug } = await searchParams;
-  const testCases = await getTestCases(gameSlug);
+  const [testCases, currentUser] = await Promise.all([getTestCases(gameSlug), getCurrentUser()]);
+  const canManageTestCases = hasCapability(currentUser.role, "MANAGE_TEST_CASES");
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
@@ -27,13 +29,15 @@ export default async function TestCasesPage({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <ExportLinks base="/api/export/test-cases" params={{ game: gameSlug }} />
-          <Link
-            href={`/test-cases/new${gameSlug ? `?game=${gameSlug}` : ""}`}
-            className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
-          >
-            <Plus size={13} />
-            New Test Case
-          </Link>
+          {canManageTestCases && (
+            <Link
+              href={`/test-cases/new${gameSlug ? `?game=${gameSlug}` : ""}`}
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-[color:var(--bf-brand)] px-3 py-1.5 text-[12px] font-medium text-black hover:opacity-90"
+            >
+              <Plus size={13} />
+              New Test Case
+            </Link>
+          )}
         </div>
       </header>
 

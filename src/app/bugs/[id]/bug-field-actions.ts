@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { assertCanWrite } from "@/lib/permissions";
+import { assertCanEditBugFields, assertCanChangeBugStatus, assertCanAssignBug } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
 import type { BugStatus, BugPriority, BugSeverity } from "@/generated/prisma/enums";
 
@@ -15,10 +15,10 @@ function revalidateBug(bugId: string) {
 export async function updateBugStatus(bugId: string, status: BugStatus) {
   const bug = await prisma.bug.findUnique({
     where: { id: bugId },
-    select: { status: true, title: true, createdAt: true, game: { select: { name: true } } },
+    select: { status: true, title: true, createdAt: true, reportedById: true, game: { select: { name: true } } },
   });
   if (!bug || bug.status === status) return;
-  const user = await assertCanWrite();
+  const user = await assertCanChangeBugStatus(bug, status);
 
   await prisma.$transaction([
     prisma.bug.update({ where: { id: bugId }, data: { status } }),
@@ -41,9 +41,9 @@ export async function updateBugStatus(bugId: string, status: BugStatus) {
 }
 
 export async function updateBugPriority(bugId: string, priority: BugPriority) {
-  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { priority: true } });
+  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { priority: true, reportedById: true } });
   if (!bug || bug.priority === priority) return;
-  const user = await assertCanWrite();
+  const user = await assertCanEditBugFields(bug);
 
   await prisma.$transaction([
     prisma.bug.update({ where: { id: bugId }, data: { priority } }),
@@ -56,9 +56,9 @@ export async function updateBugPriority(bugId: string, priority: BugPriority) {
 }
 
 export async function updateBugSeverity(bugId: string, severity: BugSeverity) {
-  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { severity: true } });
+  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { severity: true, reportedById: true } });
   if (!bug || bug.severity === severity) return;
-  const user = await assertCanWrite();
+  const user = await assertCanEditBugFields(bug);
 
   await prisma.$transaction([
     prisma.bug.update({ where: { id: bugId }, data: { severity } }),
@@ -71,7 +71,9 @@ export async function updateBugSeverity(bugId: string, severity: BugSeverity) {
 }
 
 export async function updateBugArea(bugId: string, areaId: string | null) {
-  await assertCanWrite();
+  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { reportedById: true } });
+  if (!bug) return;
+  await assertCanEditBugFields(bug);
   await prisma.bug.update({ where: { id: bugId }, data: { areaId } });
   revalidateBug(bugId);
 }
@@ -82,7 +84,7 @@ export async function updateBugAssignee(bugId: string, assigneeId: string | null
     select: { assignedToId: true, title: true, createdAt: true, game: { select: { name: true } } },
   });
   if (!bug || bug.assignedToId === assigneeId) return;
-  const user = await assertCanWrite();
+  const user = await assertCanAssignBug();
 
   await prisma.$transaction([
     prisma.bug.update({ where: { id: bugId }, data: { assignedToId: assigneeId } }),

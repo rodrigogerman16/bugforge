@@ -23,12 +23,14 @@ export function CommentItem({
   bugId,
   currentUserId,
   testers,
+  canComment,
   depth = 0,
 }: {
   comment: CommentNode;
   bugId: string;
   currentUserId: string;
   testers: Tester[];
+  canComment: boolean;
   depth?: number;
 }) {
   const [replying, setReplying] = useState(false);
@@ -143,13 +145,15 @@ export function CommentItem({
                 return (
                   <button
                     key={emoji}
-                    onClick={() => handleReact(emoji)}
+                    onClick={() => canComment && handleReact(emoji)}
+                    disabled={!canComment}
                     title={reactions.map((r) => r.tester.name).join(", ")}
                     className={cn(
                       "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[12px]",
                       mine
                         ? "border-[color:var(--bf-brand)] bg-[color:var(--bf-brand-soft)]"
-                        : "border-[color:var(--bf-border)] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]"
+                        : "border-[color:var(--bf-border)] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]",
+                      !canComment && "cursor-default opacity-70"
                     )}
                   >
                     <span>{emoji}</span>
@@ -158,35 +162,39 @@ export function CommentItem({
                 );
               })}
 
-              <div className="relative">
-                <button
-                  onClick={() => setPickerOpen((v) => !v)}
-                  aria-label="Add reaction"
-                  className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)]"
-                >
-                  <SmilePlus size={13} />
-                </button>
-                {pickerOpen && (
-                  <div className="absolute left-0 top-full z-10 mt-1 flex gap-0.5 rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface-raised)] p-1.5 shadow-lg shadow-black/30">
-                    {REACTION_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleReact(emoji)}
-                        className="rounded p-1 text-base hover:bg-[color:var(--bf-surface)]"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {canComment && (
+                <div className="relative">
+                  <button
+                    onClick={() => setPickerOpen((v) => !v)}
+                    aria-label="Add reaction"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)]"
+                  >
+                    <SmilePlus size={13} />
+                  </button>
+                  {pickerOpen && (
+                    <div className="absolute left-0 top-full z-10 mt-1 flex gap-0.5 rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface-raised)] p-1.5 shadow-lg shadow-black/30">
+                      {REACTION_EMOJIS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => handleReact(emoji)}
+                          className="rounded p-1 text-base hover:bg-[color:var(--bf-surface)]"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <button
-                onClick={() => setReplying((v) => !v)}
-                className="text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
-              >
-                Reply
-              </button>
+              {canComment && (
+                <button
+                  onClick={() => setReplying((v) => !v)}
+                  className="text-[12px] text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-ink-primary)]"
+                >
+                  Reply
+                </button>
+              )}
               {isMine && (
                 <>
                   <button
@@ -226,6 +234,7 @@ export function CommentItem({
               bugId={bugId}
               currentUserId={currentUserId}
               testers={testers}
+              canComment={canComment}
               depth={depth + 1}
             />
           ))}

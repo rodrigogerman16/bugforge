@@ -4,7 +4,20 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { RELATIONSHIP_PICKER_OPTIONS } from "@/lib/relationships";
 import { createNotification, getBugNumber } from "@/lib/notifications";
-import { assertCanWrite } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/data";
+import { hasCapability, PermissionError } from "@/lib/permissions";
+
+// Linking/unlinking two bugs isn't a single-bug edit — "own bug" doesn't
+// map cleanly onto a relationship spanning two bugs — so this checks the
+// same EDIT_BUG_FIELDS capability a QA Tester/QA Lead/Admin has, without
+// the per-bug ownership restriction that capability otherwise carries.
+async function assertCanManageRelationships() {
+  const user = await getCurrentUser();
+  if (!hasCapability(user.role, "EDIT_BUG_FIELDS")) {
+    throw new PermissionError("Your role can't link or unlink bugs.");
+  }
+  return user;
+}
 
 export async function createRelationship({
   currentBugId,
@@ -15,7 +28,7 @@ export async function createRelationship({
   targetBugId: string;
   pickerLabel: string;
 }) {
-  await assertCanWrite();
+  await assertCanManageRelationships();
   if (currentBugId === targetBugId) return;
 
   const option = RELATIONSHIP_PICKER_OPTIONS.find((o) => o.label === pickerLabel);
@@ -57,7 +70,7 @@ export async function createRelationship({
 }
 
 export async function deleteRelationship({ id, currentBugId }: { id: string; currentBugId: string }) {
-  await assertCanWrite();
+  await assertCanManageRelationships();
   const relationship = await prisma.bugRelationship.delete({ where: { id } }).catch(() => null);
   if (!relationship) return;
 

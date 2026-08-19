@@ -7,7 +7,8 @@ import { formatRelativeTime } from "@/lib/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { EvidenceUploader } from "@/components/evidence/evidence-uploader";
 import { CommentSection } from "@/components/comments/comment-section";
-import { BugFieldControls, BugAssigneeControl, BugAreaControl } from "@/components/bugs/bug-field-controls";
+import { BugFieldControls, BugAssigneeControl, BugAreaControl, ALL_BUG_STATUS_OPTIONS } from "@/components/bugs/bug-field-controls";
+import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVELOPER_ALLOWED_STATUSES } from "@/lib/permissions";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
 import { getBugQuickAnalysis } from "@/app/ai/actions";
@@ -51,6 +52,12 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
     getBugQuickAnalysis(id),
   ]);
 
+  const isOwnBug = bug.reportedBy?.id === currentUser.id;
+  const canEditFields = canEditBugFields(currentUser.role, isOwnBug);
+  const canChangeStatus = canChangeBugStatus(currentUser.role, isOwnBug);
+  const canAssign = canAssignBug(currentUser.role);
+  const statusOptions = currentUser.role === "DEVELOPER" ? DEVELOPER_ALLOWED_STATUSES : ALL_BUG_STATUS_OPTIONS;
+
   return (
     <div className="mx-auto max-w-4xl px-8 py-8">
       <Link
@@ -88,7 +95,15 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
         <h1 className="mt-1 text-2xl font-bold text-[color:var(--bf-ink-primary)]">{bug.title}</h1>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <BugFieldControls bugId={bug.id} status={bug.status} priority={bug.priority} severity={bug.severity} />
+          <BugFieldControls
+            bugId={bug.id}
+            status={bug.status}
+            priority={bug.priority}
+            severity={bug.severity}
+            canEditFields={canEditFields}
+            canChangeStatus={canChangeStatus}
+            statusOptions={statusOptions}
+          />
           <div className="ml-auto">
             <AskAiButton />
           </div>
@@ -101,10 +116,11 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           </span>
           <span>Reported by {bug.reportedBy?.name ?? "Unknown"}</span>
           <span className="flex items-center gap-1">
-            Assigned to <BugAssigneeControl bugId={bug.id} assignedToId={bug.assignedToId} testers={testers} />
+            Assigned to{" "}
+            <BugAssigneeControl bugId={bug.id} assignedToId={bug.assignedToId} testers={testers} canAssign={canAssign} />
           </span>
           <span className="flex items-center gap-1">
-            Area <BugAreaControl bugId={bug.id} areaId={bug.areaId} areas={areas} />
+            Area <BugAreaControl bugId={bug.id} areaId={bug.areaId} areas={areas} canEdit={canEditFields} />
           </span>
           {bug.session && <span>{bug.session.name}</span>}
           <span>Updated {formatRelativeTime(bug.updatedAt)} · {updatedFormatter.format(bug.createdAt)} reported</span>
@@ -176,7 +192,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
       <section className="mb-6">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Evidence</h2>
-          <EvidenceUploader bugId={bug.id} />
+          {hasCapability(currentUser.role, "UPLOAD_EVIDENCE") && <EvidenceUploader bugId={bug.id} />}
         </div>
         {bug.evidence.length > 0 ? (
           <EvidenceGallery items={bug.evidence} />
@@ -211,7 +227,13 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
       </section>
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
-        <CommentSection bugId={bug.id} comments={comments} testers={testers} currentUserId={currentUser.id} />
+        <CommentSection
+          bugId={bug.id}
+          comments={comments}
+          testers={testers}
+          currentUserId={currentUser.id}
+          canComment={hasCapability(currentUser.role, "COMMENT")}
+        />
       </section>
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">

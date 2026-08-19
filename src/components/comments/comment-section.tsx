@@ -13,11 +13,13 @@ export function CommentSection({
   comments,
   testers,
   currentUserId,
+  canComment,
 }: {
   bugId: string;
   comments: CommentNode[];
   testers: Tester[];
   currentUserId: string;
+  canComment: boolean;
 }) {
   const total = countComments(comments);
 
@@ -31,7 +33,9 @@ export function CommentSection({
         Comments{total > 0 && <span className="text-[color:var(--bf-ink-muted)]"> ({total})</span>}
       </h2>
 
-      <CommentComposer testers={testers} placeholder="Write a comment..." submitLabel="Comment" onSubmit={handleCreate} />
+      {canComment && (
+        <CommentComposer testers={testers} placeholder="Write a comment..." submitLabel="Comment" onSubmit={handleCreate} />
+      )}
 
       {comments.length === 0 ? (
         <p className="mt-4 text-sm text-[color:var(--bf-ink-muted)]">No comments yet.</p>
@@ -44,6 +48,7 @@ export function CommentSection({
               bugId={bugId}
               currentUserId={currentUserId}
               testers={testers}
+              canComment={canComment}
             />
           ))}
         </div>

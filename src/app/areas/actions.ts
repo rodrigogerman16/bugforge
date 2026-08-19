@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { assertCanWrite } from "@/lib/permissions";
+import { assertCanManageAreas } from "@/lib/permissions";
 import type { QADiscipline } from "@/generated/prisma/enums";
 
 export async function createArea({ name, discipline }: { name: string; discipline: QADiscipline | null }) {
-  await assertCanWrite();
+  await assertCanManageAreas();
   const area = await prisma.area.create({
     data: { name: name.trim(), discipline: discipline ?? undefined },
   });
@@ -19,7 +19,7 @@ export async function createArea({ name, discipline }: { name: string; disciplin
 }
 
 export async function deleteArea(id: string) {
-  await assertCanWrite();
+  await assertCanManageAreas();
   // Areas are referenced by bugs/test cases with onDelete: SetNull, so
   // deleting one un-tags its bugs/test cases rather than blocking or
   // cascading — the bugs and test cases themselves are never touched.

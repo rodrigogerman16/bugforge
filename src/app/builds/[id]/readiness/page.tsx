@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, AlertTriangle, CheckCircle2, XCircle, Settings2 } from "lucide-react";
-import { getBuildReadinessData, getQualityGates } from "@/lib/data";
+import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/data";
 import { computeReleaseReadiness } from "@/lib/release-readiness";
+import { canViewReleaseReadiness } from "@/lib/permissions";
+import { RestrictedAccess } from "@/components/restricted-access";
 import { cn } from "@/lib/utils";
 
 function scoreColor(score: number): string {
@@ -46,6 +48,11 @@ function GateRow({
 }
 
 export default async function BuildReadinessPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await getCurrentUser();
+  if (!canViewReleaseReadiness(user.role)) {
+    return <RestrictedAccess message="Release Readiness is available to Admins, QA Leads, and Producers." />;
+  }
+
   const { id } = await params;
   const [data, gates] = await Promise.all([getBuildReadinessData(id), getQualityGates()]);
   if (!data) notFound();

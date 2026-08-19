@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { assertCanWrite } from "@/lib/permissions";
+import { assertCanUploadEvidence } from "@/lib/permissions";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
 // The file itself is already in Supabase Storage by the time this runs (see
@@ -25,7 +25,7 @@ export async function addEvidence({
   fileSizeBytes: number;
   content: string | null;
 }) {
-  await assertCanWrite();
+  await assertCanUploadEvidence();
   await prisma.evidence.create({
     data: { bugId, type, url, fileName, fileSizeBytes, content },
   });

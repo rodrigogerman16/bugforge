@@ -1,10 +1,12 @@
-import { getAreas, getAreaUsageCounts } from "@/lib/data";
+import { getAreas, getAreaUsageCounts, getCurrentUser } from "@/lib/data";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { AreaForm } from "@/components/areas/area-form";
 import { DeleteAreaButton } from "@/components/areas/delete-area-button";
+import { hasCapability } from "@/lib/permissions";
 
 export default async function AreasPage() {
-  const [areas, usage] = await Promise.all([getAreas(), getAreaUsageCounts()]);
+  const [areas, usage, currentUser] = await Promise.all([getAreas(), getAreaUsageCounts(), getCurrentUser()]);
+  const canManageAreas = hasCapability(currentUser.role, "MANAGE_AREAS");
 
   return (
     <div className="mx-auto max-w-3xl px-8 py-8">
@@ -17,9 +19,11 @@ export default async function AreasPage() {
         </p>
       </header>
 
-      <div className="mb-6 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4">
-        <AreaForm />
-      </div>
+      {canManageAreas && (
+        <div className="mb-6 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4">
+          <AreaForm />
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-lg border border-[color:var(--bf-border)]">
         <table className="w-full border-collapse text-sm">
@@ -44,7 +48,7 @@ export default async function AreasPage() {
                   <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.bugs}</td>
                   <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.testCases}</td>
                   <td className="px-4 py-3 text-right">
-                    <DeleteAreaButton areaId={area.id} areaName={area.name} />
+                    {canManageAreas && <DeleteAreaButton areaId={area.id} areaName={area.name} />}
                   </td>
                 </tr>
               );

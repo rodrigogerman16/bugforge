@@ -69,7 +69,7 @@ export function CommentComposer({
     setUploadError(null);
     setUploading(true);
     try {
-      const uploaded = await uploadAttachment(file);
+      const uploaded = await uploadAttachment(file, "comment");
       setAttachments((prev) => [
         ...prev,
         { type: uploaded.kind, url: uploaded.url, fileName: uploaded.fileName, fileSizeBytes: uploaded.fileSizeBytes },

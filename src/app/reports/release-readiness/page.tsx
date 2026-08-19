@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
-import { getBuildReadinessData, getQualityGates } from "@/lib/data";
+import { getBuildReadinessData, getQualityGates, getCurrentUser } from "@/lib/data";
 import { computeReleaseReadiness } from "@/lib/release-readiness";
+import { canViewReleaseReadiness } from "@/lib/permissions";
+import { RestrictedAccess } from "@/components/restricted-access";
 import { ReportShell, ReportSection, ReportStat } from "@/components/reports/report-shell";
 
 export default async function ReleaseReadinessReportPage({
@@ -9,6 +11,11 @@ export default async function ReleaseReadinessReportPage({
 }: {
   searchParams: Promise<{ build?: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!canViewReleaseReadiness(user.role)) {
+    return <RestrictedAccess message="The Release Readiness report is available to Admins, QA Leads, and Producers." />;
+  }
+
   const { build: buildId } = await searchParams;
   if (!buildId) notFound();
 

@@ -1,5 +1,7 @@
-import { getAnalyticsData, getBugLifecycleMetrics } from "@/lib/data";
+import { getAnalyticsData, getBugLifecycleMetrics, getCurrentUser } from "@/lib/data";
 import { resolveAnalyticsRange } from "@/lib/analytics-range";
+import { canViewAnalytics } from "@/lib/permissions";
+import { RestrictedAccess } from "@/components/restricted-access";
 import { AnalyticsRangeToggle } from "@/components/analytics/analytics-range-toggle";
 import { TrendChart } from "@/components/analytics/trend-chart";
 import { CategoryBarChart } from "@/components/analytics/category-bar-chart";
@@ -13,6 +15,11 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<{ game?: string; range?: string; from?: string; to?: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!canViewAnalytics(user.role)) {
+    return <RestrictedAccess message="Analytics is available to Admins, QA Leads, and Producers." />;
+  }
+
   const { game: gameSlug, range, from: fromParam, to: toParam } = await searchParams;
   const { from, to, selection } = resolveAnalyticsRange({ range, from: fromParam, to: toParam });
 
