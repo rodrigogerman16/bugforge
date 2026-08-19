@@ -7,6 +7,8 @@ import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
 import { createTestCase, updateTestCase, type TestCaseInput } from "@/app/test-cases/actions";
 import type { TestCasePriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { toSafeMessage } from "@/lib/utils/errors";
 
 const inputClass =
   "w-full rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-2 text-sm text-[color:var(--bf-ink-primary)] outline-none placeholder:text-[color:var(--bf-ink-muted)] focus:border-[color:var(--bf-border-strong)]";
@@ -29,6 +31,7 @@ export function TestCaseForm({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { pushToast } = useShellUI();
   const [selectedGameId, setSelectedGameId] = useState(gameId);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -69,12 +72,16 @@ export function TestCaseForm({
       platform,
     };
     startTransition(async () => {
-      if (testCaseId) {
-        await updateTestCase(testCaseId, input);
-        router.push(`/test-cases/${testCaseId}`);
-      } else {
-        const newId = await createTestCase(input);
-        router.push(`/test-cases/${newId}`);
+      try {
+        if (testCaseId) {
+          await updateTestCase(testCaseId, input);
+          router.push(`/test-cases/${testCaseId}`);
+        } else {
+          const newId = await createTestCase(input);
+          router.push(`/test-cases/${newId}`);
+        }
+      } catch (err) {
+        pushToast(toSafeMessage("database", err), "error");
       }
     });
   }

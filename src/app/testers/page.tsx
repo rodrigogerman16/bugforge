@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { getTesterProfiles } from "@/lib/db";
 import { TesterCard } from "@/components/testers/tester-card";
 import { ExportLinks } from "@/components/ui/export-links";
+
+export const metadata: Metadata = { title: "Testers — BugForge" };
 
 export default async function TestersPage() {
   const testers = await getTesterProfiles();

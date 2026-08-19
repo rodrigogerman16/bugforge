@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 import { getGamesForReports } from "@/lib/db";
 
@@ -71,6 +72,8 @@ function RangeSelect() {
     </select>
   );
 }
+
+export const metadata: Metadata = { title: "Reports — BugForge" };
 
 export default async function ReportsPage() {
   const games = await getGamesForReports();

@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getSessions, getCurrentUser } from "@/lib/db";
 import { SessionCard } from "@/components/sessions/session-card";
 import { ExportLinks } from "@/components/ui/export-links";
 import { hasCapability } from "@/lib/auth/permissions";
+
+export const metadata: Metadata = { title: "Test Sessions — BugForge" };
 
 export default async function SessionsPage({
   searchParams,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { getAnalyticsData, getBugLifecycleMetrics, getCurrentUser } from "@/lib/db";
 import { resolveAnalyticsRange } from "@/lib/utils/analytics-range";
 import { canViewAnalytics } from "@/lib/auth/permissions";
@@ -9,6 +10,8 @@ import { LifecycleMetrics } from "@/components/analytics/lifecycle-metrics";
 import { CoverageBar } from "@/components/coverage/coverage-bar";
 import { SEVERITY_META } from "@/lib/severity";
 import { PLATFORM_LABEL } from "@/lib/platform";
+
+export const metadata: Metadata = { title: "Analytics — BugForge" };
 
 export default async function AnalyticsPage({
   searchParams,

@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { GitCompare } from "lucide-react";
 import { getBuilds } from "@/lib/db";
 import { BuildCard } from "@/components/builds/build-card";
 import { ExportLinks } from "@/components/ui/export-links";
+
+export const metadata: Metadata = { title: "Builds — BugForge" };
 
 export default async function BuildsPage({
   searchParams,

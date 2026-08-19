@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { getCoverageByDiscipline } from "@/lib/db";
 import { qualityBand } from "@/lib/quality-score";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { CoverageBar } from "@/components/coverage/coverage-bar";
+
+export const metadata: Metadata = { title: "Coverage — BugForge" };
 
 export default async function CoveragePage({
   searchParams,

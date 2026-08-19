@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { PLATFORM_ORDER } from "@/lib/platform";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { toSafeMessage } from "@/lib/utils/errors";
 import { BugCreateBasicsFields } from "@/components/bugs/bug-create-basics-fields";
 import { BugCreateAiAnalyze } from "@/components/bugs/bug-create-ai-analyze";
 import { BugCreateDuplicatesPanel } from "@/components/bugs/bug-create-duplicates-panel";
@@ -36,6 +38,7 @@ export function BugCreateForm({
   onCreated: (bugId: string) => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { pushToast } = useShellUI();
 
   const [selectedGameId, setSelectedGameId] = useState(gameId);
   const selectedGame = games.find((g) => g.id === selectedGameId) ?? games[0];
@@ -84,6 +87,10 @@ export function BugCreateForm({
         .then((results) => {
           if (!cancelled) setDuplicates(results);
         })
+        // Best-effort background enrichment — a failure here shouldn't
+        // block or interrupt writing the report, just silently leave the
+        // duplicates panel empty for this draft.
+        .catch(() => {})
         .finally(() => {
           if (!cancelled) setSearchingDuplicates(false);
         });
@@ -105,44 +112,48 @@ export function BugCreateForm({
     const source = `${title} ${description}`.trim();
     if (source.length < 8 || isAnalyzing || !selectedGame) return;
     startAnalyzing(async () => {
-      const result = await analyzeBugDraft({
-        gameId: selectedGameId,
-        areaId: areaId || null,
-        areaName: areas.find((a) => a.id === areaId)?.name ?? null,
-        tags: selectedTagIds.map((id) => tags.find((t) => t.id === id)?.name).filter((n): n is string => Boolean(n)),
-        buildStatus: selectedGame.builds.find((b) => b.id === buildId)?.status ?? "INTERNAL",
-        title,
-        description,
-        severity,
-        stepsToReproduce,
-        actualResult,
-      });
+      try {
+        const result = await analyzeBugDraft({
+          gameId: selectedGameId,
+          areaId: areaId || null,
+          areaName: areas.find((a) => a.id === areaId)?.name ?? null,
+          tags: selectedTagIds.map((id) => tags.find((t) => t.id === id)?.name).filter((n): n is string => Boolean(n)),
+          buildStatus: selectedGame.builds.find((b) => b.id === buildId)?.status ?? "INTERNAL",
+          title,
+          description,
+          severity,
+          stepsToReproduce,
+          actualResult,
+        });
 
-      const filled: string[] = [];
-      if (result.stepsToReproduce.length > 0 && !stepsToReproduce.trim()) {
-        setStepsToReproduce(result.stepsToReproduce.map((s, i) => `${i + 1}. ${s}`).join("\n"));
-        filled.push("Steps to reproduce");
-      }
-      if (result.actualResult && !actualResult.trim()) {
-        setActualResult(result.actualResult);
-        filled.push("Actual result");
-      }
-      if (result.area && !areaId) {
-        setAreaId(result.area.id);
-        filled.push(`Area — ${result.area.name}`);
-      }
-      if (!severityTouched && result.severity.changed) {
-        setSeverity(result.severity.suggested);
-        filled.push(`Severity — ${SEVERITY_META[result.severity.suggested].label}`);
-      }
-      if (!priorityTouched && result.priority.changed) {
-        setPriority(result.priority.suggested);
-        filled.push(`Priority — ${PRIORITY_META[result.priority.suggested].code}`);
-      }
+        const filled: string[] = [];
+        if (result.stepsToReproduce.length > 0 && !stepsToReproduce.trim()) {
+          setStepsToReproduce(result.stepsToReproduce.map((s, i) => `${i + 1}. ${s}`).join("\n"));
+          filled.push("Steps to reproduce");
+        }
+        if (result.actualResult && !actualResult.trim()) {
+          setActualResult(result.actualResult);
+          filled.push("Actual result");
+        }
+        if (result.area && !areaId) {
+          setAreaId(result.area.id);
+          filled.push(`Area — ${result.area.name}`);
+        }
+        if (!severityTouched && result.severity.changed) {
+          setSeverity(result.severity.suggested);
+          filled.push(`Severity — ${SEVERITY_META[result.severity.suggested].label}`);
+        }
+        if (!priorityTouched && result.priority.changed) {
+          setPriority(result.priority.suggested);
+          filled.push(`Priority — ${PRIORITY_META[result.priority.suggested].code}`);
+        }
 
-      setAiFillSummary(
-        filled.length > 0 ? filled : ["Nothing left it could safely fill in — this draft already has what BugForge AI can add."]
-      );
+        setAiFillSummary(
+          filled.length > 0 ? filled : ["Nothing left it could safely fill in — this draft already has what BugForge AI can add."]
+        );
+      } catch (err) {
+        pushToast(toSafeMessage("ai", err), "error");
+      }
     });
   }
 
@@ -165,7 +176,12 @@ export function BugCreateForm({
         actualResult,
         hasEnvironment: Boolean(buildId),
         hasEvidence: attachments.length > 0,
-      }).then(setQuality);
+      })
+        .then(setQuality)
+        // Best-effort background scoring — same as the duplicate search
+        // above, a failure just leaves the checklist showing its last
+        // good result instead of interrupting the draft.
+        .catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
   }, [title, description, stepsToReproduce, expectedResult, actualResult, buildId, attachments]);
@@ -190,8 +206,12 @@ export function BugCreateForm({
       evidence: attachments,
     };
     startTransition(async () => {
-      const newId = await createBug(input);
-      onCreated(newId);
+      try {
+        const newId = await createBug(input);
+        onCreated(newId);
+      } catch (err) {
+        pushToast(toSafeMessage("database", err), "error");
+      }
     });
   }
 

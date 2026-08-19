@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import type { TestCasePriority, Platform } from "@/generated/prisma/enums";
 import { deriveTestCaseStatus, type TestCaseStatus } from "@/lib/test-case";
@@ -52,7 +53,9 @@ export async function getTestCases(gameSlug?: string): Promise<TestCaseSummary[]
   }));
 }
 
-export async function getTestCaseDetail(id: string) {
+// cache()'d for the same reason as getBugDetail — its detail page and
+// generateMetadata both call it once per request.
+export const getTestCaseDetail = cache(async (id: string) => {
   const [testCase, numberMap] = await Promise.all([
     prisma.testCase.findUnique({
       where: { id },
@@ -80,7 +83,7 @@ export async function getTestCaseDetail(id: string) {
     status: deriveTestCaseStatus(testCase.runs[0]?.result),
     runs: testCase.runs,
   };
-}
+});
 
 export async function getTestRunDetail(runId: string) {
   const run = await prisma.testRun.findUnique({

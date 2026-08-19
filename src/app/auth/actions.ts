@@ -8,6 +8,7 @@ import {
   requestPasswordResetSchema,
   updatePasswordSchema,
 } from "@/lib/validation";
+import { logError } from "@/lib/utils/errors";
 
 export type AuthFormState = { error?: string; success?: string };
 
@@ -41,6 +42,7 @@ export async function signInWithPassword(_prevState: AuthFormState, formData: Fo
   try {
     supabase = await createClient();
   } catch (err) {
+    logError("auth", err);
     return { error: err instanceof Error ? err.message : "Auth isn't configured." };
   }
 
@@ -63,6 +65,7 @@ export async function signUpWithPassword(_prevState: AuthFormState, formData: Fo
   try {
     supabase = await createClient();
   } catch (err) {
+    logError("auth", err);
     return { error: err instanceof Error ? err.message : "Auth isn't configured." };
   }
 
@@ -100,6 +103,7 @@ export async function requestPasswordReset(_prevState: AuthFormState, formData: 
   try {
     supabase = await createClient();
   } catch (err) {
+    logError("auth", err);
     return { error: err instanceof Error ? err.message : "Auth isn't configured." };
   }
 
@@ -124,6 +128,7 @@ export async function updatePassword(_prevState: AuthFormState, formData: FormDa
   try {
     supabase = await createClient();
   } catch (err) {
+    logError("auth", err);
     return { error: err instanceof Error ? err.message : "Auth isn't configured." };
   }
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { BugStatus, type BugSeverity, type BugPriority, type Platform, type BuildStatus } from "@/generated/prisma/enums";
@@ -251,7 +252,10 @@ export async function getBugsForExport(options: Omit<BugListOptions, "page">) {
   return prisma.bug.findMany({ where, orderBy, select: BUG_LIST_SELECT });
 }
 
-export async function getBugDetail(id: string) {
+// Wrapped in React's cache() so a request that calls this twice — the bug
+// detail page and its generateMetadata both need it — hits the database
+// once, not twice, for the same id within the same request.
+export const getBugDetail = cache(async (id: string) => {
   const bug = await prisma.bug.findUnique({
     where: { id },
     include: {
@@ -298,7 +302,7 @@ export async function getBugDetail(id: string) {
   }
 
   return { ...bug, originatingTestCase };
-}
+});
 
 type FlatComment = Awaited<ReturnType<typeof fetchFlatComments>>[number];
 export type CommentNode = FlatComment & { replies: CommentNode[] };

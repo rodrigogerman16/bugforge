@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil, Play } from "lucide-react";
@@ -24,6 +25,12 @@ function MetaField({ label, value, color }: { label: string; value: string; colo
       </dd>
     </div>
   );
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const testCase = await getTestCaseDetail(id);
+  return { title: testCase ? `TC-${String(testCase.number).padStart(5, "0")} · ${testCase.title} — BugForge` : "Test case not found — BugForge" };
 }
 
 export default async function TestCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {

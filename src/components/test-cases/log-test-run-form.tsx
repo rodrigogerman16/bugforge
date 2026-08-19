@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { logTestRun } from "@/app/test-cases/actions";
 import { cn } from "@/lib/utils";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { toSafeMessage } from "@/lib/utils/errors";
 
 type Session = { id: string; name: string; build: { version: string } };
 
@@ -10,6 +12,7 @@ const RESULT_OPTIONS = ["PASS", "FAIL", "BLOCKED", "SKIPPED"];
 
 export function LogTestRunForm({ testCaseId, sessions }: { testCaseId: string; sessions: Session[] }) {
   const [isPending, startTransition] = useTransition();
+  const { pushToast } = useShellUI();
   const [sessionId, setSessionId] = useState(sessions[0]?.id ?? "");
   const [result, setResult] = useState("PASS");
   const [notes, setNotes] = useState("");
@@ -17,8 +20,12 @@ export function LogTestRunForm({ testCaseId, sessions }: { testCaseId: string; s
   function handleSubmit() {
     if (!sessionId || isPending) return;
     startTransition(async () => {
-      await logTestRun({ testCaseId, sessionId, result, notes });
-      setNotes("");
+      try {
+        await logTestRun({ testCaseId, sessionId, result, notes });
+        setNotes("");
+      } catch (err) {
+        pushToast(toSafeMessage("database", err), "error");
+      }
     });
   }
 

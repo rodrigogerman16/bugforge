@@ -9,6 +9,7 @@ import { getGamesForBugCreation, getAreas, getTags, getNextBugNumber, type GameC
 import { SEVERITY_RANK } from "@/lib/severity";
 import { PRIORITY_RANK } from "@/lib/priority";
 import { BUG_STATUS_RANK } from "@/lib/status-labels";
+import { logError } from "@/lib/utils/errors";
 import type { BugStatus, BugSeverity, BugPriority, Platform, EvidenceType } from "@/generated/prisma/enums";
 
 export type CreateBugEvidenceInput = {
@@ -56,52 +57,61 @@ async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
 }
 
 export async function createBug(rawInput: CreateBugInput): Promise<string> {
+  // Validation failures are routine, expected rejections of bad input —
+  // not a system fault — so they're left to propagate as-is rather than
+  // logged as a "database" error below.
   const input = parseOrThrow(createBugSchema, rawInput);
-  await assertGameSupportsPlatform(input.gameId, input.platform);
-  const user = await assertCanCreateBug();
-  const number = await getNextBugNumber();
 
-  const bug = await prisma.bug.create({
-    data: {
-      number,
-      gameId: input.gameId,
-      buildId: input.buildId,
-      title: input.title.trim(),
-      description: input.description.trim(),
-      severity: input.severity,
-      severityRank: SEVERITY_RANK[input.severity],
-      priority: input.priority,
-      priorityRank: PRIORITY_RANK[input.priority],
-      areaId: input.areaId,
-      platform: input.platform,
-      stepsToReproduce: input.stepsToReproduce.trim() || null,
-      expectedResult: input.expectedResult.trim() || null,
-      actualResult: input.actualResult.trim() || null,
-      status: "NEW",
-      statusRank: BUG_STATUS_RANK.NEW,
-      reportedById: user.id,
-      tags: input.tagIds.length ? { connect: input.tagIds.map((id) => ({ id })) } : undefined,
-      evidence: input.evidence.length ? { create: input.evidence } : undefined,
-    },
-    include: { game: { select: { name: true } } },
-  });
+  try {
+    await assertGameSupportsPlatform(input.gameId, input.platform);
+    const user = await assertCanCreateBug();
+    const number = await getNextBugNumber();
 
-  await prisma.activityEvent.create({
-    data: { type: "BUG_CREATED", bugId: bug.id, actorId: user.id },
-  });
-
-  if (bug.severity === "CRITICAL" || bug.severity === "BLOCKER") {
-    await createNotification({
-      type: "CRITICAL_BUG",
-      title: "Critical bug discovered",
-      detail: `BUG-${bug.number} — ${bug.title} (${bug.game.name})`,
-      link: `/bugs/${bug.id}`,
+    const bug = await prisma.bug.create({
+      data: {
+        number,
+        gameId: input.gameId,
+        buildId: input.buildId,
+        title: input.title.trim(),
+        description: input.description.trim(),
+        severity: input.severity,
+        severityRank: SEVERITY_RANK[input.severity],
+        priority: input.priority,
+        priorityRank: PRIORITY_RANK[input.priority],
+        areaId: input.areaId,
+        platform: input.platform,
+        stepsToReproduce: input.stepsToReproduce.trim() || null,
+        expectedResult: input.expectedResult.trim() || null,
+        actualResult: input.actualResult.trim() || null,
+        status: "NEW",
+        statusRank: BUG_STATUS_RANK.NEW,
+        reportedById: user.id,
+        tags: input.tagIds.length ? { connect: input.tagIds.map((id) => ({ id })) } : undefined,
+        evidence: input.evidence.length ? { create: input.evidence } : undefined,
+      },
+      include: { game: { select: { name: true } } },
     });
-  }
 
-  revalidatePath("/bugs");
-  revalidatePath("/");
-  return bug.id;
+    await prisma.activityEvent.create({
+      data: { type: "BUG_CREATED", bugId: bug.id, actorId: user.id },
+    });
+
+    if (bug.severity === "CRITICAL" || bug.severity === "BLOCKER") {
+      await createNotification({
+        type: "CRITICAL_BUG",
+        title: "Critical bug discovered",
+        detail: `BUG-${bug.number} — ${bug.title} (${bug.game.name})`,
+        link: `/bugs/${bug.id}`,
+      });
+    }
+
+    revalidatePath("/bugs");
+    revalidatePath("/");
+    return bug.id;
+  } catch (err) {
+    logError("database", err, { gameId: input.gameId, buildId: input.buildId, title: input.title });
+    throw err;
+  }
 }
 
 export async function bulkUpdateBugStatus(ids: string[], status: BugStatus) {

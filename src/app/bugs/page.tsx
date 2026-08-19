@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/db";
@@ -27,6 +28,8 @@ function isPlatform(value: string | undefined): value is Platform {
 }
 
 const dateLabelFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+export const metadata: Metadata = { title: "Bugs — BugForge" };
 
 export default async function BugsPage({
   searchParams,

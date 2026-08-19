@@ -6,6 +6,8 @@ import { CheckCircle2, XCircle, ShieldAlert, SkipForward } from "lucide-react";
 import { executeTestCase, type StepExecutionInput } from "@/app/test-cases/actions";
 import { STEP_RESULT_OPTIONS, TEST_RUN_RESULT_META } from "@/lib/test-case";
 import { cn } from "@/lib/utils";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { toSafeMessage } from "@/lib/utils/errors";
 
 type Session = { id: string; name: string; build: { version: string } };
 
@@ -28,6 +30,7 @@ export function ExecuteTestCaseForm({
   testCaseHref: string;
 }) {
   const [isPending, startTransition] = useTransition();
+  const { pushToast } = useShellUI();
   const [sessionId, setSessionId] = useState(sessions[0]?.id ?? "");
   const [results, setResults] = useState<string[]>(stepTexts.map(() => "PASS"));
   const [notes, setNotes] = useState<string[]>(stepTexts.map(() => ""));
@@ -50,8 +53,12 @@ export function ExecuteTestCaseForm({
       notes: notes[i],
     }));
     startTransition(async () => {
-      const result = await executeTestCase({ testCaseId, sessionId, steps });
-      if (result) setOutcome(result);
+      try {
+        const result = await executeTestCase({ testCaseId, sessionId, steps });
+        if (result) setOutcome(result);
+      } catch (err) {
+        pushToast(toSafeMessage("database", err), "error");
+      }
     });
   }
 

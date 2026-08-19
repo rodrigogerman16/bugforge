@@ -3,6 +3,7 @@ import { validateAttachmentFile } from "@/lib/validation/attachments";
 import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/utils/supabase-storage";
 import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/lib/auth/permissions";
 import { uploadContextSchema } from "@/lib/validation";
+import { logError } from "@/lib/utils/errors";
 
 // The one real upload path in the app — the comment composer and the
 // bug-evidence uploader both post here, never straight to Supabase from the
@@ -54,8 +55,10 @@ export async function POST(request: NextRequest) {
     publicUrl = supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   } catch (err) {
     if (err instanceof SupabaseNotConfiguredError) {
+      logError("upload", err, { context, fileName: file.name });
       return new Response(err.message, { status: 503 });
     }
+    logError("upload", err, { context, fileName: file.name, fileSizeBytes: file.size });
     return new Response("Upload failed. Please try again.", { status: 502 });
   }
 

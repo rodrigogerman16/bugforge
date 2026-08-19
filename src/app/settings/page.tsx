@@ -1,6 +1,9 @@
+import type { Metadata } from "next";
 import { getQualityGates, getCurrentUser } from "@/lib/db";
 import { canManageSettings } from "@/lib/auth/permissions";
 import { QualityGatesForm } from "@/components/settings/quality-gates-form";
+
+export const metadata: Metadata = { title: "Settings — BugForge" };
 
 export default async function SettingsPage() {
   const [gates, user] = await Promise.all([getQualityGates(), getCurrentUser()]);

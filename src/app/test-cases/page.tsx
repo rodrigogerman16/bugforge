@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getTestCases, getCurrentUser } from "@/lib/db";
@@ -6,6 +7,8 @@ import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { ExportLinks } from "@/components/ui/export-links";
 import { hasCapability } from "@/lib/auth/permissions";
+
+export const metadata: Metadata = { title: "Test Cases — BugForge" };
 
 export default async function TestCasesPage({
   searchParams,

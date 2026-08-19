@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -37,6 +38,12 @@ function EnvRow({ label, value }: { label: string; value: string }) {
 }
 
 const updatedFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const bug = await getBugDetail(id);
+  return { title: bug ? `BUG-${bug.number} · ${bug.title} — BugForge` : "Bug not found — BugForge" };
+}
 
 export default async function BugDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

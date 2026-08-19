@@ -4,12 +4,15 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createSession } from "@/app/sessions/actions";
 import { cn } from "@/lib/utils";
+import { useShellUI } from "@/components/layout/shell-ui-provider";
+import { toSafeMessage } from "@/lib/utils/errors";
 
 type Game = { id: string; name: string; builds: { id: string; version: string }[] };
 
 export function NewSessionForm({ games, defaultGameId }: { games: Game[]; defaultGameId: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { pushToast } = useShellUI();
   const [gameId, setGameId] = useState(defaultGameId);
   const [name, setName] = useState("");
 
@@ -27,8 +30,12 @@ export function NewSessionForm({ games, defaultGameId }: { games: Game[]; defaul
   function handleSubmit() {
     if (!canSubmit || isPending) return;
     startTransition(async () => {
-      const id = await createSession({ gameId, buildId, name });
-      router.push(`/sessions/${id}`);
+      try {
+        const id = await createSession({ gameId, buildId, name });
+        router.push(`/sessions/${id}`);
+      } catch (err) {
+        pushToast(toSafeMessage("database", err), "error");
+      }
     });
   }
 
