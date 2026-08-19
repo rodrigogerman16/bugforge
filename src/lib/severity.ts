@@ -1,3 +1,4 @@
+import { OctagonAlert, TriangleAlert, ArrowUp, Minus, ArrowDown, type LucideIcon } from "lucide-react";
 import { BugSeverity } from "@/generated/prisma/enums";
 
 export const SEVERITY_ORDER: BugSeverity[] = [
@@ -8,15 +9,19 @@ export const SEVERITY_ORDER: BugSeverity[] = [
   BugSeverity.LOW,
 ];
 
+// Severity is meant to be visually obvious without relying on color alone
+// (see BUG_STATUS_META's same principle) — every level pairs a distinct
+// icon and label with its color, so it's still unambiguous in grayscale,
+// for a colorblind reader, or read aloud by a screen reader.
 export const SEVERITY_META: Record<
   BugSeverity,
-  { label: string; color: string; textClass: string }
+  { label: string; color: string; textClass: string; icon: LucideIcon }
 > = {
-  BLOCKER: { label: "Blocker", color: "var(--bf-status-blocker)", textClass: "text-[color:var(--bf-status-blocker)]" },
-  CRITICAL: { label: "Critical", color: "var(--bf-status-critical)", textClass: "text-[color:var(--bf-status-critical)]" },
-  HIGH: { label: "High", color: "var(--bf-brand)", textClass: "text-[color:var(--bf-brand)]" },
-  MEDIUM: { label: "Medium", color: "var(--bf-status-warning)", textClass: "text-[color:var(--bf-status-warning)]" },
-  LOW: { label: "Low", color: "var(--bf-status-low)", textClass: "text-[color:var(--bf-status-low)]" },
+  BLOCKER: { label: "Blocker", color: "var(--bf-status-blocker)", textClass: "text-[color:var(--bf-status-blocker)]", icon: OctagonAlert },
+  CRITICAL: { label: "Critical", color: "var(--bf-status-critical)", textClass: "text-[color:var(--bf-status-critical)]", icon: TriangleAlert },
+  HIGH: { label: "High", color: "var(--bf-brand)", textClass: "text-[color:var(--bf-brand)]", icon: ArrowUp },
+  MEDIUM: { label: "Medium", color: "var(--bf-status-warning)", textClass: "text-[color:var(--bf-status-warning)]", icon: Minus },
+  LOW: { label: "Low", color: "var(--bf-status-low)", textClass: "text-[color:var(--bf-status-low)]", icon: ArrowDown },
 };
 
 export type SeverityCounts = Record<BugSeverity, number>;

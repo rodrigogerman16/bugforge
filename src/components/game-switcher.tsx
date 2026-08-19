@@ -64,6 +64,9 @@ export function GameSwitcher({
         <button
           onClick={toggle}
           title={compact ? `${label} — ${sublabel}` : undefined}
+          aria-label={compact ? `${label} — ${sublabel}` : undefined}
+          aria-haspopup="listbox"
+          aria-expanded={open}
           data-open={open}
           className={cn(
             "flex w-full items-center gap-2.5 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] py-2 text-left hover:border-[color:var(--bf-border-strong)] data-[open=true]:border-[color:var(--bf-border-strong)]",

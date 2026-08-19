@@ -713,9 +713,13 @@ const PC_GPU_POOL = ["RTX 4070", "RTX 4080", "RTX 3060", "RTX 4090", "RX 7800 XT
 
 // Matches the severity colors defined in src/app/globals.css — this script
 // runs outside the browser, so the CSS custom properties aren't reachable.
+// Matches --bf-status-blocker/--bf-status-critical in globals.css (kept in
+// sync manually since this script can't reach CSS custom properties) —
+// tuned to pass WCAG AA contrast as text color and stay colorblind-
+// distinguishable from Critical, not just "dark red for danger."
 const SEVERITY_COLOR: Record<BugSeverity, string> = {
-  BLOCKER: "#8b1e1e",
-  CRITICAL: "#d03b3b",
+  BLOCKER: "#d946ef",
+  CRITICAL: "#ff5c5c",
   HIGH: "#f2762e",
   MEDIUM: "#fab219",
   LOW: "#898781",

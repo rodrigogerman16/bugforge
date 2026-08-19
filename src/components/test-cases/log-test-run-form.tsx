@@ -30,8 +30,9 @@ export function LogTestRunForm({ testCaseId, sessions }: { testCaseId: string; s
     <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]">Session</label>
+          <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]" htmlFor="log-run-session">Session</label>
           <select
+            id="log-run-session"
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
             className="w-full rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-2 py-1.5 text-sm text-[color:var(--bf-ink-primary)] outline-none"
@@ -44,8 +45,9 @@ export function LogTestRunForm({ testCaseId, sessions }: { testCaseId: string; s
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]">Result</label>
+          <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]" htmlFor="log-run-result">Result</label>
           <select
+            id="log-run-result"
             value={result}
             onChange={(e) => setResult(e.target.value)}
             className="w-full rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-2 py-1.5 text-sm text-[color:var(--bf-ink-primary)] outline-none"
@@ -60,8 +62,9 @@ export function LogTestRunForm({ testCaseId, sessions }: { testCaseId: string; s
       </div>
 
       <div className="mt-3">
-        <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]">Notes (optional)</label>
+        <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]" htmlFor="log-run-notes">Notes (optional)</label>
         <textarea
+          id="log-run-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}

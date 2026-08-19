@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ChevronUp, ChevronDown, ChevronsUpDown, Settings2, Trash2, RotateCcw } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
-import { SEVERITY_META } from "@/lib/severity";
+import { SeverityBadge } from "@/components/severity-badge";
 import { PriorityBadge } from "@/components/priority-badge";
 import { StatusBadge } from "@/components/status-badge";
 import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
@@ -181,9 +181,11 @@ export function BugTable({
             mobile card layout below always shows the same fixed summary. */}
         <Dropdown
           align="right"
-          trigger={({ toggle }) => (
+          trigger={({ toggle, open }) => (
             <button
               onClick={toggle}
+              aria-haspopup="true"
+              aria-expanded={open}
               className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-2.5 py-1.5 text-[12px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] md:flex"
             >
               <Settings2 size={13} />
@@ -256,12 +258,7 @@ export function BugTable({
                       {bug.title}
                     </Link>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <span className="flex items-center gap-1">
-                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: SEVERITY_META[bug.severity].color }} />
-                        <span className="text-[11px] font-medium" style={{ color: SEVERITY_META[bug.severity].color }}>
-                          {SEVERITY_META[bug.severity].label}
-                        </span>
-                      </span>
+                      <SeverityBadge severity={bug.severity} />
                       <PriorityBadge priority={bug.priority} />
                       <StatusBadge status={bug.status} />
                       {bug.isRegression && (
@@ -363,18 +360,7 @@ export function BugTable({
                   )}
                   {isVisible("severity") && (
                     <td className="whitespace-nowrap px-4 py-3">
-                      <span className="flex items-center gap-1.5">
-                        <span
-                          className="h-2 w-2 shrink-0 rounded-full"
-                          style={{ backgroundColor: SEVERITY_META[bug.severity].color }}
-                        />
-                        <span
-                          className="text-[12px] font-medium"
-                          style={{ color: SEVERITY_META[bug.severity].color }}
-                        >
-                          {SEVERITY_META[bug.severity].label}
-                        </span>
-                      </span>
+                      <SeverityBadge severity={bug.severity} />
                     </td>
                   )}
                   {isVisible("priority") && (

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { useNotificationsState } from "@/components/notifications/use-notifications-state";
 import { NotificationRow } from "@/components/notifications/notification-row";
 import { fadeIn, fastTransition } from "@/lib/motion";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import type { NotificationSummary } from "@/lib/data";
 
 // The bottom nav's "Notifications" tab has nowhere to route to (there's no
@@ -17,6 +18,8 @@ import type { NotificationSummary } from "@/lib/data";
 export function MobileNotificationsSheet({ notifications, userId }: { notifications: NotificationSummary[]; userId: string }) {
   const { mobileNotificationsOpen, closeMobileNotifications } = useShellUI();
   const { items, unreadCount, handleOpen, handleMarkAllRead } = useNotificationsState(notifications, userId);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(mobileNotificationsOpen, sheetRef);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -30,6 +33,7 @@ export function MobileNotificationsSheet({ notifications, userId }: { notificati
     <AnimatePresence>
       {mobileNotificationsOpen && (
         <motion.div
+          ref={sheetRef}
           variants={fadeIn}
           initial="initial"
           animate="animate"
@@ -38,6 +42,7 @@ export function MobileNotificationsSheet({ notifications, userId }: { notificati
           role="dialog"
           aria-modal="true"
           aria-label="Notifications"
+          tabIndex={-1}
           className="fixed inset-0 z-50 flex flex-col bg-[color:var(--bf-page)] md:hidden"
         >
           <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--bf-border)] px-4 py-4 pt-[calc(1rem+env(safe-area-inset-top))]">

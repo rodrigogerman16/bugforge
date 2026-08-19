@@ -120,6 +120,17 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
     if (commandPaletteOpen) requestAnimationFrame(() => inputRef.current?.focus());
   }, [scope, commandPaletteOpen]);
 
+  // The palette keeps DOM focus on the input throughout — arrow keys move a
+  // visual "active" highlight, not real focus — so the only piece of focus
+  // management it needs is restoring focus to whatever opened it once
+  // closed. aria-activedescendant (below) is what lets a screen reader
+  // track the highlight without focus ever leaving the input.
+  useEffect(() => {
+    if (!commandPaletteOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    return () => previouslyFocused?.focus?.();
+  }, [commandPaletteOpen]);
+
   function enterBugScope() {
     setScope("bugs");
     setQuery("");
@@ -379,6 +390,9 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
             animate="animate"
             exit="exit"
             transition={fastTransition}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
             className="relative z-10 h-fit w-full max-w-lg overflow-hidden rounded-lg border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-surface-raised)] shadow-lg shadow-black/40"
           >
         <div className="flex items-center gap-2.5 border-b border-[color:var(--bf-border)] px-4 py-3">
@@ -404,6 +418,12 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
             }}
             onKeyDown={onKeyDown}
             placeholder={scope === "bugs" ? "Search bugs..." : "Type a command or search..."}
+            role="combobox"
+            aria-expanded={filtered.length > 0}
+            aria-controls="command-palette-listbox"
+            aria-activedescendant={filtered[activeIndex] ? `cmdk-${filtered[activeIndex].key}` : undefined}
+            aria-autocomplete="list"
+            autoComplete="off"
             className="flex-1 bg-transparent text-sm text-[color:var(--bf-ink-primary)] outline-none placeholder:text-[color:var(--bf-ink-muted)]"
           />
           {searching && <Loader2 size={14} className="animate-spin text-[color:var(--bf-ink-muted)]" />}
@@ -412,7 +432,7 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
           </kbd>
         </div>
 
-        <div className="max-h-96 overflow-y-auto p-1.5">
+        <div id="command-palette-listbox" role="listbox" aria-label="Results" className="max-h-96 overflow-y-auto p-1.5">
           {filtered.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-[color:var(--bf-ink-muted)]">
               {searchTooShort
@@ -437,6 +457,9 @@ export function CommandPalette({ games }: { games: GameOption[] }) {
                   </p>
                 )}
                 <button
+                  id={`cmdk-${item.key}`}
+                  role="option"
+                  aria-selected={active}
                   disabled={!item.enabled}
                   onMouseEnter={() => item.enabled && setActiveIndex(i)}
                   onClick={() => activate(item)}

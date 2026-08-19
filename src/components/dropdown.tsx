@@ -33,6 +33,16 @@ export function Dropdown({
     };
   }, [open]);
 
+  // Keyboard users who open the panel (via Enter/Space on the trigger) and
+  // then Escape or click outside should land back on the trigger, not lose
+  // their place in the page — same restore-on-close contract as the modal
+  // focus trap, just without a Tab-trap since these panels are small.
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    return () => previouslyFocused?.focus?.();
+  }, [open]);
+
   return (
     <div ref={ref} className="relative">
       {trigger({ open, toggle: () => setOpen((o) => !o) })}

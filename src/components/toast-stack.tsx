@@ -24,7 +24,12 @@ export function ToastStack() {
   const { toasts, dismissToast } = useShellUI();
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2">
+    <div
+      role="status"
+      aria-live="polite"
+      aria-atomic="false"
+      className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2"
+    >
       <AnimatePresence>
         {toasts.map((t) => {
           const Icon = TONE_ICON[t.tone];

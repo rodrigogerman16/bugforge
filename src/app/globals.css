@@ -17,9 +17,21 @@
   --bf-brand: #f2762e;
   --bf-brand-soft: rgba(242, 118, 46, 0.14);
 
-  /* Semantic severity/status colors — used sparingly and consistently */
-  --bf-status-blocker: #8b1e1e; /* Blocker — deeper than Critical, reads as "worse" */
-  --bf-status-critical: #d03b3b; /* Critical */
+  /* Semantic severity/status colors — used sparingly and consistently.
+     Blocker and Critical are tuned to pass WCAG AA (>=4.5:1) as text color
+     against every surface in the app (page/surface/surface-raised); the
+     original #8b1e1e/#d03b3b read as "danger red" but only hit 1.9-4.1:1,
+     failing AA for normal-size text. Blocker is a distinct magenta hue
+     rather than a darker red — going dark enough to read as "deeper red"
+     is exactly what breaks contrast on a near-black background, and a red
+     close enough to Critical to still read as "a shade of red" also reads
+     as near-identical to colorblind users (verified with the dataviz
+     skill's palette validator: a same-hue red pair scored ΔE ~5, this
+     magenta/red pair scores ΔE ~24). They're still never told apart by
+     color alone regardless — the label text ("Blocker" vs "Critical") and
+     a dedicated icon (see SEVERITY_META) are always shown too. */
+  --bf-status-blocker: #d946ef; /* Blocker */
+  --bf-status-critical: #ff5c5c; /* Critical */
   --bf-status-warning: #fab219; /* Medium */
   --bf-status-good: #0ca30c; /* Verified / Fixed / Healthy */
   --bf-status-low: #898781; /* Low / informational */

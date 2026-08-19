@@ -28,9 +28,11 @@ export function UserMenu({
   return (
     <Dropdown
       align="right"
-      trigger={({ toggle }) => (
+      trigger={({ toggle, open }) => (
         <button
           onClick={toggle}
+          aria-haspopup="menu"
+          aria-expanded={open}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--bf-brand)] text-[11px] font-semibold text-black"
           aria-label="User menu"
         >

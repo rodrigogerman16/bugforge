@@ -106,8 +106,9 @@ export function ExecuteTestCaseForm({
   return (
     <div>
       <div className="mb-4">
-        <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]">Session</label>
+        <label className="mb-1.5 block text-[12px] font-medium text-[color:var(--bf-ink-secondary)]" htmlFor="execute-session">Session</label>
         <select
+          id="execute-session"
           value={sessionId}
           onChange={(e) => setSessionId(e.target.value)}
           className="w-full max-w-xs rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-3 py-2 text-sm text-[color:var(--bf-ink-primary)] outline-none"
@@ -135,6 +136,7 @@ export function ExecuteTestCaseForm({
                   <button
                     key={option}
                     onClick={() => setStepResult(i, option)}
+                    aria-pressed={active}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-medium",
                       active ? "border-transparent" : "border-[color:var(--bf-border)] text-[color:var(--bf-ink-muted)] hover:border-[color:var(--bf-border-strong)]"

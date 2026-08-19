@@ -18,11 +18,13 @@ export function NotificationsMenu({ notifications, userId }: { notifications: No
   return (
     <Dropdown
       align="right"
-      trigger={({ toggle }) => (
+      trigger={({ toggle, open }) => (
         <button
           onClick={toggle}
+          aria-haspopup="true"
+          aria-expanded={open}
           className="relative flex h-8 w-8 items-center justify-center rounded-lg text-[color:var(--bf-ink-secondary)] hover:bg-[color:var(--bf-surface)]"
-          aria-label="Notifications"
+          aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
         >
           <Bell size={16} strokeWidth={1.75} />
           {unreadCount > 0 && (

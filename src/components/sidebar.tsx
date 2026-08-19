@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -7,6 +8,7 @@ import { NAV_GROUPS, NAV_FOOTER_ITEMS, type NavItem } from "@/lib/nav-items";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { Brand } from "@/components/brand";
 import { GameSwitcher, type GameOption } from "@/components/game-switcher";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { cn } from "@/lib/utils";
 
 function NavLink({
@@ -45,6 +47,7 @@ function NavLink({
       href={href}
       onClick={onNavigate}
       title={compact ? item.label : undefined}
+      aria-current={isActive ? "page" : undefined}
       className={cn(
         "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm font-medium",
         compact && "justify-center px-0",
@@ -107,7 +110,7 @@ export function Sidebar({ games }: { games: GameOption[] }) {
         <GameSwitcher games={games} compact={sidebarCollapsed} />
       </div>
 
-      <nav className="flex flex-1 flex-col overflow-y-auto pt-2">
+      <nav aria-label="Primary" className="flex flex-1 flex-col overflow-y-auto pt-2">
         <NavGroups compact={sidebarCollapsed} />
       </nav>
 
@@ -123,6 +126,7 @@ export function Sidebar({ games }: { games: GameOption[] }) {
         <button
           onClick={toggleSidebarCollapsed}
           title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
             "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)]",
             sidebarCollapsed && "justify-center px-0"
@@ -149,6 +153,17 @@ export function MobileNav({
   onClose: () => void;
   games: GameOption[];
 }) {
+  const navRef = useRef<HTMLElement>(null);
+  useFocusTrap(open, navRef);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && open) onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, onClose]);
+
   return (
     <div
       className={cn(
@@ -165,6 +180,11 @@ export function MobileNav({
         )}
       />
       <aside
+        ref={navRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Navigation menu"
+        tabIndex={-1}
         className={cn(
           "absolute inset-y-0 left-0 flex w-72 flex-col border-r border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-3 py-4 shadow-lg transition-transform duration-200",
           open ? "translate-x-0" : "-translate-x-full"
@@ -176,7 +196,7 @@ export function MobileNav({
         <div className="mb-1 shrink-0">
           <GameSwitcher games={games} compact={false} />
         </div>
-        <nav className="flex flex-1 flex-col overflow-y-auto pt-2">
+        <nav aria-label="Primary" className="flex flex-1 flex-col overflow-y-auto pt-2">
           <NavGroups compact={false} onNavigate={onClose} />
         </nav>
         <div className="flex flex-col gap-0.5 border-t border-[color:var(--bf-border)] pt-2">

@@ -83,8 +83,8 @@ export function TestCaseForm({
     <div className="space-y-4">
       {games && (
         <div>
-          <label className={labelClass}>Game</label>
-          <select value={selectedGameId} onChange={(e) => setSelectedGameId(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="tc-game">Game</label>
+          <select id="tc-game" value={selectedGameId} onChange={(e) => setSelectedGameId(e.target.value)} className={inputClass}>
             {games.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -95,34 +95,34 @@ export function TestCaseForm({
       )}
 
       <div>
-        <label className={labelClass}>Title</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="e.g. Player can complete matchmaking" />
+        <label className={labelClass} htmlFor="tc-title">Title</label>
+        <input id="tc-title" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} placeholder="e.g. Player can complete matchmaking" />
       </div>
 
       <div>
-        <label className={labelClass}>Description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} />
+        <label className={labelClass} htmlFor="tc-description">Description</label>
+        <textarea id="tc-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputClass} />
       </div>
 
       <div>
-        <label className={labelClass}>Preconditions</label>
-        <textarea value={preconditions} onChange={(e) => setPreconditions(e.target.value)} rows={2} className={inputClass} placeholder="What must be true before running this test" />
+        <label className={labelClass} htmlFor="tc-preconditions">Preconditions</label>
+        <textarea id="tc-preconditions" value={preconditions} onChange={(e) => setPreconditions(e.target.value)} rows={2} className={inputClass} placeholder="What must be true before running this test" />
       </div>
 
       <div>
-        <label className={labelClass}>Steps</label>
-        <textarea value={steps} onChange={(e) => setSteps(e.target.value)} rows={4} className={inputClass} placeholder={"1. ...\n2. ...\n3. ..."} />
+        <label className={labelClass} htmlFor="tc-steps">Steps</label>
+        <textarea id="tc-steps" value={steps} onChange={(e) => setSteps(e.target.value)} rows={4} className={inputClass} placeholder={"1. ...\n2. ...\n3. ..."} />
       </div>
 
       <div>
-        <label className={labelClass}>Expected Result</label>
-        <textarea value={expected} onChange={(e) => setExpected(e.target.value)} rows={2} className={inputClass} />
+        <label className={labelClass} htmlFor="tc-expected">Expected Result</label>
+        <textarea id="tc-expected" value={expected} onChange={(e) => setExpected(e.target.value)} rows={2} className={inputClass} />
       </div>
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className={labelClass}>Priority</label>
-          <select value={priority} onChange={(e) => setPriority(e.target.value as TestCasePriority)} className={inputClass}>
+          <label className={labelClass} htmlFor="tc-priority">Priority</label>
+          <select id="tc-priority" value={priority} onChange={(e) => setPriority(e.target.value as TestCasePriority)} className={inputClass}>
             {TEST_CASE_PRIORITY_ORDER.map((p) => (
               <option key={p} value={p}>
                 {TEST_CASE_PRIORITY_META[p].label}
@@ -131,8 +131,8 @@ export function TestCaseForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Category</label>
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="tc-category">Category</label>
+          <select id="tc-category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className={inputClass}>
             {areas.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -141,8 +141,8 @@ export function TestCaseForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Platform</label>
-          <select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className={inputClass}>
+          <label className={labelClass} htmlFor="tc-platform">Platform</label>
+          <select id="tc-platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className={inputClass}>
             {availablePlatforms.map((p) => (
               <option key={p} value={p}>
                 {PLATFORM_LABEL[p]}

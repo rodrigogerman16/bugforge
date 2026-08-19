@@ -93,6 +93,8 @@ export function BugToolbar({
           <button
             onClick={toggle}
             data-open={open}
+            aria-haspopup="true"
+            aria-expanded={open}
             className="flex items-center gap-1.5 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-2.5 py-1.5 text-sm text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] data-[open=true]:border-[color:var(--bf-border-strong)]"
           >
             <SlidersHorizontal size={13} />

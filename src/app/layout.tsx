@@ -65,6 +65,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full">
         <ShellUIProvider>
+          <a
+            href="#main-content"
+            className="fixed left-2 top-2 z-[100] -translate-y-16 rounded-md bg-[color:var(--bf-brand)] px-3 py-2 text-[13px] font-medium text-black transition-transform focus:translate-y-0"
+          >
+            Skip to main content
+          </a>
           <div className="flex h-dvh flex-col">
             <TopBar user={user} notifications={notifications} authConfigured={authConfigured} />
             <div className="flex min-h-0 flex-1">
@@ -74,7 +80,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Suspense fallback={null}>
                 <ShellMobileNav games={games} />
               </Suspense>
-              <main className="min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
+              <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
                 <PageTransition>{children}</PageTransition>
               </main>
             </div>

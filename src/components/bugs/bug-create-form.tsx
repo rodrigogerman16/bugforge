@@ -246,8 +246,8 @@ export function BugCreateForm({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelClass}>Game</label>
-          <select value={selectedGameId} onChange={(e) => setSelectedGameId(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="bug-game">Game</label>
+          <select id="bug-game" value={selectedGameId} onChange={(e) => setSelectedGameId(e.target.value)} className={inputClass}>
             {games.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -256,8 +256,8 @@ export function BugCreateForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Build</label>
-          <select value={buildId} onChange={(e) => setBuildId(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="bug-build">Build</label>
+          <select id="bug-build" value={buildId} onChange={(e) => setBuildId(e.target.value)} className={inputClass}>
             {selectedGame.builds.length === 0 ? (
               <option value="">No builds yet</option>
             ) : (
@@ -272,8 +272,9 @@ export function BugCreateForm({
       </div>
 
       <div>
-        <label className={labelClass}>Title</label>
+        <label className={labelClass} htmlFor="bug-title">Title</label>
         <input
+          id="bug-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className={inputClass}
@@ -282,8 +283,8 @@ export function BugCreateForm({
       </div>
 
       <div>
-        <label className={labelClass}>Description</label>
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} />
+        <label className={labelClass} htmlFor="bug-description">Description</label>
+        <textarea id="bug-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={inputClass} />
       </div>
 
       <div>
@@ -380,8 +381,9 @@ export function BugCreateForm({
 
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className={labelClass}>Severity</label>
+          <label className={labelClass} htmlFor="bug-severity">Severity</label>
           <select
+            id="bug-severity"
             value={severity}
             onChange={(e) => {
               setSeverity(e.target.value as BugSeverity);
@@ -397,8 +399,9 @@ export function BugCreateForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Priority</label>
+          <label className={labelClass} htmlFor="bug-priority">Priority</label>
           <select
+            id="bug-priority"
             value={priority}
             onChange={(e) => {
               setPriority(e.target.value as BugPriority);
@@ -414,8 +417,8 @@ export function BugCreateForm({
           </select>
         </div>
         <div>
-          <label className={labelClass}>Platform</label>
-          <select value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className={inputClass}>
+          <label className={labelClass} htmlFor="bug-platform">Platform</label>
+          <select id="bug-platform" value={platform} onChange={(e) => setPlatform(e.target.value as Platform)} className={inputClass}>
             {PLATFORM_ORDER.filter((p) => selectedGame.platforms.includes(p)).map((p) => (
               <option key={p} value={p}>
                 {PLATFORM_LABEL[p]}
@@ -426,8 +429,8 @@ export function BugCreateForm({
       </div>
 
       <div>
-        <label className={labelClass}>Area</label>
-        <select value={areaId} onChange={(e) => setAreaId(e.target.value)} className={inputClass}>
+        <label className={labelClass} htmlFor="bug-area">Area</label>
+        <select id="bug-area" value={areaId} onChange={(e) => setAreaId(e.target.value)} className={inputClass}>
           <option value="">No area</option>
           {areas.map((a) => (
             <option key={a.id} value={a.id}>
@@ -437,8 +440,8 @@ export function BugCreateForm({
         </select>
       </div>
 
-      <div>
-        <label className={labelClass}>Tags</label>
+      <fieldset>
+        <legend className={labelClass}>Tags</legend>
         <div className="flex flex-wrap gap-1.5">
           {tags.map((t) => {
             const active = selectedTagIds.includes(t.id);
@@ -462,11 +465,12 @@ export function BugCreateForm({
             );
           })}
         </div>
-      </div>
+      </fieldset>
 
       <div>
-        <label className={labelClass}>Steps to Reproduce</label>
+        <label className={labelClass} htmlFor="bug-steps">Steps to Reproduce</label>
         <textarea
+          id="bug-steps"
           value={stepsToReproduce}
           onChange={(e) => setStepsToReproduce(e.target.value)}
           rows={4}
@@ -477,18 +481,18 @@ export function BugCreateForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelClass}>Expected Result</label>
-          <textarea value={expectedResult} onChange={(e) => setExpectedResult(e.target.value)} rows={2} className={inputClass} />
+          <label className={labelClass} htmlFor="bug-expected">Expected Result</label>
+          <textarea id="bug-expected" value={expectedResult} onChange={(e) => setExpectedResult(e.target.value)} rows={2} className={inputClass} />
         </div>
         <div>
-          <label className={labelClass}>Actual Result</label>
-          <textarea value={actualResult} onChange={(e) => setActualResult(e.target.value)} rows={2} className={inputClass} />
+          <label className={labelClass} htmlFor="bug-actual">Actual Result</label>
+          <textarea id="bug-actual" value={actualResult} onChange={(e) => setActualResult(e.target.value)} rows={2} className={inputClass} />
         </div>
       </div>
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className={labelClass}>Attachments</label>
+          <label className={labelClass} htmlFor="bug-attachments-input">Attachments</label>
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -499,7 +503,7 @@ export function BugCreateForm({
             {uploading ? <Loader2 size={12} className="animate-spin" /> : <Paperclip size={12} />}
             {uploading ? "Uploading…" : "Add Attachment"}
           </button>
-          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFile} />
+          <input id="bug-attachments-input" ref={fileInputRef} type="file" className="hidden" onChange={handleFile} />
         </div>
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2">

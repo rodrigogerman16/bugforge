@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["⌘", "K"], label: "Command palette" },
@@ -20,6 +21,8 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
 // static help page that can drift out of sync with what the keys do.
 export function KeyboardShortcutsModal() {
   const { shortcutsHelpOpen, closeShortcutsHelp } = useShellUI();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(shortcutsHelpOpen, dialogRef);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -44,6 +47,7 @@ export function KeyboardShortcutsModal() {
           />
 
           <motion.div
+            ref={dialogRef}
             variants={fadeScaleIn}
             initial="initial"
             animate="animate"
@@ -52,6 +56,7 @@ export function KeyboardShortcutsModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="keyboard-shortcuts-title"
+            tabIndex={-1}
             className="relative w-full max-w-sm overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
           >
         <div className="flex items-center justify-between border-b border-[color:var(--bf-border)] px-5 py-4">

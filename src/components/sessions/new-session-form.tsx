@@ -39,14 +39,14 @@ export function NewSessionForm({ games, defaultGameId }: { games: Game[]; defaul
   return (
     <div className="space-y-4">
       <div>
-        <label className={labelClass}>Session Name</label>
-        <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="e.g. Beta Test #24" />
+        <label className={labelClass} htmlFor="session-name">Session Name</label>
+        <input id="session-name" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="e.g. Beta Test #24" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelClass}>Game</label>
-          <select value={gameId} onChange={(e) => handleGameChange(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="session-game">Game</label>
+          <select id="session-game" value={gameId} onChange={(e) => handleGameChange(e.target.value)} className={inputClass}>
             {games.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -55,8 +55,8 @@ export function NewSessionForm({ games, defaultGameId }: { games: Game[]; defaul
           </select>
         </div>
         <div>
-          <label className={labelClass}>Build</label>
-          <select value={buildId} onChange={(e) => setBuildId(e.target.value)} className={inputClass}>
+          <label className={labelClass} htmlFor="session-build">Build</label>
+          <select id="session-build" value={buildId} onChange={(e) => setBuildId(e.target.value)} className={inputClass}>
             {selectedGame?.builds.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.version}

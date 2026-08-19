@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Loader2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { getBugCreateOptions } from "@/app/bugs/actions";
 import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/data";
 import { BugCreateForm } from "@/components/bugs/bug-create-form";
 import { fadeIn, fadeScaleIn, fastTransition } from "@/lib/motion";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 type Options = { games: GameCreateOption[]; areas: AreaSummary[]; tags: TagSummary[] };
 
@@ -23,6 +24,8 @@ export function BugCreateModal() {
 
   const [options, setOptions] = useState<Options | null>(null);
   const [isLoadingOptions, startLoadingOptions] = useTransition();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(bugCreateModalOpen, dialogRef);
 
   useEffect(() => {
     if (bugCreateModalOpen && !options) {
@@ -66,6 +69,7 @@ export function BugCreateModal() {
               wastes most of the viewport on backdrop. From sm: up it's the
               regular centered dialog. */}
           <motion.div
+            ref={dialogRef}
             variants={fadeScaleIn}
             initial="initial"
             animate="animate"
@@ -74,6 +78,7 @@ export function BugCreateModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="bug-create-modal-title"
+            tabIndex={-1}
             className="relative flex h-full w-full flex-col overflow-hidden bg-[color:var(--bf-page)] shadow-2xl shadow-black/50 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:rounded-xl sm:border sm:border-[color:var(--bf-border-strong)]"
           >
         <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--bf-border)] px-5 py-4">
