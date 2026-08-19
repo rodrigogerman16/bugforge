@@ -19,9 +19,9 @@ import {
   analyzeRegressionRisk,
   buildQuickAnalysis,
   suggestReproSteps,
-  assessBugDraftQuality,
+  assessBugReportQuality,
   type BugQuickAnalysis,
-  type BugDraftQuality,
+  type BugReportQuality,
   type SeveritySuggestion,
   type PrioritySuggestion,
 } from "@/lib/ai/bug-analysis";
@@ -179,9 +179,9 @@ export async function analyzeBugDraft(input: BugDraftAiInput): Promise<BugDraftA
   };
 }
 
-// The live "Bug quality" checklist on the report modal — a pure function of
-// whatever the tester has typed so far (see assessBugDraftQuality), kept
-// behind a Server Action like every other AI computation rather than
+// The live "Report Quality" checklist on the report modal — a pure function
+// of whatever the tester has typed so far (see assessBugReportQuality),
+// kept behind a Server Action like every other AI computation rather than
 // imported straight into the modal component.
 export async function getBugDraftQuality(draft: {
   title: string;
@@ -189,9 +189,29 @@ export async function getBugDraftQuality(draft: {
   stepsToReproduce: string;
   expectedResult: string;
   actualResult: string;
-  hasBuild: boolean;
-}): Promise<BugDraftQuality> {
-  return assessBugDraftQuality(draft);
+  hasEnvironment: boolean;
+  hasEvidence: boolean;
+}): Promise<BugReportQuality> {
+  return assessBugReportQuality(draft);
+}
+
+// The same "Report Quality" score, computed from an already-saved bug's
+// real fields instead of an in-progress draft — powers the advisory Report
+// Quality card on the bug detail page (see BugReportQualityCard). Optional
+// and advisory only: nothing here blocks triage, assignment, or any status
+// change.
+export async function getBugQuality(bugId: string): Promise<BugReportQuality | null> {
+  const bug = await getBugForAi(bugId);
+  if (!bug) return null;
+  return assessBugReportQuality({
+    title: bug.title,
+    description: bug.description,
+    stepsToReproduce: bug.stepsToReproduce ?? "",
+    expectedResult: bug.expectedResult ?? "",
+    actualResult: bug.actualResult ?? "",
+    hasEnvironment: Boolean(bug.buildVersion),
+    hasEvidence: bug.evidenceCount > 0,
+  });
 }
 
 // Powers the on-demand "Analyze build risk" panel on each build card.

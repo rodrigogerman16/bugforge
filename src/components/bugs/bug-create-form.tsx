@@ -12,7 +12,7 @@ import { uploadAttachment } from "@/lib/upload-attachment";
 import { createBug, type CreateBugInput, type CreateBugEvidenceInput } from "@/app/bugs/actions";
 import { searchDuplicateBugsForDraft, analyzeBugDraft, getBugDraftQuality } from "@/app/ai/actions";
 import type { DuplicateCandidate } from "@/lib/ai/duplicate-detection";
-import type { BugDraftQuality } from "@/lib/ai/bug-analysis";
+import type { BugReportQuality } from "@/lib/ai/bug-analysis";
 import type { GameCreateOption, AreaSummary, TagSummary } from "@/lib/data";
 import type { BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
@@ -192,18 +192,24 @@ export function BugCreateForm({
     }
   }
 
-  // Bug quality checklist — recomputed shortly after the tester stops
+  // Report Quality checklist — recomputed shortly after the tester stops
   // typing in any of the fields it scores, so it always reflects the
   // current draft without hammering the server on every keystroke.
-  const [quality, setQuality] = useState<BugDraftQuality | null>(null);
+  const [quality, setQuality] = useState<BugReportQuality | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => {
-      getBugDraftQuality({ title, description, stepsToReproduce, expectedResult, actualResult, hasBuild: Boolean(buildId) }).then(
-        setQuality
-      );
+      getBugDraftQuality({
+        title,
+        description,
+        stepsToReproduce,
+        expectedResult,
+        actualResult,
+        hasEnvironment: Boolean(buildId),
+        hasEvidence: attachments.length > 0,
+      }).then(setQuality);
     }, 400);
     return () => clearTimeout(timer);
-  }, [title, description, stepsToReproduce, expectedResult, actualResult, buildId]);
+  }, [title, description, stepsToReproduce, expectedResult, actualResult, buildId, attachments]);
 
   const canSubmit = title.trim() && description.trim() && buildId;
 
@@ -508,9 +514,9 @@ export function BugCreateForm({
       {quality && (
         <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">Bug quality</span>
-            <span className="text-sm font-bold" style={{ color: QUALITY_COLOR(quality.percent) }}>
-              {quality.percent}%
+            <span className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--bf-ink-primary)]">Report Quality</span>
+            <span className="text-sm font-bold" style={{ color: QUALITY_COLOR(quality.score) }}>
+              {quality.score} / 100
             </span>
           </div>
           <ul className="space-y-1">

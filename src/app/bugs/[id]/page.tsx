@@ -11,7 +11,8 @@ import { BugFieldControls, BugAssigneeControl, BugAreaControl, ALL_BUG_STATUS_OP
 import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVELOPER_ALLOWED_STATUSES } from "@/lib/permissions";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
-import { getBugQuickAnalysis } from "@/app/ai/actions";
+import { BugReportQualityCard } from "@/components/bugs/bug-report-quality-card";
+import { getBugQuickAnalysis, getBugQuality } from "@/app/ai/actions";
 import { ActivityTimeline } from "@/components/activity/activity-timeline";
 import { BugRelationships } from "@/components/bugs/bug-relationships";
 import { RegressionBanner } from "@/components/bugs/regression-banner";
@@ -41,7 +42,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas, aiAnalysis] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas, aiAnalysis, quality] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
@@ -50,6 +51,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
     bug.isRegression ? getRegressionInfo(id) : Promise.resolve(null),
     getAreas(),
     getBugQuickAnalysis(id),
+    getBugQuality(id),
   ]);
 
   const isOwnBug = bug.reportedBy?.id === currentUser.id;
@@ -128,6 +130,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
       </header>
 
       <BugAiAnalysisPanel analysis={aiAnalysis} />
+      {quality && <BugReportQualityCard quality={quality} />}
 
       <section className="mb-6">
         <h2 className="mb-2 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Description</h2>
