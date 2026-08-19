@@ -10,7 +10,7 @@ import { PLATFORM_LABEL, PLATFORM_ORDER } from "@/lib/platform";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { createBug, type CreateBugInput } from "@/app/bugs/actions";
 import { searchDuplicateBugsForDraft, suggestReproStepsForDraft } from "@/app/ai/actions";
-import type { DuplicateCandidate } from "@/lib/ai/heuristics";
+import type { DuplicateCandidate } from "@/lib/ai/duplicate-detection";
 import type { BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 import { cn } from "@/lib/utils";
 

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Sparkles, Loader2, TriangleAlert } from "lucide-react";
 import { getBuildReleaseRisk } from "@/app/ai/actions";
-import { RELEASE_RISK_META, type BuildReleaseRiskAnalysis } from "@/lib/ai/heuristics";
+import { RELEASE_RISK_META, type BuildReleaseRiskAnalysis } from "@/lib/ai/release-analysis";
 import { cn } from "@/lib/utils";
 
 // On-demand, not eager — a build risk analysis touches several real queries

@@ -1,19 +1,11 @@
-import type { BugSeverity, BugPriority, BugStatus, TestCasePriority, Platform } from "@/generated/prisma/enums";
-import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext, BuildRiskContext } from "@/lib/data";
+import type { BugSeverity, BugPriority } from "@/generated/prisma/enums";
+import type { AiBugContext, DuplicateCandidateBug, AreaRiskContext } from "@/lib/data";
 import { SEVERITY_ORDER, SEVERITY_META } from "@/lib/severity";
 import { PRIORITY_ORDER, PRIORITY_META } from "@/lib/priority";
 import { BUG_STATUS_META } from "@/lib/status-labels";
 import { PLATFORM_LABEL } from "@/lib/platform";
-
-// BugForge AI is a heuristic engine, not a generative model — every result
-// below is computed from the bug's own real fields (and, where noted, real
-// sibling data queried alongside it), never invented. That's a deliberate
-// choice: it's free, instant, fully explainable, and never hallucinates a
-// fact about a bug that isn't actually in the database.
-
-function bugText(bug: AiBugContext): string {
-  return `${bug.title} ${bug.description} ${bug.actualResult ?? ""} ${bug.stepsToReproduce ?? ""}`.toLowerCase();
-}
+import { bugText, escapeRegExp, capitalizeSentence, type Confidence } from "@/lib/ai/provider";
+import { findDuplicateCandidates } from "@/lib/ai/duplicate-detection";
 
 // ---------------------------------------------------------------------------
 // Suggest severity
@@ -23,7 +15,7 @@ export type SeveritySuggestion = {
   current: BugSeverity;
   suggested: BugSeverity;
   changed: boolean;
-  confidence: "low" | "medium" | "high";
+  confidence: Confidence;
   reasons: string[];
 };
 
@@ -64,8 +56,7 @@ export function suggestSeverity(bug: AiBugContext): SeveritySuggestion {
   const changed = suggested !== bug.severity;
 
   const matchStrength = Math.abs(delta);
-  const confidence: SeveritySuggestion["confidence"] =
-    reasons.length === 0 ? "low" : matchStrength >= 1.5 ? "high" : "medium";
+  const confidence: Confidence = reasons.length === 0 ? "low" : matchStrength >= 1.5 ? "high" : "medium";
 
   if (reasons.length === 0) {
     reasons.push(`No strong severity signals found in the bug text — ${SEVERITY_META[bug.severity].label} looks reasonable as-is.`);
@@ -85,7 +76,7 @@ export type PrioritySuggestion = {
   current: BugPriority;
   suggested: BugPriority;
   changed: boolean;
-  confidence: "low" | "medium" | "high";
+  confidence: Confidence;
   reasons: string[];
 };
 
@@ -128,74 +119,9 @@ export function suggestPriority(bug: AiBugContext, areaRisk: AreaRiskContext): P
   const priorityRank = score >= 3.5 ? 0 : score >= 2.5 ? 1 : score >= 1.5 ? 2 : score >= 0.5 ? 3 : 4;
   const suggested = PRIORITY_ORDER[priorityRank];
   const changed = suggested !== bug.priority;
-  const confidence: PrioritySuggestion["confidence"] = independentSignals === 0 ? "low" : independentSignals === 1 ? "medium" : "high";
+  const confidence: Confidence = independentSignals === 0 ? "low" : independentSignals === 1 ? "medium" : "high";
 
   return { current: bug.priority, suggested, changed, confidence, reasons };
-}
-
-// ---------------------------------------------------------------------------
-// Find duplicate bugs — token-overlap (Jaccard) similarity over title +
-// description, restricted to the same game. No ML, no embeddings — just a
-// real, explainable text-overlap score.
-// ---------------------------------------------------------------------------
-
-export type DuplicateCandidate = {
-  id: string;
-  number: number;
-  title: string;
-  status: BugStatus;
-  severity: BugSeverity;
-  similarityPercent: number;
-};
-
-const STOPWORDS = new Set([
-  "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "of", "for", "with", "is", "are", "was",
-  "were", "be", "been", "this", "that", "it", "its", "after", "when", "while", "during", "from", "into",
-  "not", "no", "does", "doesnt", "cant", "cannot", "into", "than", "then", "if", "as", "by",
-]);
-
-function tokenize(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w.length >= 3 && !STOPWORDS.has(w))
-  );
-}
-
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-  if (a.size === 0 || b.size === 0) return 0;
-  let intersection = 0;
-  for (const w of a) if (b.has(w)) intersection++;
-  const union = a.size + b.size - intersection;
-  return union === 0 ? 0 : intersection / union;
-}
-
-const DUPLICATE_SIMILARITY_THRESHOLD = 0.12;
-const DUPLICATE_RESULT_LIMIT = 5;
-
-export function findDuplicateCandidates(
-  target: { title: string; description: string },
-  candidates: DuplicateCandidateBug[]
-): DuplicateCandidate[] {
-  // The title is repeated so it counts roughly twice as heavily as the
-  // description in the overlap score — two bugs with the same title but
-  // unrelated descriptions should still surface as likely duplicates.
-  const targetTokens = tokenize(`${target.title} ${target.title} ${target.description}`);
-
-  return candidates
-    .map((c) => ({
-      id: c.id,
-      number: c.number,
-      title: c.title,
-      status: c.status,
-      severity: c.severity,
-      similarityPercent: Math.round(jaccardSimilarity(targetTokens, tokenize(`${c.title} ${c.title} ${c.description}`)) * 100),
-    }))
-    .filter((c) => c.similarityPercent >= DUPLICATE_SIMILARITY_THRESHOLD * 100)
-    .sort((a, b) => b.similarityPercent - a.similarityPercent)
-    .slice(0, DUPLICATE_RESULT_LIMIT);
 }
 
 // ---------------------------------------------------------------------------
@@ -313,10 +239,6 @@ const TAG_SYSTEM_HINTS: Record<string, string> = {
   "ui-polish": "UI",
 };
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export function identifyAffectedSystems(bug: AiBugContext, allAreaNames: string[]): AffectedSystem[] {
   const systems: AffectedSystem[] = [];
   if (bug.areaName) {
@@ -343,170 +265,6 @@ export function identifyAffectedSystems(bug: AiBugContext, allAreaNames: string[
     systems.push({ name: "Unassigned", confidence: "possible", reason: "No area set and no other systems detected in the text — triage to assign an area." });
   }
   return systems;
-}
-
-// ---------------------------------------------------------------------------
-// Generate test case — converts the bug's own (cleaned) repro steps into a
-// regression-check test case draft, ready to hand to the test case form.
-// ---------------------------------------------------------------------------
-
-export type TestCaseDraft = {
-  title: string;
-  description: string;
-  preconditions: string;
-  steps: string;
-  expected: string;
-  priority: TestCasePriority;
-  categoryId: string | null;
-  platform: Platform;
-};
-
-const BUG_SEVERITY_TO_TEST_CASE_PRIORITY: Record<BugSeverity, TestCasePriority> = {
-  BLOCKER: "CRITICAL",
-  CRITICAL: "CRITICAL",
-  HIGH: "HIGH",
-  MEDIUM: "MEDIUM",
-  LOW: "LOW",
-};
-
-export function draftTestCaseFromBug(bug: AiBugContext): TestCaseDraft {
-  const { cleanedSteps } = reviewReproSteps(bug);
-  const steps =
-    cleanedSteps.length > 0
-      ? cleanedSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")
-      : `1. Reproduce the conditions described in BUG-${bug.number}.`;
-  const preconditions =
-    bug.map && bug.gameMode
-      ? `Player has access to ${bug.map} in ${bug.gameMode} mode.`
-      : "Player is in a normal play session.";
-
-  return {
-    title: `Regression check: ${bug.title}`,
-    description: `Verifies the fix for BUG-${bug.number} (${bug.title}) does not reoccur.`,
-    preconditions,
-    steps,
-    expected: bug.expectedResult ?? `The issue described in BUG-${bug.number} no longer reproduces.`,
-    priority: BUG_SEVERITY_TO_TEST_CASE_PRIORITY[bug.severity],
-    categoryId: bug.areaId,
-    platform: bug.platform,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Generate test case matrix — expands one bug into a small spread of related
-// test cases (the "Normal X / X after respawn / X under multiplayer
-// conditions / X at different frame rates" pattern a QA engineer would write
-// by hand). Every variant reuses the bug's own real repro steps as its
-// mechanical core; only the precondition and expected-result qualifier
-// change per variant, and only dimensions that actually make sense for the
-// bug's area are generated — never a "Localization at different frame
-// rates" case. The one variant with a real functional difference (a
-// different platform) only ever uses a platform the game actually supports.
-// ---------------------------------------------------------------------------
-
-export type TestCaseVariant = TestCaseDraft & { key: string };
-
-const AREA_TOPIC: Record<string, string> = {
-  physics: "collision",
-  movement: "movement",
-  combat: "combat",
-  audio: "audio playback",
-  networking: "network sync",
-  graphics: "rendering",
-  performance: "performance",
-  ui: "UI layout",
-  animation: "animation",
-  input: "input handling",
-  ai: "AI behavior",
-  accessibility: "accessibility",
-  localization: "localization",
-  gameplay: "gameplay",
-};
-
-type VariationDimension = {
-  key: string;
-  applicableAreas: string[];
-  buildTitle: (topic: string) => string;
-  precondition: string;
-  expectedSuffix: string;
-  extraFirstStep?: string;
-};
-
-const VARIATION_DIMENSIONS: VariationDimension[] = [
-  {
-    key: "after_respawn",
-    applicableAreas: ["physics", "combat", "movement", "gameplay", "ai"],
-    buildTitle: (topic) => `${topic} after respawn`,
-    precondition: "Player has just respawned.",
-    expectedSuffix: " immediately after respawning.",
-    extraFirstStep: "Respawn.",
-  },
-  {
-    key: "multiplayer",
-    applicableAreas: ["physics", "combat", "movement", "gameplay", "networking", "ai", "audio", "animation"],
-    buildTitle: (topic) => `${topic} under multiplayer conditions`,
-    precondition: "Player is in a multiplayer session with at least one other connected player.",
-    expectedSuffix: " with other players present in the session.",
-  },
-  {
-    key: "frame_rate",
-    applicableAreas: ["physics", "movement", "animation", "graphics", "performance", "combat"],
-    buildTitle: (topic) => `${topic} at different frame rates`,
-    precondition: "Frame rate is varied (e.g. capped at 30/60/144 fps) using debug/profiling tools.",
-    expectedSuffix: " consistently regardless of frame rate.",
-  },
-];
-
-function capitalizeFirst(text: string): string {
-  return text.length > 0 ? text.charAt(0).toUpperCase() + text.slice(1) : text;
-}
-
-function stripTrailingPunctuation(text: string): string {
-  return text.replace(/[.!?]+$/, "");
-}
-
-function renumberSteps(existingSteps: string, prependStep?: string): string {
-  const parsed = existingSteps
-    .split("\n")
-    .map((line) => line.replace(/^\d+\.\s*/, "").trim())
-    .filter(Boolean);
-  const all = prependStep ? [prependStep, ...parsed] : parsed;
-  return all.map((s, i) => `${i + 1}. ${s}`).join("\n");
-}
-
-export function generateTestCaseMatrix(bug: AiBugContext, gameSupportedPlatforms: Platform[]): TestCaseVariant[] {
-  const base = draftTestCaseFromBug(bug);
-  const areaKey = bug.areaName?.toLowerCase() ?? null;
-  const topic = (areaKey && AREA_TOPIC[areaKey]) || areaKey || "the reported issue";
-
-  const variants: TestCaseVariant[] = [
-    { ...base, key: "baseline", title: capitalizeFirst(`Normal ${topic}`) },
-  ];
-
-  for (const dim of VARIATION_DIMENSIONS) {
-    if (!areaKey || !dim.applicableAreas.includes(areaKey)) continue;
-    variants.push({
-      ...base,
-      key: dim.key,
-      title: capitalizeFirst(dim.buildTitle(topic)),
-      preconditions: dim.precondition,
-      steps: dim.extraFirstStep ? renumberSteps(base.steps, dim.extraFirstStep) : base.steps,
-      expected: `${stripTrailingPunctuation(base.expected)}${dim.expectedSuffix}`,
-    });
-  }
-
-  const otherPlatform = gameSupportedPlatforms.find((p) => p !== bug.platform);
-  if (otherPlatform) {
-    variants.push({
-      ...base,
-      key: "other_platform",
-      title: capitalizeFirst(`${topic} on ${PLATFORM_LABEL[otherPlatform]}`),
-      platform: otherPlatform,
-      expected: `${stripTrailingPunctuation(base.expected)} on ${PLATFORM_LABEL[otherPlatform]}.`,
-    });
-  }
-
-  return variants;
 }
 
 // ---------------------------------------------------------------------------
@@ -652,13 +410,6 @@ function extractLocationPhrase(text: string): string | null {
   return phrase.length >= 3 ? phrase : null;
 }
 
-function capitalizeSentence(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return trimmed;
-  const capitalized = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  return /[.!?]$/.test(capitalized) ? capitalized : `${capitalized}.`;
-}
-
 export function suggestReproSteps(rawText: string, latestBuildVersion: string | null): string[] {
   const cleaned = rawText.trim().replace(/\s+/g, " ");
   if (!cleaned) return [];
@@ -674,68 +425,4 @@ export function suggestReproSteps(rawText: string, latestBuildVersion: string | 
   steps.push("Observe whether the issue occurs as described.");
 
   return steps;
-}
-
-// ---------------------------------------------------------------------------
-// Analyze build release risk — combines four independent, real signals about
-// one build (open critical bugs, a regression-rate trend versus the previous
-// build, real test-coverage gaps, and a real cluster of high-priority bugs
-// sharing one game mode) into a release-risk band. Each concern only appears
-// when its underlying signal actually fired — an empty list means none of
-// these four checks found anything, not that the build is risk-free.
-// ---------------------------------------------------------------------------
-
-export type ReleaseRiskBand = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-
-export const RELEASE_RISK_META: Record<ReleaseRiskBand, { label: string; color: string }> = {
-  LOW: { label: "Low", color: "var(--bf-status-good)" },
-  MEDIUM: { label: "Medium", color: "var(--bf-status-warning)" },
-  HIGH: { label: "High", color: "var(--bf-brand)" },
-  CRITICAL: { label: "Critical", color: "var(--bf-status-critical)" },
-};
-
-export type BuildReleaseRiskAnalysis = { band: ReleaseRiskBand; score: number; concerns: string[] };
-
-export function analyzeBuildReleaseRisk(ctx: BuildRiskContext): BuildReleaseRiskAnalysis {
-  let score = 0;
-  const concerns: string[] = [];
-
-  if (ctx.criticalOpenCount > 0) {
-    score += Math.min(4, ctx.criticalOpenCount * 0.3);
-    concerns.push(
-      ctx.criticalOpenCount === 1
-        ? "1 critical bug remains open"
-        : `${ctx.criticalOpenCount} critical bugs remain open`
-    );
-  }
-
-  if (ctx.regressionRateDeltaPct !== null && ctx.regressionRateDeltaPct > 0) {
-    score += Math.min(2, ctx.regressionRateDeltaPct * 0.4);
-    concerns.push(`Regression rate increased ${ctx.regressionRateDeltaPct.toFixed(1)}% versus the previous build`);
-  }
-
-  for (const d of ctx.belowTargetDisciplines) {
-    score += 0.75;
-    concerns.push(
-      `${d.label} coverage is below target${d.coveragePercent !== null ? ` (${d.coveragePercent}%)` : " (no test cases mapped yet)"}`
-    );
-  }
-
-  if (ctx.clusteredHighPriority) {
-    score += 1;
-    concerns.push(
-      `${ctx.clusteredHighPriority.count} high-priority bugs affect the same game mode (${ctx.clusteredHighPriority.gameMode})`
-    );
-  }
-
-  if (ctx.status === "RELEASE_CANDIDATE" || ctx.status === "RELEASED") {
-    score += 0.5; // Same build, less runway — closer to release amplifies every other concern.
-  }
-
-  if (concerns.length === 0) {
-    concerns.push("No significant release-risk signals found for this build.");
-  }
-
-  const band: ReleaseRiskBand = score >= 5 ? "CRITICAL" : score >= 3 ? "HIGH" : score >= 1.25 ? "MEDIUM" : "LOW";
-  return { band, score, concerns };
 }

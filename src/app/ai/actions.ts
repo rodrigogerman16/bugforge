@@ -13,20 +13,18 @@ import {
 import {
   suggestSeverity,
   suggestPriority,
-  findDuplicateCandidates,
   reviewReproSteps,
   summarizeBug,
   identifyAffectedSystems,
-  generateTestCaseMatrix,
   analyzeRegressionRisk,
   buildQuickAnalysis,
   suggestReproSteps,
-  analyzeBuildReleaseRisk,
   type BugQuickAnalysis,
-  type BuildReleaseRiskAnalysis,
-} from "@/lib/ai/heuristics";
-import type { AiActionKey, AiResult, AnalyzeReport } from "@/lib/ai/types";
-import type { DuplicateCandidate } from "@/lib/ai/heuristics";
+} from "@/lib/ai/bug-analysis";
+import { findDuplicateCandidates, type DuplicateCandidate } from "@/lib/ai/duplicate-detection";
+import { generateTestCaseMatrix } from "@/lib/ai/test-generation";
+import { analyzeBuildReleaseRisk, type BuildReleaseRiskAnalysis } from "@/lib/ai/release-analysis";
+import { composeAnalyzeReport, type AiActionKey, type AiResult, type AnalyzeReport } from "@/lib/ai/chat";
 
 export type AiBugHeader = {
   id: string;
@@ -41,7 +39,7 @@ export type AiBugHeader = {
 
 // Lightweight bug lookup for the assistant panel's context bar — deliberately
 // separate from getBugForAi so opening the panel never pulls the full
-// heuristics payload before an action is actually run.
+// analysis payload before an action is actually run.
 export async function getAiBugHeader(bugId: string): Promise<AiBugHeader | null> {
   const bug = await getBugForAi(bugId);
   if (!bug) return null;
@@ -109,13 +107,7 @@ async function buildAnalyzeReport(bug: AiBugContext): Promise<AnalyzeReport> {
     getAreas(),
   ]);
 
-  return {
-    severity: suggestSeverity(bug),
-    priority: suggestPriority(bug, areaRisk),
-    topDuplicates: findDuplicateCandidates(bug, duplicateCandidates).slice(0, 3),
-    affectedSystems: identifyAffectedSystems(bug, areas.map((a) => a.name)),
-    regressionRisk: analyzeRegressionRisk(bug, areaRisk),
-  };
+  return composeAnalyzeReport(bug, duplicateCandidates, areaRisk, areas.map((a) => a.name));
 }
 
 export async function runAiAction(bugId: string, action: AiActionKey): Promise<AiResult | null> {

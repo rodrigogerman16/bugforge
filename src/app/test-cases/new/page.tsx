@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getShellGames, getAreas, getBugForAi } from "@/lib/data";
-import { draftTestCaseFromBug } from "@/lib/ai/heuristics";
+import { draftTestCaseFromBug } from "@/lib/ai/test-generation";
 import { TestCaseForm } from "@/components/test-cases/test-case-form";
 
 export default async function NewTestCasePage({

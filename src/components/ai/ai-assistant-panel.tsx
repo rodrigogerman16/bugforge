@@ -21,7 +21,7 @@ import {
 import { useShellUI } from "@/components/shell-ui-provider";
 import { SEVERITY_META } from "@/lib/severity";
 import { BUG_STATUS_META } from "@/lib/status-labels";
-import { AI_ACTIONS, type AiActionKey, type AiResult } from "@/lib/ai/types";
+import { AI_ACTIONS, type AiActionKey, type AiResult } from "@/lib/ai/chat";
 import { runAiAction, getAiBugHeader, type AiBugHeader } from "@/app/ai/actions";
 import { AiResultView } from "@/components/ai/ai-action-results";
 import { cn } from "@/lib/utils";

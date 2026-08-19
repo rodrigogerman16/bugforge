@@ -4,8 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles, ChevronDown, TriangleAlert } from "lucide-react";
 import { SEVERITY_META } from "@/lib/severity";
-import { REGRESSION_RISK_META } from "@/lib/ai/heuristics";
-import type { BugQuickAnalysis } from "@/lib/ai/heuristics";
+import { REGRESSION_RISK_META, type BugQuickAnalysis } from "@/lib/ai/bug-analysis";
 import { cn } from "@/lib/utils";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
