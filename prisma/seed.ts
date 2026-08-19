@@ -446,6 +446,257 @@ const BUG_DEFS: Record<string, BugDef[]> = {
   ],
 };
 
+// The explicit QA bug-type taxonomy a real QA platform demo needs to show —
+// Visual / Audio / Gameplay / Networking / Performance / Localization /
+// Accessibility, each with its own concrete named types (texture missing,
+// desync, FPS drops, ...). These aren't picked at random like BUG_DEFS
+// above: every game seeds one of each (see the per-game bug loop), so the
+// specific bug types below are guaranteed to actually exist in the demo
+// data rather than left to chance, each filed under the real Area it
+// belongs to and tagged with its category (see the tags list above).
+type QaBugType = { category: string; type: string; area: string; def: BugDef };
+
+const QA_BUG_TYPES: QaBugType[] = [
+  // Visual
+  {
+    category: "visual",
+    type: "Texture missing",
+    area: "Graphics",
+    def: {
+      title: "Weapon texture missing after equipping from the vendor",
+      expected: "Every equipped weapon renders with its full texture set.",
+      actual: "The weapon renders with the default missing-texture checkerboard pattern.",
+      trigger: "Equip a weapon purchased from the vendor.",
+    },
+  },
+  {
+    category: "visual",
+    type: "Animation clipping",
+    area: "Animation",
+    def: {
+      title: "Cape cosmetic clips through the character's back during the run animation",
+      expected: "Cosmetic geometry stays outside the character mesh through every animation.",
+      actual: "The cape clips through the character's back while running.",
+      trigger: "Equip a cape cosmetic and start running.",
+    },
+  },
+  {
+    category: "visual",
+    type: "UI overlap",
+    area: "UI",
+    def: {
+      title: "UI overlaps the objective marker at ultrawide resolution",
+      expected: "HUD elements never overlap each other at any supported resolution.",
+      actual: "At ultrawide resolution, the buff tray overlaps and obscures the objective marker.",
+      trigger: "Switch to an ultrawide resolution and check the HUD during an active objective.",
+    },
+  },
+  {
+    category: "visual",
+    type: "Lighting issue",
+    area: "Graphics",
+    def: {
+      title: "Dynamic lighting doesn't update after a light source is destroyed",
+      expected: "Scene lighting updates immediately when a light source is destroyed.",
+      actual: "Light from the source lingers for several seconds after it's destroyed.",
+      trigger: "Destroy a dynamic light source (e.g. a lamp or torch) and observe the surrounding lighting.",
+    },
+  },
+  // Audio
+  {
+    category: "audio",
+    type: "Missing sound",
+    area: "Audio",
+    def: {
+      title: "Reload sound effect missing on the tier-3 rifle",
+      expected: "Every weapon plays its reload SFX on every reload.",
+      actual: "The tier-3 rifle reloads completely silently.",
+      trigger: "Equip the tier-3 rifle and reload.",
+    },
+  },
+  {
+    category: "audio",
+    type: "Audio stutter",
+    area: "Audio",
+    def: {
+      title: "Ambient audio stutters when entering a new zone",
+      expected: "Ambient audio streams in smoothly with no stutter when entering a new zone.",
+      actual: "Ambient audio stutters and briefly loops for about a second when entering a new zone.",
+      trigger: "Cross a zone boundary and listen to the ambient audio.",
+    },
+  },
+  {
+    category: "audio",
+    type: "Incorrect sound trigger",
+    area: "Audio",
+    def: {
+      title: "Victory fanfare plays on a match loss",
+      expected: "The victory fanfare only plays when the match is won.",
+      actual: "The victory fanfare plays even when the match ends in a loss.",
+      trigger: "Finish a match as the losing team.",
+    },
+  },
+  // Gameplay
+  {
+    category: "gameplay",
+    type: "Character collision",
+    area: "Physics",
+    def: {
+      title: "Character collides incorrectly with low railings, stopping instead of stepping over",
+      expected: "Low railings are stepped over automatically like other minor obstacles.",
+      actual: "The character's collision treats a low railing as a full wall and stops movement.",
+      trigger: "Walk directly into a low railing.",
+    },
+  },
+  {
+    category: "gameplay",
+    type: "Weapon damage incorrect",
+    area: "Combat",
+    def: {
+      title: "Weapon damage incorrect at long range, exceeding the listed falloff",
+      expected: "Damage falls off with range exactly per the weapon's listed damage falloff curve.",
+      actual: "Damage at long range exceeds the listed falloff value.",
+      trigger: "Hit a target at long range with a weapon that has a damage falloff curve and compare to the listed values.",
+    },
+  },
+  {
+    category: "gameplay",
+    type: "Quest cannot progress",
+    area: "Gameplay",
+    def: {
+      title: "Quest cannot progress past turning in the first delivery item",
+      expected: "Turning in the delivery item advances the quest to the next step.",
+      actual: "The quest stays on the same step indefinitely after turning in the item.",
+      trigger: "Complete the first delivery objective and turn in the item to the quest giver.",
+    },
+  },
+  // Networking
+  {
+    category: "networking",
+    type: "Desync",
+    area: "Networking",
+    def: {
+      title: "Positional desync between clients during a large team fight",
+      expected: "All clients agree on player positions within normal network tolerance.",
+      actual: "Clients visibly disagree on player positions during large team fights.",
+      trigger: "Enter a team fight with 6+ players engaged simultaneously.",
+    },
+  },
+  {
+    category: "networking",
+    type: "Disconnect",
+    area: "Networking",
+    def: {
+      title: "Player randomly disconnected mid-match with no error message",
+      expected: "Players stay connected for the duration of a match barring a real network failure.",
+      actual: "A player is disconnected from the match with no error message and can't reconnect.",
+      trigger: "Play a full match session and monitor for unexpected disconnects.",
+    },
+  },
+  {
+    category: "networking",
+    type: "Matchmaking failure",
+    area: "Networking",
+    def: {
+      title: "Matchmaking fails after party reconnect",
+      expected: "A party that reconnects can re-enter matchmaking normally.",
+      actual: "Matchmaking fails silently for a party that just reconnected, with no retry or error shown.",
+      trigger: "Have a party disconnect and reconnect, then queue for matchmaking.",
+    },
+  },
+  // Performance
+  {
+    category: "performance",
+    type: "FPS drops",
+    area: "Performance",
+    def: {
+      title: "FPS drops sharply when multiple players cast abilities simultaneously",
+      expected: "Frame rate stays within the normal range during simultaneous ability casts.",
+      actual: "Frame rate drops sharply when 3+ players cast abilities at the same time.",
+      trigger: "Have 3 or more players cast abilities at the same moment.",
+    },
+  },
+  {
+    category: "performance",
+    type: "Memory spike",
+    area: "Performance",
+    def: {
+      title: "Memory spikes sharply when opening the crafting menu",
+      expected: "Memory usage stays stable when opening any menu.",
+      actual: "Memory usage spikes sharply and doesn't fully return to baseline after closing the crafting menu.",
+      trigger: "Open and close the crafting menu several times in a row.",
+    },
+  },
+  {
+    category: "performance",
+    type: "Loading issue",
+    area: "Performance",
+    def: {
+      title: "Game hangs on the loading screen after a level transition",
+      expected: "Level transitions complete within a normal loading window.",
+      actual: "The loading screen occasionally hangs indefinitely after a level transition, requiring a restart.",
+      trigger: "Trigger a level transition and wait through the loading screen.",
+    },
+  },
+  // Localization
+  {
+    category: "localization",
+    type: "Text overflow",
+    area: "Localization",
+    def: {
+      title: "Menu button label text overflows its button in French",
+      expected: "Button label text wraps or scales to fit within the button in every supported language.",
+      actual: "French button labels overflow past the edges of the button.",
+      trigger: "Set the game language to French and open any menu with labeled buttons.",
+    },
+  },
+  {
+    category: "localization",
+    type: "Incorrect translation",
+    area: "Localization",
+    def: {
+      title: "Incorrect translation on the pause menu's \"Resume\" button in Spanish",
+      expected: "Every menu string has an accurate translation for each supported language.",
+      actual: "The Spanish translation for \"Resume\" actually reads as \"Restart\" — a mistranslation, not a placeholder.",
+      trigger: "Set the game language to Spanish and open the pause menu.",
+    },
+  },
+  // Accessibility
+  {
+    category: "accessibility",
+    type: "Subtitle issue",
+    area: "Accessibility",
+    def: {
+      title: "Subtitles fail to appear for overlapping dialogue lines",
+      expected: "Every spoken line gets a subtitle, even when two lines overlap.",
+      actual: "When two dialogue lines overlap, only one gets a subtitle — the other is silently dropped.",
+      trigger: "Trigger a scene where two NPCs speak with overlapping dialogue.",
+    },
+  },
+  {
+    category: "accessibility",
+    type: "Contrast issue",
+    area: "Accessibility",
+    def: {
+      title: "Low-contrast UI text is unreadable in high-contrast mode",
+      expected: "High-contrast mode raises text-to-background contrast to meet accessibility guidelines.",
+      actual: "Some UI text stays at its low-contrast default color even with high-contrast mode enabled.",
+      trigger: "Enable high-contrast mode and check text readability across menus.",
+    },
+  },
+  {
+    category: "accessibility",
+    type: "Controller navigation issue",
+    area: "Accessibility",
+    def: {
+      title: "Controller navigation gets stuck between two menu tabs",
+      expected: "D-pad/stick navigation can reach every focusable element in the menu.",
+      actual: "Navigating with a controller loops between two tabs and can't reach the rest of the menu.",
+      trigger: "Open the settings menu with a controller and navigate using the D-pad.",
+    },
+  },
+];
+
 const MAPS = [
   "Industrial District",
   "Frostbite Canyon",
@@ -1033,6 +1284,14 @@ async function main() {
       { name: "ui-polish", color: "#6366f1" },
       { name: "networking", color: "#2a78d6" },
       { name: "audio", color: "#d6409f" },
+      // One tag per QA bug-type category (see QA_BUG_TYPES below) not
+      // already covered above — gives the Tags/filter UI a real way to
+      // browse "what kind of bug is this" the way an actual QA platform
+      // would, not just severity/area.
+      { name: "visual", color: "#a855f7" },
+      { name: "gameplay", color: "#22c55e" },
+      { name: "localization", color: "#14b8a6" },
+      { name: "accessibility", color: "#eab308" },
     ].map((t) => prisma.tag.create({ data: t }))
   );
 
@@ -1199,9 +1458,19 @@ async function main() {
 
     const gameBugs: Bug[] = [];
     const bugCount = 60 + Math.floor(Math.random() * 20);
+
+    // Every game gets one bug of each named QA type (see QA_BUG_TYPES) —
+    // guaranteed, not left to chance, so the demo data actually shows the
+    // full Visual/Audio/Gameplay/Networking/Performance/Localization/
+    // Accessibility taxonomy rather than whatever a random draw happens to
+    // produce. Shuffled per game so which of bugCount's slots gets a
+    // guaranteed type (vs. a fully random one) isn't the same every time.
+    const guaranteedQueue = [...QA_BUG_TYPES].sort(() => Math.random() - 0.5);
+
     for (let i = 0; i < bugCount; i++) {
-      const area = pick(areas);
-      const bugDef = pick(BUG_DEFS[area.name]);
+      const guaranteed = i < guaranteedQueue.length ? guaranteedQueue[i] : null;
+      const area = guaranteed ? areas.find((a) => a.name === guaranteed.area)! : pick(areas);
+      const bugDef = guaranteed ? guaranteed.def : pick(BUG_DEFS[area.name]);
       const severity = pick(weightedPool);
       const priority = pick(priorityPool);
       const build = pick(builds);
@@ -1325,7 +1594,17 @@ async function main() {
           areaId: area.id,
           reportedById,
           assignedToId,
-          tags: { connect: pickSome(tags, 2).map((t) => ({ id: t.id })) },
+          tags: {
+            connect: guaranteed
+              ? [
+                  tags.find((t) => t.name === guaranteed.category)!,
+                  ...pickSome(
+                    tags.filter((t) => t.name !== guaranteed.category),
+                    1
+                  ),
+                ].map((t) => ({ id: t.id }))
+              : pickSome(tags, 2).map((t) => ({ id: t.id })),
+          },
           evidence: { create: evidenceCreates },
           createdAt: daysAgo(discoveredDaysAgo),
           updatedAt: daysAgo(resolvedDaysAgo),
