@@ -44,7 +44,45 @@ export default async function TestCasesPage({
       {testCases.length === 0 ? (
         <p className="text-sm text-[color:var(--bf-ink-muted)]">No test cases found.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-[color:var(--bf-border)]">
+        <>
+          <ul className="space-y-2 md:hidden">
+            {testCases.map((tc) => {
+              const priorityMeta = TEST_CASE_PRIORITY_META[tc.priority];
+              const statusMeta = TEST_CASE_STATUS_META[tc.status];
+              return (
+                <li key={tc.id} className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3">
+                  <Link href={`/test-cases/${tc.id}`} className="font-mono text-[11px] text-[color:var(--bf-ink-muted)]">
+                    TC-{String(tc.number).padStart(5, "0")}
+                  </Link>
+                  <Link href={`/test-cases/${tc.id}`} className="mt-0.5 block text-[13px] font-medium leading-snug text-[color:var(--bf-ink-primary)]">
+                    {tc.title}
+                  </Link>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    <span className="font-medium" style={{ color: priorityMeta.color }}>
+                      {priorityMeta.label}
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium" style={{ color: statusMeta.color }}>
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: statusMeta.color }} />
+                      {statusMeta.label}
+                    </span>
+                    <span className="text-[color:var(--bf-ink-muted)]">{PLATFORM_LABEL[tc.platform]}</span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 text-[11px] text-[color:var(--bf-ink-muted)]">
+                    {tc.category?.name && <span>{tc.category.name}</span>}
+                    <span>{tc.latestRunAt ? `Last run ${formatRelativeTime(tc.latestRunAt)}` : "Never run"}</span>
+                  </div>
+                  <Link
+                    href={`/test-cases/${tc.id}/execute`}
+                    className="mt-3 flex items-center justify-center rounded-md border border-[color:var(--bf-brand)]/30 py-1.5 text-[12px] font-medium text-[color:var(--bf-brand)]"
+                  >
+                    Execute
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+        <div className="hidden overflow-hidden rounded-lg border border-[color:var(--bf-border)] md:block">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] text-left text-[12px] text-[color:var(--bf-ink-muted)]">
@@ -95,6 +133,7 @@ export default async function TestCasesPage({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

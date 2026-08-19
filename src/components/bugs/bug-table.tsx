@@ -177,12 +177,14 @@ export function BugTable({
           <div />
         )}
 
+        {/* Column visibility only means something for the table — the
+            mobile card layout below always shows the same fixed summary. */}
         <Dropdown
           align="right"
           trigger={({ toggle }) => (
             <button
               onClick={toggle}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-2.5 py-1.5 text-[12px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)]"
+              className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-2.5 py-1.5 text-[12px] text-[color:var(--bf-ink-secondary)] hover:border-[color:var(--bf-border-strong)] md:flex"
             >
               <Settings2 size={13} />
               Columns
@@ -215,7 +217,73 @@ export function BugTable({
           No bugs match this filter.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-[color:var(--bf-border)]">
+        <>
+          {/* Cards on mobile — a 900px-min table forced into a phone-width
+              viewport is unreadable no matter how it scrolls, and "bug
+              review" is a named mobile priority. Same data, same selection
+              state, same bulk actions bar above; just a layout that fits. */}
+          <ul className="space-y-2 md:hidden">
+            {bugs.map((bug) => (
+              <li
+                key={bug.id}
+                className={cn(
+                  "rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-3",
+                  selected.has(bug.id) && "border-[color:var(--bf-brand)]/40 bg-[color:var(--bf-brand-soft)]"
+                )}
+              >
+                <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(bug.id)}
+                    onChange={() => toggleRow(bug.id)}
+                    className="mt-1 shrink-0 accent-[color:var(--bf-brand)]"
+                    aria-label={`Select BUG-${bug.number}`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-[11px] text-[color:var(--bf-ink-muted)]">
+                      <span className="font-mono">BUG-{bug.number}</span>
+                      {showGameColumn && (
+                        <span className="flex items-center gap-1 truncate">
+                          <span className="h-2 w-2 shrink-0 rounded" style={{ backgroundColor: bug.game.coverColor }} />
+                          {bug.game.name}
+                        </span>
+                      )}
+                    </div>
+                    <Link
+                      href={`/bugs/${bug.id}`}
+                      className="mt-0.5 block text-[13px] font-medium leading-snug text-[color:var(--bf-ink-primary)]"
+                    >
+                      {bug.title}
+                    </Link>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: SEVERITY_META[bug.severity].color }} />
+                        <span className="text-[11px] font-medium" style={{ color: SEVERITY_META[bug.severity].color }}>
+                          {SEVERITY_META[bug.severity].label}
+                        </span>
+                      </span>
+                      <PriorityBadge priority={bug.priority} />
+                      <StatusBadge status={bug.status} />
+                      {bug.isRegression && (
+                        <span className="flex items-center gap-1 text-[10px] text-[color:var(--bf-status-warning)]">
+                          <RotateCcw size={10} />
+                          Regressed
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-[color:var(--bf-ink-muted)]">
+                      {bug.area?.name && <span>{bug.area.name}</span>}
+                      <span className="font-mono">{bug.build.version}</span>
+                      <span>{bug.assignedTo?.name ?? "Unassigned"}</span>
+                      <span>{formatRelativeTime(bug.updatedAt)}</span>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+        <div className="hidden overflow-x-auto rounded-lg border border-[color:var(--bf-border)] md:block">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-[color:var(--bf-surface)] text-[11px] uppercase tracking-wide text-[color:var(--bf-ink-muted)]">
               <tr>
@@ -360,6 +428,7 @@ export function BugTable({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

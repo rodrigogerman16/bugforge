@@ -24,6 +24,9 @@ type ShellUIContextValue = {
   toasts: Toast[];
   pushToast: (message: string, tone?: ToastTone) => void;
   dismissToast: (id: string) => void;
+  mobileNotificationsOpen: boolean;
+  openMobileNotifications: () => void;
+  closeMobileNotifications: () => void;
 };
 
 export type ToastTone = "success" | "error" | "info";
@@ -63,6 +66,14 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
     const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, tone }]);
     setTimeout(() => dismissToast(id), 3200);
+  }
+
+  const [mobileNotificationsOpen, setMobileNotificationsOpen] = useState(false);
+  function openMobileNotifications() {
+    setMobileNotificationsOpen(true);
+  }
+  function closeMobileNotifications() {
+    setMobileNotificationsOpen(false);
   }
 
   useEffect(() => {
@@ -110,6 +121,9 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
         toasts,
         pushToast,
         dismissToast,
+        mobileNotificationsOpen,
+        openMobileNotifications,
+        closeMobileNotifications,
       }}
     >
       {/* reducedMotion="user" makes every Motion animation in the app

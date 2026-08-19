@@ -62,6 +62,7 @@ export function EvidenceViewer({
   const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const item = items[index];
   const meta = TYPE_META[item.type];
   const Icon = meta.icon;
@@ -86,6 +87,28 @@ export function EvidenceViewer({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [items.length, onClose]);
+
+  // Swipe navigation for touch devices — the only way to move between
+  // evidence on mobile, since there's no hover to reveal the chevrons'
+  // affordance and reaching across a phone screen to tap them is awkward.
+  // Disabled while zoomed into an image so a horizontal pan to inspect
+  // detail doesn't get mistaken for "next item."
+  function onTouchStart(e: React.TouchEvent) {
+    if (items.length < 2) return;
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start || zoom > 1) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    // Require a real, deliberate horizontal swipe — not a tap, and not a
+    // vertical scroll/drag that happens to have some horizontal drift.
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (dx > 0) setIndex((i) => Math.max(0, i - 1));
+    else setIndex((i) => Math.min(items.length - 1, i + 1));
+  }
 
   function toggleFullscreen() {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -153,7 +176,11 @@ export function EvidenceViewer({
         </div>
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-6 pb-4 sm:px-16">
+      <div
+        className="relative flex flex-1 items-center justify-center overflow-hidden px-6 pb-4 sm:px-16"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         {items.length > 1 && (
           <button
             onClick={() => setIndex((i) => Math.max(0, i - 1))}

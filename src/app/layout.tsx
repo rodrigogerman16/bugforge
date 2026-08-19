@@ -12,6 +12,8 @@ import { GlobalKeyboardShortcuts } from "@/components/global-keyboard-shortcuts"
 import { KeyboardShortcutsModal } from "@/components/keyboard-shortcuts-modal";
 import { ToastStack } from "@/components/toast-stack";
 import { PageTransition } from "@/components/page-transition";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { MobileNotificationsSheet } from "@/components/notifications/mobile-notifications-sheet";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/data";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/supabase/server";
@@ -72,7 +74,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
               <Suspense fallback={null}>
                 <ShellMobileNav games={games} />
               </Suspense>
-              <main className="min-w-0 flex-1 overflow-y-auto">
+              <main className="min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
                 <PageTransition>{children}</PageTransition>
               </main>
             </div>
@@ -87,6 +89,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </Suspense>
           <KeyboardShortcutsModal />
           <ToastStack />
+          <MobileBottomNav unreadCount={notifications.filter((n) => !n.read).length} />
+          <MobileNotificationsSheet notifications={notifications} userId={user.id} />
         </ShellUIProvider>
       </body>
     </html>

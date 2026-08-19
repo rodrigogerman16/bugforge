@@ -50,7 +50,7 @@ export function BugCreateModal() {
   return (
     <AnimatePresence>
       {bugCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-stretch justify-center sm:items-center sm:p-4">
           <motion.div
             variants={fadeIn}
             initial="initial"
@@ -58,9 +58,13 @@ export function BugCreateModal() {
             exit="exit"
             transition={fastTransition}
             onClick={closeBugCreateModal}
-            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[1px] sm:block"
           />
 
+          {/* Full-screen sheet on mobile — bug creation is a top mobile
+              priority, and a centered dialog squeezed onto a small screen
+              wastes most of the viewport on backdrop. From sm: up it's the
+              regular centered dialog. */}
           <motion.div
             variants={fadeScaleIn}
             initial="initial"
@@ -70,7 +74,7 @@ export function BugCreateModal() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="bug-create-modal-title"
-            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[color:var(--bf-border-strong)] bg-[color:var(--bf-page)] shadow-2xl shadow-black/50"
+            className="relative flex h-full w-full flex-col overflow-hidden bg-[color:var(--bf-page)] shadow-2xl shadow-black/50 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:rounded-xl sm:border sm:border-[color:var(--bf-border-strong)]"
           >
         <div className="flex shrink-0 items-center justify-between border-b border-[color:var(--bf-border)] px-5 py-4">
           <div>
@@ -84,13 +88,13 @@ export function BugCreateModal() {
           <button
             onClick={closeBugCreateModal}
             aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)]"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-[color:var(--bf-ink-muted)] hover:bg-[color:var(--bf-surface)] hover:text-[color:var(--bf-ink-primary)] sm:h-8 sm:w-8"
           >
             <X size={16} />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           {!options || isLoadingOptions ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[13px] text-[color:var(--bf-ink-muted)]">
               <Loader2 size={14} className="animate-spin" />
