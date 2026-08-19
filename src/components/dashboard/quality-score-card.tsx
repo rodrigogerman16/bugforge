@@ -1,12 +1,41 @@
-import { QUALITY_BAND_META, qualityBand } from "@/lib/quality-score";
+import { QUALITY_BAND_META, qualityBand, type QualityScoreFactorBreakdown } from "@/lib/quality-score";
 import { SEVERITY_ORDER, SEVERITY_META, type SeverityCounts } from "@/lib/severity";
+
+// Item 67: "make the individual factors visible" — every factor
+// computeGameQualityScore actually weighed into the total is listed here
+// with its own sub-score and the real weight it carried (never hidden
+// behind just the one final number), plus a note when a factor had no data
+// yet rather than silently treating it as perfect or zero.
+function FactorRow({ factor }: { factor: QualityScoreFactorBreakdown }) {
+  const band = QUALITY_BAND_META[qualityBand(factor.subScore)];
+  return (
+    <div className="flex items-center justify-between gap-3 py-1.5">
+      <div className="min-w-0">
+        <p className="truncate text-[12px] text-[color:var(--bf-ink-secondary)]">{factor.label}</p>
+        <p className="text-[11px] text-[color:var(--bf-ink-muted)]">
+          {factor.valueLabel}
+          {factor.available && ` · weighted ${Math.round(factor.weight * 100)}%`}
+        </p>
+      </div>
+      {factor.available ? (
+        <span className="shrink-0 text-[12px] font-semibold" style={{ color: band.color }}>
+          {factor.subScore}
+        </span>
+      ) : (
+        <span className="shrink-0 text-[11px] text-[color:var(--bf-ink-muted)]">excluded</span>
+      )}
+    </div>
+  );
+}
 
 export function QualityScoreCard({
   score,
   openSeverityCounts,
+  factors,
 }: {
   score: number;
   openSeverityCounts: SeverityCounts;
+  factors?: QualityScoreFactorBreakdown[];
 }) {
   const band = QUALITY_BAND_META[qualityBand(score)];
   const openTotal = SEVERITY_ORDER.reduce((sum, sev) => sum + openSeverityCounts[sev], 0);
@@ -54,6 +83,14 @@ export function QualityScoreCard({
           ))
         )}
       </div>
+
+      {factors && factors.length > 0 && (
+        <div className="mt-4 border-t border-[color:var(--bf-border)] pt-1 divide-y divide-[color:var(--bf-border)]">
+          {factors.map((factor) => (
+            <FactorRow key={factor.key} factor={factor} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

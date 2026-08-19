@@ -1,6 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { computeQualityScore, qualityBand } from "@/lib/quality-score";
+import { computeQualityScore, computeGameQualityScore, qualityBand, type QualityScoreFactors } from "@/lib/quality-score";
 import { emptySeverityCounts } from "@/lib/severity";
+
+function perfectFactors(overrides: Partial<QualityScoreFactors> = {}): QualityScoreFactors {
+  return {
+    openSeverityCounts: emptySeverityCounts(),
+    openHighPriorityCount: 0,
+    testPassRate: 100,
+    regressionRate: 0,
+    coverage: 100,
+    resolutionVelocityHours: 0,
+    ...overrides,
+  };
+}
 
 describe("computeQualityScore", () => {
   it("scores a game with nothing open as perfect", () => {
@@ -37,6 +49,84 @@ describe("computeQualityScore", () => {
     // zero counts must always mean 100 regardless of how bad the game's
     // total bug count might be elsewhere.
     expect(computeQualityScore(emptySeverityCounts())).toBe(100);
+  });
+});
+
+describe("computeGameQualityScore", () => {
+  it("scores a game perfect on every factor as 100", () => {
+    const result = computeGameQualityScore(perfectFactors());
+    expect(result.score).toBe(100);
+    expect(result.band).toBe("HEALTHY");
+  });
+
+  it("every factor's weight sums to 1 when all data is available", () => {
+    const result = computeGameQualityScore(perfectFactors());
+    const totalWeight = result.factors.reduce((sum, f) => sum + f.weight, 0);
+    expect(totalWeight).toBeCloseTo(1, 5);
+  });
+
+  it("excludes a factor with no data and redistributes its weight, rather than penalizing missing data", () => {
+    const withData = computeGameQualityScore(perfectFactors());
+    const noTestRuns = computeGameQualityScore(perfectFactors({ testPassRate: null }));
+
+    const testPassFactor = noTestRuns.factors.find((f) => f.key === "testPassRate")!;
+    expect(testPassFactor.available).toBe(false);
+    expect(testPassFactor.weight).toBe(0);
+
+    // Every other factor is still perfect, so excluding test pass rate
+    // (rather than treating missing data as a 0) must not lower the score.
+    expect(noTestRuns.score).toBe(withData.score);
+
+    const totalWeight = noTestRuns.factors.reduce((sum, f) => sum + f.weight, 0);
+    expect(totalWeight).toBeCloseTo(1, 5);
+  });
+
+  it("still produces a real 0-100 score from only the always-available factors (bug health, high-priority count, regression rate) when every nullable factor is unavailable", () => {
+    const result = computeGameQualityScore({
+      openSeverityCounts: emptySeverityCounts(),
+      openHighPriorityCount: 0,
+      testPassRate: null,
+      regressionRate: 0,
+      coverage: null,
+      resolutionVelocityHours: null,
+    });
+    expect(result.score).toBe(100);
+    const totalWeight = result.factors.reduce((sum, f) => sum + f.weight, 0);
+    expect(totalWeight).toBeCloseTo(1, 5);
+    expect(result.factors.find((f) => f.key === "testPassRate")!.available).toBe(false);
+    expect(result.factors.find((f) => f.key === "coverage")!.available).toBe(false);
+    expect(result.factors.find((f) => f.key === "velocity")!.available).toBe(false);
+  });
+
+  it("penalizes open high-priority bugs independently of severity", () => {
+    const result = computeGameQualityScore(perfectFactors({ openHighPriorityCount: 5 }));
+    expect(result.score).toBeLessThan(100);
+  });
+
+  it("a 2% regression rate — item 68's own example threshold — is a real, visible penalty", () => {
+    const clean = computeGameQualityScore(perfectFactors());
+    const regressed = computeGameQualityScore(perfectFactors({ regressionRate: 2 }));
+    expect(regressed.score).toBeLessThan(clean.score);
+  });
+
+  it("every returned factor carries a human-readable value label", () => {
+    const result = computeGameQualityScore(perfectFactors({ testPassRate: null, coverage: null, resolutionVelocityHours: null }));
+    for (const factor of result.factors) {
+      expect(factor.valueLabel.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("never produces a score outside 0-100 even at the worst possible inputs", () => {
+    const result = computeGameQualityScore({
+      openSeverityCounts: { BLOCKER: 50, CRITICAL: 50, HIGH: 50, MEDIUM: 50, LOW: 50 },
+      openHighPriorityCount: 50,
+      testPassRate: 0,
+      regressionRate: 100,
+      coverage: 0,
+      resolutionVelocityHours: 10_000,
+    });
+    expect(result.score).toBeGreaterThanOrEqual(0);
+    expect(result.score).toBeLessThanOrEqual(100);
   });
 });
 

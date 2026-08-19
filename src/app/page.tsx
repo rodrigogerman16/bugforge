@@ -35,6 +35,7 @@ export default async function DashboardPage({
   const headerGame = games.length === 1 ? games[0] : null;
   const heroScore = headerGame ? headerGame.qualityScore : stats.aggregateQualityScore;
   const heroOpenCounts = headerGame ? headerGame.openSeverityCounts : stats.aggregateOpenSeverityCounts;
+  const heroFactors = headerGame ? headerGame.qualityFactors : stats.aggregateQualityFactors;
   const buildHealthBand = QUALITY_BAND_META[headerGame ? headerGame.qualityBand : stats.aggregateQualityBand];
 
   return (
@@ -54,7 +55,7 @@ export default async function DashboardPage({
       </header>
 
       <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
-        <QualityScoreCard score={heroScore} openSeverityCounts={heroOpenCounts} />
+        <QualityScoreCard score={heroScore} openSeverityCounts={heroOpenCounts} factors={heroFactors} />
         <div className="min-w-0">
           <div className="mb-2 flex justify-end">
             <TrendRangeToggle active={range} />
