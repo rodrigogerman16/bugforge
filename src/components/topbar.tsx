@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Search, Sparkles } from "lucide-react";
+import { Menu, Search, Sparkles, Keyboard } from "lucide-react";
 import { useShellUI } from "@/components/shell-ui-provider";
 import { Brand } from "@/components/brand";
 import { NotificationsMenu } from "@/components/notifications-menu";
@@ -16,7 +16,7 @@ export function TopBar({
   notifications: NotificationSummary[];
   authConfigured: boolean;
 }) {
-  const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen } = useShellUI();
+  const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen, openShortcutsHelp } = useShellUI();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-[color:var(--bf-border)] bg-[color:var(--bf-page)] px-4 sm:px-6">
@@ -59,6 +59,15 @@ export function TopBar({
       >
         <Sparkles size={13} />
         <span className="hidden sm:inline">BugForge AI</span>
+      </button>
+
+      <button
+        onClick={openShortcutsHelp}
+        className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[color:var(--bf-ink-secondary)] hover:bg-[color:var(--bf-surface)] sm:flex"
+        aria-label="Keyboard shortcuts"
+        title="Keyboard shortcuts (?)"
+      >
+        <Keyboard size={16} />
       </button>
 
       <NotificationsMenu notifications={notifications} userId={user.id} />

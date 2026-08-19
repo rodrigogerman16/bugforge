@@ -17,6 +17,9 @@ type ShellUIContextValue = {
   bugCreateModalGameSlug: string | null;
   openBugCreateModal: (gameSlug?: string) => void;
   closeBugCreateModal: () => void;
+  shortcutsHelpOpen: boolean;
+  openShortcutsHelp: () => void;
+  closeShortcutsHelp: () => void;
 };
 
 const ShellUIContext = createContext<ShellUIContextValue | null>(null);
@@ -35,6 +38,14 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
   }
   function closeBugCreateModal() {
     setBugCreateModalOpen(false);
+  }
+
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  function openShortcutsHelp() {
+    setShortcutsHelpOpen(true);
+  }
+  function closeShortcutsHelp() {
+    setShortcutsHelpOpen(false);
   }
 
   useEffect(() => {
@@ -76,6 +87,9 @@ export function ShellUIProvider({ children }: { children: ReactNode }) {
         bugCreateModalGameSlug,
         openBugCreateModal,
         closeBugCreateModal,
+        shortcutsHelpOpen,
+        openShortcutsHelp,
+        closeShortcutsHelp,
       }}
     >
       {children}
