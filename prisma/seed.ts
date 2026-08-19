@@ -470,6 +470,22 @@ const SEVERITY_COLOR: Record<BugSeverity, string> = {
   LOW: "#898781",
 };
 
+// Matches src/lib/platform.ts's PLATFORM_LABEL — this script is standalone
+// and doesn't import app lib modules, so the display strings are redefined
+// here for the comment templates that reference a bug's platform by name.
+const PLATFORM_LABEL: Record<Platform, string> = {
+  PC: "PC",
+  PLAYSTATION: "PlayStation",
+  XBOX: "Xbox",
+  SWITCH: "Nintendo Switch",
+  MOBILE: "Mobile",
+};
+
+// Matches src/components/comments/comment-utils.tsx's REACTION_EMOJIS — kept
+// in sync so seeded reactions use the exact same six the UI offers, not an
+// arbitrary set that would look out of place next to real user reactions.
+const REACTION_EMOJIS = ["👍", "❤️", "😄", "🎉", "👀", "🚀"];
+
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
@@ -799,6 +815,195 @@ const TEST_CASE_TEMPLATES: Record<
   ],
 };
 
+// A third template per area — each covers the one BUG_DEFS scenario for that
+// area the two templates above don't already exercise, so every area has a
+// real regression check for all three of its seeded bug patterns.
+const TEST_CASE_TEMPLATES_EXTRA: Record<
+  string,
+  { title: string; preconditions: string; steps: string; expected: string }
+> = {
+  Gameplay: {
+    title: "Interact prompt appears on every reachable interactable object",
+    preconditions: "Player is within normal interaction range of an interactable object.",
+    steps: "1. Approach a reachable interactable object\n2. Observe whether the interact prompt appears",
+    expected: "The interact prompt appears reliably whenever a reachable interactable is in range",
+  },
+  Combat: {
+    title: "Critical hits carry damage through an enemy's shield",
+    preconditions: "Player is engaged with an enemy that has an active shield.",
+    steps: "1. Land a critical hit on a shielded enemy\n2. Check the damage dealt",
+    expected: "Critical hit damage carries through the shield instead of registering as zero",
+  },
+  Movement: {
+    title: "Horizontal momentum carries over on zipline dismount",
+    preconditions: "Player is riding a zipline at speed.",
+    steps: "1. Ride a zipline at speed\n2. Dismount with a jump input\n3. Observe resulting momentum",
+    expected: "Horizontal momentum from the zipline carries into the dismount jump",
+  },
+  UI: {
+    title: "Objective marker points to the correct location",
+    preconditions: "Player has an active objective with a HUD marker.",
+    steps: "1. Accept a new objective\n2. Compare the HUD marker position to the real objective location",
+    expected: "The marker points to the actual objective location",
+  },
+  Networking: {
+    title: "Voice chat remains connected for a full session",
+    preconditions: "Player is in a voice-enabled multiplayer session.",
+    steps: "1. Join a voice-enabled session\n2. Remain in session for at least 10 minutes\n3. Confirm voice chat is still connected",
+    expected: "Voice chat stays connected for the full session with no drop",
+  },
+  Physics: {
+    title: "Player stays on the elevator floor during its full movement",
+    preconditions: "Player has access to a moving elevator.",
+    steps: "1. Step onto the elevator\n2. Ride it from bottom to top without moving\n3. Observe player position throughout",
+    expected: "Player remains standing safely on the elevator floor for the entire ride",
+  },
+  Audio: {
+    title: "Explosion SFX plays exactly once per kill",
+    preconditions: "Player can get an explosive kill on an enemy.",
+    steps: "1. Get an explosive kill on an enemy\n2. Count how many times the explosion SFX plays",
+    expected: "The explosion sound effect plays exactly once",
+  },
+  AI: {
+    title: "Allies take cover when under sustained fire",
+    preconditions: "Player has an ally NPC nearby and access to enemy fire.",
+    steps: "1. Bring an ally into sustained enemy fire\n2. Observe ally behavior",
+    expected: "The ally moves to nearby cover instead of standing in the open",
+  },
+  Animation: {
+    title: "Climb animation aligns hand placement to ledge geometry",
+    preconditions: "Player has access to a ledge with an irregular or angled edge.",
+    steps: "1. Climb onto an irregular or angled ledge\n2. Observe hand placement during the climb animation",
+    expected: "Hands align with the actual ledge surface with no visible floating",
+  },
+  Performance: {
+    title: "Load times stay consistent across a long play session",
+    preconditions: "A level load can be triggered after an extended play session.",
+    steps: "1. Play continuously for 2+ hours\n2. Trigger a level load\n3. Compare load time to an early-session load",
+    expected: "Load time stays roughly consistent regardless of session length",
+  },
+  Graphics: {
+    title: "Water reflections render correctly at oblique viewing angles",
+    preconditions: "Player has access to a water surface and can view it at a shallow angle.",
+    steps: "1. Look across a water surface at a shallow, oblique angle\n2. Observe the reflection",
+    expected: "The water reflection mirrors the scene correctly with no inversion or distortion",
+  },
+  Input: {
+    title: "Analog stick deadzone setting is respected below 15%",
+    preconditions: "Player has access to the deadzone setting and a controller with stick drift.",
+    steps: "1. Set the analog stick deadzone below 15%\n2. Leave the stick untouched\n3. Observe for unintended input",
+    expected: "No stick drift occurs at the configured deadzone value",
+  },
+  Localization: {
+    title: "Every settings menu string is translated in Japanese",
+    preconditions: "Game language is set to Japanese.",
+    steps: "1. Set the game language to Japanese\n2. Open the settings menu\n3. Review every visible string",
+    expected: "No raw placeholder keys appear — every string shows a real translation",
+  },
+  Accessibility: {
+    title: "Screen reader announces every focusable item in the settings menu",
+    preconditions: "The screen reader is available and the settings menu is accessible.",
+    steps: "1. Enable the screen reader\n2. Tab through the settings menu\n3. Confirm every focusable item is announced",
+    expected: "The screen reader announces every focusable settings menu item in order, with none skipped",
+  },
+};
+for (const [area, extra] of Object.entries(TEST_CASE_TEMPLATES_EXTRA)) {
+  TEST_CASE_TEMPLATES[area].push(extra);
+}
+
+// Comment content — reads like real QA/dev back-and-forth on a bug, not
+// filler text. Mention templates require the literal "@Full Name" the real
+// composer inserts (see comment-composer.tsx), so the mentioned tester's
+// name is substituted directly into the body, not just recorded in the
+// mentions relation.
+const TOP_LEVEL_COMMENT_TEMPLATES: string[] = [
+  "Repro'd this on my end too, same steps.",
+  "Can't reproduce this on the latest build — might already be fixed, retesting.",
+  "This is blocking my test pass for this area, flagging as high priority.",
+  "Looks related to the recent changes in this system — worth checking the changelog.",
+  "Nice catch, filing this against the next hotfix.",
+  "Seen this a couple times across the last few sessions too.",
+  "Marking this Confirmed and handing off to dev.",
+  "Fixed in the latest build — closing once QA verifies.",
+  "Still seeing this locally, reopening.",
+  "Adding a capture, should make the repro steps clearer.",
+  "Severity feels right here given how consistently this reproduces.",
+  "Talked to the dev team — this is a known issue with the underlying system, tracking separately.",
+];
+
+const TOP_LEVEL_COMMENT_TEMPLATES_WITH_PLATFORM: string[] = [
+  "Confirmed on {platform} as well.",
+  "Only seeing this on {platform} so far — will check other platforms next session.",
+  "Repro rate on {platform} feels higher than the other platforms, worth a closer look.",
+];
+
+const REPLY_TEMPLATES: string[] = [
+  "Thanks for confirming.",
+  "Good catch, I'll take a look.",
+  "Same here.",
+  "Can you attach a log next time this happens?",
+  "On it.",
+  "That lines up with what I'm seeing in the crash report.",
+  "Verified fixed on my end.",
+  "Still reproducing for me, reopening.",
+  "Makes sense, thanks for the context.",
+  "Agreed, bumping priority.",
+];
+
+const MENTION_COMMENT_TEMPLATES: string[] = [
+  "@{name} can you verify this on {platform}?",
+  "@{name} mind taking a look when you get a chance?",
+  "@{name} this looks like it might be related to what you fixed last build.",
+  "@{name} assigning this one to you based on the affected area.",
+  "@{name} can you confirm you're still seeing this on the latest build?",
+];
+
+// Parses a TestCase's "1. Do X\n2. Do Y" steps field back into individual,
+// unnumbered step lines — mirrors the same parsing the app itself does when
+// executing a test case (see reviewReproSteps in src/lib/ai/bug-analysis.ts).
+function parseSteps(steps: string): string[] {
+  return steps
+    .split("\n")
+    .map((line) => line.replace(/^\d+\.\s*/, "").trim())
+    .filter(Boolean);
+}
+
+// Builds per-step results consistent with the run's own overall result — the
+// schema's own comment on TestRun.result says the overall value is "derived
+// (worst of its TestStepResults)", so the steps below are constructed to
+// actually match whatever overall result the run already has, never at odds
+// with it: a PASS run passes every step; a FAIL run passes everything up to
+// the step that failed and leaves the rest unexecuted; a BLOCKED run gets
+// blocked partway through with nothing after it executed; a SKIPPED run
+// never started.
+function buildStepResults(
+  stepLines: string[],
+  overallResult: string
+): { stepIndex: number; stepText: string; result: string; notes?: string }[] {
+  if (overallResult === "PASS") {
+    return stepLines.map((stepText, stepIndex) => ({ stepIndex, stepText, result: "PASS" }));
+  }
+  if (overallResult === "SKIPPED") {
+    return stepLines.map((stepText, stepIndex) => ({ stepIndex, stepText, result: "SKIPPED" }));
+  }
+  // FAIL or BLOCKED: everything before the trigger point passes, the trigger
+  // step itself carries the overall result, and anything after it is never
+  // reached.
+  const triggerIndex = Math.floor(Math.random() * stepLines.length);
+  return stepLines.map((stepText, stepIndex) => {
+    if (stepIndex < triggerIndex) return { stepIndex, stepText, result: "PASS" };
+    if (stepIndex === triggerIndex) {
+      return {
+        stepIndex,
+        stepText,
+        result: overallResult,
+        notes: overallResult === "FAIL" ? "Reproduced — filed as a bug for follow-up." : "Could not proceed past this step.",
+      };
+    }
+    return { stepIndex, stepText, result: "SKIPPED" };
+  });
+}
+
 async function main() {
   console.log("Seeding BugForge...");
 
@@ -884,6 +1089,19 @@ async function main() {
     )
   );
   const gamePlatforms = new Map<string, Platform[]>(games.map((g, i) => [g.id, gameDefs[i].platforms]));
+
+  // Collected while seeding comments below, across every game, then turned
+  // into real COMMENT_MENTION notification rows once bug numbering is known
+  // (see the notifications section) — mirrors exactly what createComment
+  // itself does for a live @mention.
+  const mentionNotificationSeeds: {
+    recipientId: string;
+    authorName: string;
+    bugId: string;
+    commentId: string;
+    body: string;
+    createdAt: Date;
+  }[] = [];
 
   // Rotated per game so every BuildStatus value shows up somewhere in the
   // seeded data, not just a single hardcoded triple.
@@ -1210,6 +1428,157 @@ async function main() {
       });
     }
 
+    // A handful of DUPLICATE/RELATED relationships beyond the REGRESSION_OF
+    // ones above — a QA lead's real triage call linking two independently-
+    // reported bugs, not something the reader has to infer from title
+    // similarity alone. Paired within the same area, where a real duplicate
+    // or related report is actually plausible.
+    const relationshipTypePool: RelationshipType[] = [
+      RelationshipType.DUPLICATE,
+      RelationshipType.DUPLICATE,
+      RelationshipType.RELATED,
+      RelationshipType.RELATED,
+      RelationshipType.BLOCKS,
+    ];
+    const usedInRelationship = new Set<string>();
+    for (const relType of relationshipTypePool) {
+      const areaBugs = pick(areas);
+      const candidates = gameBugs.filter((b) => b.areaId === areaBugs.id && !usedInRelationship.has(b.id));
+      if (candidates.length < 2) continue;
+      const [a, b] = [...candidates].sort(() => Math.random() - 0.5).slice(0, 2);
+      usedInRelationship.add(a.id);
+      usedInRelationship.add(b.id);
+      await prisma.bugRelationship.create({
+        data: { type: relType, sourceBugId: a.id, targetBugId: b.id },
+      });
+    }
+
+    // Comment threads — the discussion a real bug tracker accumulates: QA
+    // confirming repro, handoffs to dev, the occasional @mention pulling a
+    // specific teammate in. Roughly half of this game's bugs get at least
+    // one thread; each thread can carry replies, reactions, and (rarely) an
+    // attached capture, so the comment section on a real bug page has
+    // something to render instead of always being empty.
+    console.log(`  Seeding comments for ${game.name}...`);
+    let gameCommentCount = 0;
+    for (const bug of gameBugs) {
+      if (Math.random() >= 0.55) continue;
+
+      const bugArea = areas.find((a) => a.id === bug.areaId);
+      const build = builds.find((bl) => bl.id === bug.buildId);
+      const threadCount = 1 + Math.floor(Math.random() * 3); // 1-3 top-level comments
+
+      // Comments only make sense between the bug's discovery and now — cap
+      // the window at 12 days out so a long-open bug doesn't get a comment
+      // dated implausibly close to "now" every time.
+      const windowStart = bug.createdAt.getTime();
+      const windowEnd = Math.min(Date.now(), windowStart + 12 * 86_400_000);
+
+      for (let t = 0; t < threadCount; t++) {
+        const author = pick(testers);
+        const isMention = Math.random() < 0.25;
+        const mentioned = isMention ? pick(testers.filter((te) => te.id !== author.id)) : null;
+
+        let body: string;
+        if (mentioned) {
+          body = pick(MENTION_COMMENT_TEMPLATES)
+            .replace("{name}", mentioned.name)
+            .replace("{platform}", PLATFORM_LABEL[bug.platform]);
+        } else if (Math.random() < 0.25) {
+          body = pick(TOP_LEVEL_COMMENT_TEMPLATES_WITH_PLATFORM).replace("{platform}", PLATFORM_LABEL[bug.platform]);
+        } else {
+          body = pick(TOP_LEVEL_COMMENT_TEMPLATES);
+        }
+
+        const createdAtMs = windowStart + Math.random() * Math.max(60_000, windowEnd - windowStart);
+        const createdAt = new Date(createdAtMs);
+
+        const attachThis = Math.random() < 0.08;
+        const comment = await prisma.comment.create({
+          data: {
+            bugId: bug.id,
+            body,
+            authorId: author.id,
+            mentions: mentioned ? { connect: [{ id: mentioned.id }] } : undefined,
+            attachments: attachThis
+              ? {
+                  create: [
+                    {
+                      type: EvidenceType.IMAGE,
+                      url: screenshotSvgDataUri({
+                        title: bug.title,
+                        area: bugArea?.name ?? "",
+                        severity: bug.severity,
+                        buildVersion: build?.version ?? "",
+                      }),
+                      fileName: "follow-up-capture.svg",
+                    },
+                  ],
+                }
+              : undefined,
+            createdAt,
+          },
+        });
+        gameCommentCount++;
+
+        await prisma.activityEvent.create({
+          data: { type: ActivityEventType.COMMENT_ADDED, bugId: bug.id, actorId: author.id, createdAt },
+        });
+
+        if (mentioned) {
+          mentionNotificationSeeds.push({
+            recipientId: mentioned.id,
+            authorName: author.name,
+            bugId: bug.id,
+            commentId: comment.id,
+            body,
+            createdAt,
+          });
+        }
+
+        // A third of comments pick up 1-3 reactions from other testers.
+        if (Math.random() < 0.33) {
+          const reactors = [...testers]
+            .filter((te) => te.id !== author.id)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 1 + Math.floor(Math.random() * 3));
+          await prisma.reaction.createMany({
+            data: reactors.map((te) => ({ commentId: comment.id, testerId: te.id, emoji: pick(REACTION_EMOJIS) })),
+          });
+        }
+
+        // Some threads get one or two short replies.
+        let lastReplyAt = createdAt;
+        const replyCount = Math.random() < 0.4 ? 1 + (Math.random() < 0.25 ? 1 : 0) : 0;
+        for (let r = 0; r < replyCount; r++) {
+          const replyAuthor = pick(testers);
+          const replyCreatedAt = new Date(
+            Math.min(windowEnd, lastReplyAt.getTime() + 10 * 60_000 + Math.random() * 2 * 86_400_000)
+          );
+          lastReplyAt = replyCreatedAt;
+          await prisma.comment.create({
+            data: {
+              bugId: bug.id,
+              body: pick(REPLY_TEMPLATES),
+              authorId: replyAuthor.id,
+              parentId: comment.id,
+              createdAt: replyCreatedAt,
+            },
+          });
+          gameCommentCount++;
+          await prisma.activityEvent.create({
+            data: {
+              type: ActivityEventType.COMMENT_ADDED,
+              bugId: bug.id,
+              actorId: replyAuthor.id,
+              createdAt: replyCreatedAt,
+            },
+          });
+        }
+      }
+    }
+    console.log(`  ${gameCommentCount} comments seeded for ${game.name}.`);
+
     const testCasePriorityPool: TestCasePriority[] = [
       ...Array(2).fill(TestCasePriority.CRITICAL),
       ...Array(6).fill(TestCasePriority.HIGH),
@@ -1251,14 +1620,20 @@ async function main() {
       for (let i = 0; i < runsForSession; i++) {
         const testCase = pick(testCases);
         const result = pick(resultPool);
+        // ~55% of runs are a full step-by-step execution (see executeTestCase
+        // in src/app/test-cases/actions.ts); the rest are a quick overall-
+        // result log (see logTestRun) — the app supports both flows, so the
+        // seed data should show both, not just one.
+        const stepLines = Math.random() < 0.55 ? parseSteps(testCase.steps) : [];
         await prisma.testRun.create({
           data: {
             testCaseId: testCase.id,
             sessionId: session.id,
             testerId: pick(testers).id,
             result,
-            notes: result === "FAIL" ? "Reproduced — filed as a bug for follow-up." : null,
+            notes: stepLines.length === 0 && result === "FAIL" ? "Reproduced — filed as a bug for follow-up." : null,
             runAt: session.startedAt ?? new Date(),
+            stepResults: stepLines.length > 0 ? { create: buildStepResults(stepLines, result) } : undefined,
           },
         });
       }
@@ -1387,6 +1762,30 @@ async function main() {
         createdAt: bug.updatedAt,
       });
     }
+  }
+
+  // @mention notifications — one per seeded mention comment, matching what
+  // createComment itself sends: an 80-char excerpt of the actual comment
+  // body, linking straight to that comment on the bug page.
+  const mentionedBugIds = [...new Set(mentionNotificationSeeds.map((m) => m.bugId))];
+  const mentionedBugs = await prisma.bug.findMany({
+    where: { id: { in: mentionedBugIds } },
+    select: { id: true, title: true, game: { select: { name: true } } },
+  });
+  const mentionedBugById = new Map(mentionedBugs.map((b) => [b.id, b]));
+  for (const seed of mentionNotificationSeeds) {
+    const bug = mentionedBugById.get(seed.bugId);
+    if (!bug) continue;
+    const excerpt = seed.body.length > 80 ? `${seed.body.slice(0, 80)}…` : seed.body;
+    notificationRows.push({
+      type: NotificationType.COMMENT_MENTION,
+      title: `${seed.authorName} mentioned you`,
+      detail: `BUG-${bugNumberMap.get(seed.bugId) ?? 0} — ${bug.title}: "${excerpt}"`,
+      link: `/bugs/${seed.bugId}#comment-${seed.commentId}`,
+      read: seed.createdAt < unreadCutoff,
+      recipientId: seed.recipientId,
+      createdAt: seed.createdAt,
+    });
   }
 
   await prisma.notification.createMany({ data: notificationRows });
