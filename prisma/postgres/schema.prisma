@@ -1,0 +1,768 @@
+// BugForge — Supabase/PostgreSQL target schema (item 49)
+//
+// STATUS: not wired into the running app. The live app still runs on
+// prisma/schema.prisma (SQLite locally, Turso libSQL in production) — per
+// the user's own account, they're on Supabase's free tier and already have
+// other projects using their available project slots, so there is no live
+// Supabase Postgres database to actually migrate onto right now. This file
+// is a complete, ready-to-activate deliverable: point SUPABASE_POSTGRES_URL
+// at a real Supabase Postgres connection string whenever one exists, then
+//   npx prisma generate --schema prisma/postgres/schema.prisma
+//   npx prisma migrate dev --schema prisma/postgres/schema.prisma --name init
+// (prisma/postgres/migration.sql has the equivalent raw SQL already, diffed
+// offline against an empty database — see that file for how to apply it by
+// hand via the Supabase SQL editor instead, if you'd rather not run migrate
+// against a fresh project.)
+//
+// Design notes vs. the current SQLite schema:
+// - Every table below matches the suggested list's name via @@map, and
+//   every column is snake_case via @map, matching Postgres/Supabase
+//   convention (the current SQLite schema uses Prisma's PascalCase model
+//   names and camelCase columns directly, since SQLite has no such
+//   convention to match).
+// - Primary keys are native Postgres `uuid`, DB-generated via
+//   gen_random_uuid() (built into Postgres 13+, which every current
+//   Supabase project ships).
+// - created_at/updated_at are added to every table that's ever mutated
+//   after creation; pure append-only/log and join tables (bug_history,
+//   notifications, ai_messages, bug_tags, game_members, ...) only get
+//   created_at, since there's nothing to ever update.
+// - Enums are real Postgres enum types (SQLite has no enum type at all,
+//   which is why the live schema stores them as plain TEXT with no DB-level
+//   constraint — this is a real correctness upgrade, not just a rename).
+// - A few tables exist beyond the suggested list because dropping them
+//   would silently delete real, already-built app features: game_platforms
+//   (a game supports a subset of platforms — item 31), bug_comment_reactions
+//   (emoji reactions on comments), test_execution_steps (per-step results
+//   of an executed test case, distinct from test_case_steps which is the
+//   authored steps). Each is called out below at its definition.
+// - organizations/game_members exist with real foreign keys as requested,
+//   but nothing in the running app queries them yet — per the user's own
+//   choice, this migration does not rewire every page/query/the signup
+//   flow around organization-scoping. organization_id on games is nullable
+//   so a game can exist without one, matching how the app works today.
+// - ai_conversations/ai_messages and reports are schema-only additions:
+//   BugForge AI is a stateless heuristic engine today (see src/lib/ai/)
+//   that has never persisted a conversation, and Reports (item 42) are
+//   generated on demand and never saved — actually wiring up that
+//   persistence is a separate feature, not requested here.
+
+generator client {
+  provider = "prisma-client"
+  output   = "./generated"
+}
+
+// Prisma 7 no longer accepts `url` here — the connection string lives in
+// prisma/postgres/prisma.config.ts (for the CLI: generate/migrate) and is
+// passed to `new PrismaClient({ adapter })` at runtime, the same pattern
+// the live schema already uses for its own Turso/libSQL connection.
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Users & organizations ───────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  QA_LEAD
+  QA_TESTER
+  DEVELOPER
+  PRODUCER
+  VIEWER
+
+  @@map("user_role")
+}
+
+// The Supabase Auth user (auth.users, a separate schema Prisma doesn't
+// model) is linked by auth_user_id — a soft reference, matched by email at
+// sign-in time, not a real FK, since auth.users lives outside Prisma's
+// migration control. See getCurrentUser() in the live app's lib/data.ts for
+// the equivalent linking logic against the current schema.
+model User {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authUserId String?  @unique @map("auth_user_id") @db.Uuid
+  name       String
+  email      String   @unique
+  role       UserRole @default(VIEWER)
+  avatarUrl  String?  @map("avatar_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  gameMemberships        GameMember[]
+  testSessionMemberships TestSessionMember[]
+  reportedBugs           Bug[]                @relation("BugReporter")
+  assignedBugs           Bug[]                @relation("BugAssignee")
+  testExecutions         TestExecution[]
+  authoredComments       BugComment[]         @relation("CommentAuthor")
+  mentionedInComments    BugComment[]         @relation("CommentMentions")
+  commentReactions       BugCommentReaction[]
+  historyAsActor         BugHistory[]         @relation("HistoryActor")
+  historyAsTarget        BugHistory[]         @relation("HistoryTarget")
+  notifications          Notification[]
+  aiConversations        AiConversation[]
+  reportsGenerated       Report[]
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  games Game[]
+
+  @@map("organizations")
+}
+
+// Which users are assigned to which game — a finer-grained layer under
+// organization membership (e.g. a QA Lead assigning specific testers to a
+// specific title), not the app's only access boundary.
+model GameMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId    String   @map("game_id") @db.Uuid
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([gameId, userId])
+  @@map("game_members")
+}
+
+// ── Platforms & games ───────────────────────────────────────────────────
+
+// A real lookup table (the suggested schema's "platforms") instead of a
+// bare enum, so bugs/test cases/games reference it by foreign key.
+model Platform {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code      String   @unique
+  label     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  gamePlatforms GamePlatform[]
+  bugs          Bug[]
+  testCases     TestCase[]
+
+  @@map("platforms")
+}
+
+// Not in the suggested list, but required to keep a real, already-built
+// feature: a game supports a subset of platforms, never assumed to be all
+// of them (see item 31). Without this join table, "platforms" would only
+// be a flat lookup with no way to say which platforms a given game ships
+// on.
+model GamePlatform {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId     String   @map("game_id") @db.Uuid
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  platformId String   @map("platform_id") @db.Uuid
+  platform   Platform @relation(fields: [platformId], references: [id], onDelete: Restrict)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([gameId, platformId])
+  @@map("game_platforms")
+}
+
+model Game {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String?       @map("organization_id") @db.Uuid
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  name           String
+  slug           String        @unique
+  coverColor     String        @default("#6366f1") @map("cover_color")
+  releaseDate    DateTime?     @map("release_date")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  platforms    GamePlatform[]
+  members      GameMember[]
+  builds       Build[]
+  testSessions TestSession[]
+  bugs         Bug[]
+  testCases    TestCase[]
+  areas        GameArea[]
+  reports      Report[]
+  releaseGates ReleaseGate[]
+
+  @@map("games")
+}
+
+// Per-game area taxonomy — deliberately scoped to one game (unlike the
+// live SQLite schema's global Area table, which all seeded games
+// currently share as a simplification). A real per-game taxonomy is the
+// more correct design once every game can define its own.
+enum QaDiscipline {
+  GAMEPLAY
+  UI
+  AUDIO
+  PERFORMANCE
+  NETWORKING
+  ACCESSIBILITY
+  LOCALIZATION
+
+  @@map("qa_discipline")
+}
+
+model GameArea {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId     String        @map("game_id") @db.Uuid
+  game       Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name       String
+  discipline QaDiscipline?
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  bugs      Bug[]
+  testCases TestCase[]
+
+  @@unique([gameId, name])
+  @@map("game_areas")
+}
+
+// ── Builds & test sessions ──────────────────────────────────────────────
+
+enum BuildStatus {
+  INTERNAL
+  QA
+  BETA
+  RELEASE_CANDIDATE
+  RELEASED
+  DEPRECATED
+
+  @@map("build_status")
+}
+
+model Build {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId     String      @map("game_id") @db.Uuid
+  game       Game        @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  version    String
+  branch     String      @default("main")
+  status     BuildStatus @default(INTERNAL)
+  notes      String?
+  releasedAt DateTime    @default(now()) @map("released_at")
+  createdAt  DateTime    @default(now()) @map("created_at")
+  updatedAt  DateTime    @updatedAt @map("updated_at")
+
+  testSessions TestSession[]
+  bugs         Bug[]
+  reports      Report[]
+
+  @@unique([gameId, version])
+  @@map("builds")
+}
+
+enum TestSessionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+
+  @@map("test_session_status")
+}
+
+model TestSession {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId    String            @map("game_id") @db.Uuid
+  game      Game              @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  buildId   String            @map("build_id") @db.Uuid
+  build     Build             @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  name      String
+  status    TestSessionStatus @default(PLANNED)
+  startedAt DateTime?         @map("started_at")
+  endedAt   DateTime?         @map("ended_at")
+  notes     String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  members        TestSessionMember[]
+  bugs           Bug[]
+  testExecutions TestExecution[]
+
+  @@map("test_sessions")
+}
+
+// Explicit membership, not inferred from who happened to report a bug or
+// log a test run during the session — a real roster.
+model TestSessionMember {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testSessionId String      @map("test_session_id") @db.Uuid
+  testSession   TestSession @relation(fields: [testSessionId], references: [id], onDelete: Cascade)
+  userId        String      @map("user_id") @db.Uuid
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@unique([testSessionId, userId])
+  @@map("test_session_members")
+}
+
+// ── Tags ─────────────────────────────────────────────────────────────────
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique
+  color     String   @default("#898781")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bugTags BugTag[]
+
+  @@map("tags")
+}
+
+// Explicit join table (rather than an implicit Prisma many-to-many) so it
+// can carry its own id and created_at, same as every other table here.
+model BugTag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bugId     String   @map("bug_id") @db.Uuid
+  bug       Bug      @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  tagId     String   @map("tag_id") @db.Uuid
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([bugId, tagId])
+  @@map("bug_tags")
+}
+
+// ── Bugs ─────────────────────────────────────────────────────────────────
+
+enum BugSeverity {
+  BLOCKER
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+
+  @@map("bug_severity")
+}
+
+// Deliberately a separate axis from severity — how urgently a bug should
+// be worked, not how technically damaging it is.
+enum BugPriority {
+  P0
+  P1
+  P2
+  P3
+  P4
+
+  @@map("bug_priority")
+}
+
+enum BugStatus {
+  NEW
+  CONFIRMED
+  IN_PROGRESS
+  FIXED
+  READY_FOR_QA
+  VERIFIED
+  CLOSED
+  REJECTED
+  DUPLICATE
+
+  @@map("bug_status")
+}
+
+model Bug {
+  id            String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String       @map("game_id") @db.Uuid
+  game          Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  buildId       String       @map("build_id") @db.Uuid
+  build         Build        @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  testSessionId String?      @map("test_session_id") @db.Uuid
+  testSession   TestSession? @relation(fields: [testSessionId], references: [id], onDelete: SetNull)
+  areaId        String?      @map("area_id") @db.Uuid
+  area          GameArea?    @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  platformId    String       @map("platform_id") @db.Uuid
+  platform      Platform     @relation(fields: [platformId], references: [id], onDelete: Restrict)
+
+  title            String
+  description      String
+  severity         BugSeverity
+  priority         BugPriority @default(P2)
+  status           BugStatus   @default(NEW)
+  isRegression     Boolean     @default(false) @map("is_regression")
+  stepsToReproduce String?     @map("steps_to_reproduce")
+  expectedResult   String?     @map("expected_result")
+  actualResult     String?     @map("actual_result")
+  map              String?
+  gameMode         String?     @map("game_mode")
+  environmentOs    String?     @map("environment_os")
+  environmentGpu   String?     @map("environment_gpu")
+
+  reportedById String? @map("reported_by_id") @db.Uuid
+  reportedBy   User?   @relation("BugReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  assignedToId String? @map("assigned_to_id") @db.Uuid
+  assignedTo   User?   @relation("BugAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  attachments           BugAttachment[]
+  comments              BugComment[]
+  history               BugHistory[]
+  bugTags               BugTag[]
+  relationshipsAsSource BugRelationship[] @relation("RelationshipSource")
+  relationshipsAsTarget BugRelationship[] @relation("RelationshipTarget")
+  originatingExecutions TestExecution[]   @relation("ExecutionCreatedBug")
+  aiConversations       AiConversation[]
+
+  @@map("bugs")
+}
+
+enum BugRelationshipType {
+  DUPLICATE
+  BLOCKS
+  RELATED
+  REGRESSION_OF
+  CAUSED_BY
+
+  @@map("bug_relationship_type")
+}
+
+// One directional edge per link, same as the live schema — sourceBug is
+// the bug the relationship reads "from" (e.g. for BLOCKS, sourceBug is the
+// blocker). The inverse label is derived in application code, never
+// stored, so the two sides can't drift out of sync.
+model BugRelationship {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        BugRelationshipType
+  sourceBugId String              @map("source_bug_id") @db.Uuid
+  sourceBug   Bug                 @relation("RelationshipSource", fields: [sourceBugId], references: [id], onDelete: Cascade)
+  targetBugId String              @map("target_bug_id") @db.Uuid
+  targetBug   Bug                 @relation("RelationshipTarget", fields: [targetBugId], references: [id], onDelete: Cascade)
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  @@unique([sourceBugId, targetBugId, type])
+  @@map("bug_relationships")
+}
+
+// ── Bug comments & attachments ──────────────────────────────────────────
+
+model BugComment {
+  id       String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bugId    String      @map("bug_id") @db.Uuid
+  bug      Bug         @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  authorId String      @map("author_id") @db.Uuid
+  author   User        @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parentId String?     @map("parent_id") @db.Uuid
+  parent   BugComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+
+  body      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  editedAt  DateTime? @map("edited_at")
+
+  replies     BugComment[]         @relation("CommentReplies")
+  mentions    User[]               @relation("CommentMentions")
+  reactions   BugCommentReaction[]
+  attachments BugAttachment[]
+
+  @@map("bug_comments")
+}
+
+// Not in the suggested list, but dropping it would delete a real feature
+// (emoji reactions on comments). One reaction per emoji per person —
+// toggling re-clicks the same emoji, enforced by the unique constraint.
+model BugCommentReaction {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bugCommentId String     @map("bug_comment_id") @db.Uuid
+  bugComment   BugComment @relation(fields: [bugCommentId], references: [id], onDelete: Cascade)
+  userId       String     @map("user_id") @db.Uuid
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji        String
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@unique([bugCommentId, userId, emoji])
+  @@map("bug_comment_reactions")
+}
+
+enum BugAttachmentType {
+  IMAGE
+  VIDEO
+  LOG
+  ATTACHMENT
+
+  @@map("bug_attachment_type")
+}
+
+// Unifies the live schema's two separate attachment concepts (bug-level
+// Evidence and comment-level CommentAttachment) onto the suggested
+// bug_attachments table: bug_id is always set, bug_comment_id is set only
+// when the file was attached to a specific comment rather than the bug
+// directly.
+model BugAttachment {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bugId         String            @map("bug_id") @db.Uuid
+  bug           Bug               @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  bugCommentId  String?           @map("bug_comment_id") @db.Uuid
+  bugComment    BugComment?       @relation(fields: [bugCommentId], references: [id], onDelete: Cascade)
+  type          BugAttachmentType
+  url           String
+  content       String?
+  fileName      String?           @map("file_name")
+  fileSizeBytes Int?              @map("file_size_bytes")
+  caption       String?
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@map("bug_attachments")
+}
+
+enum BugHistoryEventType {
+  BUG_CREATED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  SEVERITY_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  COMMENT_ADDED
+
+  @@map("bug_history_event_type")
+}
+
+// The real source of truth for "when did this bug reach each status" —
+// updated_at on bugs only ever reflects the most recent edit, so lifecycle
+// metrics (time to confirm/fix/verify) are computed from this table.
+model BugHistory {
+  id           String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bugId        String              @map("bug_id") @db.Uuid
+  bug          Bug                 @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  type         BugHistoryEventType
+  fromValue    String?             @map("from_value")
+  toValue      String?             @map("to_value")
+  actorId      String?             @map("actor_id") @db.Uuid
+  actor        User?               @relation("HistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetUserId String?             @map("target_user_id") @db.Uuid
+  targetUser   User?               @relation("HistoryTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@map("bug_history")
+}
+
+// ── Test cases & executions ─────────────────────────────────────────────
+
+enum TestCasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+
+  @@map("test_case_priority")
+}
+
+model TestCase {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId        String           @map("game_id") @db.Uuid
+  game          Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  areaId        String?          @map("area_id") @db.Uuid
+  area          GameArea?        @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  platformId    String           @map("platform_id") @db.Uuid
+  platform      Platform         @relation(fields: [platformId], references: [id], onDelete: Restrict)
+  title         String
+  description   String?
+  preconditions String?
+  expected      String
+  priority      TestCasePriority @default(MEDIUM)
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  steps      TestCaseStep[]
+  executions TestExecution[]
+
+  @@map("test_cases")
+}
+
+// Structured authored steps — replaces the live schema's freeform numbered
+// text (TestCase.steps: String) with real rows, matching the suggested
+// test_case_steps table.
+model TestCaseStep {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testCaseId     String   @map("test_case_id") @db.Uuid
+  testCase       TestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  stepIndex      Int      @map("step_index")
+  instruction    String
+  expectedResult String?  @map("expected_result")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  executionSteps TestExecutionStep[]
+
+  @@unique([testCaseId, stepIndex])
+  @@map("test_case_steps")
+}
+
+model TestExecution {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testCaseId    String      @map("test_case_id") @db.Uuid
+  testCase      TestCase    @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  testSessionId String      @map("test_session_id") @db.Uuid
+  testSession   TestSession @relation(fields: [testSessionId], references: [id], onDelete: Cascade)
+  userId        String?     @map("user_id") @db.Uuid
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  result        String
+  notes         String?
+  createdBugId  String?     @map("created_bug_id") @db.Uuid
+  createdBug    Bug?        @relation("ExecutionCreatedBug", fields: [createdBugId], references: [id], onDelete: SetNull)
+  runAt         DateTime    @default(now()) @map("run_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  steps TestExecutionStep[]
+
+  @@map("test_executions")
+}
+
+// Not in the suggested list, but required to keep step-by-step execution
+// results (distinct from test_case_steps, which is the authored/planned
+// steps) — a snapshot of the step's wording at execution time via
+// step_text, so editing the test case later never rewrites what a past
+// execution actually tested.
+model TestExecutionStep {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  testExecutionId String        @map("test_execution_id") @db.Uuid
+  testExecution   TestExecution @relation(fields: [testExecutionId], references: [id], onDelete: Cascade)
+  testCaseStepId  String?       @map("test_case_step_id") @db.Uuid
+  testCaseStep    TestCaseStep? @relation(fields: [testCaseStepId], references: [id], onDelete: SetNull)
+  stepIndex       Int           @map("step_index")
+  stepText        String        @map("step_text")
+  result          String
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@map("test_execution_steps")
+}
+
+// ── Notifications ────────────────────────────────────────────────────────
+
+enum NotificationType {
+  BUG_ASSIGNED
+  BUG_READY_FOR_QA
+  BUILD_UPLOADED
+  CRITICAL_BUG
+  REGRESSION_DETECTED
+  COMMENT_MENTION
+
+  @@map("notification_type")
+}
+
+// A null recipient is a team-wide event; a set recipient is personal —
+// same real-event-driven design as the live schema, see src/lib/notifications.ts.
+model Notification {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type        NotificationType
+  title       String
+  detail      String
+  link        String?
+  read        Boolean          @default(false)
+  recipientId String?          @map("recipient_id") @db.Uuid
+  recipient   User?            @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+// ── AI conversations ────────────────────────────────────────────────────
+// Schema-only: BugForge AI (src/lib/ai/) is a stateless heuristic engine
+// today — every suggestion is computed on demand from real data and never
+// saved. These tables are ready for whenever conversation history becomes
+// a real feature; nothing in the app writes to them yet.
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+
+  @@map("ai_message_role")
+}
+
+model AiConversation {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bugId     String?  @map("bug_id") @db.Uuid
+  bug       Bug?     @relation(fields: [bugId], references: [id], onDelete: Cascade)
+  title     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages AiMessage[]
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String         @map("conversation_id") @db.Uuid
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           AiMessageRole
+  content        String
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@map("ai_messages")
+}
+
+// ── Reports & release gates ─────────────────────────────────────────────
+
+// A generation log: which report was generated, for what scope, by whom,
+// and with what parameters — an audit trail, not stored report content
+// (reports are rendered live from real data at request time; see item 42
+// and src/app/reports/ in the live app).
+enum ReportType {
+  BUILD_QA
+  RELEASE_READINESS
+  WEEKLY_QA
+  REGRESSION
+  TEST_COVERAGE
+
+  @@map("report_type")
+}
+
+model Report {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type          ReportType
+  gameId        String?    @map("game_id") @db.Uuid
+  game          Game?      @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  buildId       String?    @map("build_id") @db.Uuid
+  build         Build?     @relation(fields: [buildId], references: [id], onDelete: SetNull)
+  generatedById String?    @map("generated_by_id") @db.Uuid
+  generatedBy   User?      @relation(fields: [generatedById], references: [id], onDelete: SetNull)
+  params        Json?
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  @@map("reports")
+}
+
+enum ReleaseGateMetric {
+  CRITICAL_BUGS
+  TEST_PASS_RATE
+  REGRESSION_RATE
+  COVERAGE
+  PERFORMANCE
+
+  @@map("release_gate_metric")
+}
+
+enum ReleaseGateOperator {
+  LESS_THAN
+  LESS_THAN_OR_EQUAL
+  GREATER_THAN
+  GREATER_THAN_OR_EQUAL
+  EQUAL
+
+  @@map("release_gate_operator")
+}
+
+// A null game_id is a global default gate; a set game_id overrides it for
+// that game specifically — more flexible than the live schema's single
+// global gate set, while still supporting the same "no per-game gates at
+// all" usage the app has today.
+model ReleaseGate {
+  id        String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gameId    String?             @map("game_id") @db.Uuid
+  game      Game?               @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  metric    ReleaseGateMetric
+  operator  ReleaseGateOperator
+  threshold Float
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
+
+  @@unique([gameId, metric])
+  @@map("release_gates")
+}

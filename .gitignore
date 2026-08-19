@@ -41,6 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+/prisma/postgres/generated
 
 # sqlite dev database (reproducible via `npx tsx prisma/seed.ts`)
 *.db
