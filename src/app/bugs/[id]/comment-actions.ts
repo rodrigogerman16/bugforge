@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertCanComment } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
+import { createCommentSchema, updateCommentSchema, parseOrThrow } from "@/lib/validation";
 import type { EvidenceType } from "@/generated/prisma/enums";
 
 export type CommentAttachmentInput = {
@@ -13,19 +14,14 @@ export type CommentAttachmentInput = {
   fileSizeBytes?: number;
 };
 
-export async function createComment({
-  bugId,
-  body,
-  parentId,
-  mentionIds,
-  attachments,
-}: {
+export async function createComment(rawInput: {
   bugId: string;
   body: string;
   parentId?: string;
   mentionIds: string[];
   attachments: CommentAttachmentInput[];
 }) {
+  const { bugId, body, parentId, mentionIds, attachments } = parseOrThrow(createCommentSchema, rawInput);
   const trimmed = body.trim();
   if (!trimmed) return;
   const user = await assertCanComment();
@@ -72,7 +68,8 @@ export async function createComment({
   revalidatePath(`/bugs/${bugId}`);
 }
 
-export async function updateComment({ id, bugId, body }: { id: string; bugId: string; body: string }) {
+export async function updateComment(rawInput: { id: string; bugId: string; body: string }) {
+  const { id, bugId, body } = parseOrThrow(updateCommentSchema, rawInput);
   const trimmed = body.trim();
   if (!trimmed) return;
   const user = await assertCanComment();

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertCanManageAreas } from "@/lib/permissions";
+import { createAreaSchema, parseOrThrow } from "@/lib/validation";
 import type { QADiscipline } from "@/generated/prisma/enums";
 
-export async function createArea({ name, discipline }: { name: string; discipline: QADiscipline | null }) {
+export async function createArea(rawInput: { name: string; discipline: QADiscipline | null }) {
+  const { name, discipline } = parseOrThrow(createAreaSchema, rawInput);
   await assertCanManageAreas();
   const area = await prisma.area.create({
     data: { name: name.trim(), discipline: discipline ?? undefined },

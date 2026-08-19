@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { validateAttachmentFile } from "@/lib/attachments";
 import { getSupabaseAdmin, getAttachmentsBucket, SupabaseNotConfiguredError } from "@/lib/supabase";
 import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/lib/permissions";
+import { uploadContextSchema } from "@/lib/validation";
 
 // The one real upload path in the app — the comment composer and the
 // bug-evidence uploader both post here, never straight to Supabase from the
@@ -13,7 +14,11 @@ import { assertCanComment, assertCanUploadEvidence, PermissionError } from "@/li
 // separately from the UPLOAD_EVIDENCE capability bug evidence needs.
 export async function POST(request: NextRequest) {
   const formData = await request.formData().catch(() => null);
-  const context = formData?.get("context");
+  const contextResult = uploadContextSchema.safeParse(formData?.get("context"));
+  if (!contextResult.success) {
+    return new Response('Invalid or missing "context" — expected "comment" or "evidence".', { status: 400 });
+  }
+  const context = contextResult.data;
 
   try {
     if (context === "comment") await assertCanComment();

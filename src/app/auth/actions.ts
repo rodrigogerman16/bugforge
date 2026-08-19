@@ -2,8 +2,23 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  signInSchema,
+  signUpSchema,
+  requestPasswordResetSchema,
+  updatePasswordSchema,
+} from "@/lib/validation";
 
 export type AuthFormState = { error?: string; success?: string };
+
+// Every credential-handling action here validates the raw FormData with
+// Zod before it ever reaches Supabase — this is the actual runtime
+// boundary (a Server Action is a POST endpoint reachable by anyone, not
+// just this app's own form), and the first Zod issue becomes the same
+// plain-text form error a manual check would have produced.
+function firstIssue(error: { issues: { message: string }[] }): string {
+  return error.issues[0]?.message ?? "Invalid input.";
+}
 
 function getSiteUrl(): string {
   return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -14,10 +29,13 @@ function getSiteUrl(): string {
 // and every one of these turns it into a plain form error instead of a
 // crashed page, the same graceful-degradation pattern Storage uses.
 export async function signInWithPassword(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const next = String(formData.get("next") ?? "") || "/";
-  if (!email || !password) return { error: "Enter your email and password." };
+  const parsed = signInSchema.safeParse({
+    email: String(formData.get("email") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
+    next: String(formData.get("next") ?? "") || undefined,
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
+  const { email, password, next = "/" } = parsed.data;
 
   let supabase;
   try {
@@ -33,11 +51,13 @@ export async function signInWithPassword(_prevState: AuthFormState, formData: Fo
 }
 
 export async function signUpWithPassword(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  if (!name || !email || !password) return { error: "Fill in your name, email, and password." };
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  const parsed = signUpSchema.safeParse({
+    name: String(formData.get("name") ?? "").trim(),
+    email: String(formData.get("email") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
+  const { name, email, password } = parsed.data;
 
   let supabase;
   try {
@@ -70,8 +90,11 @@ export async function signOut() {
 }
 
 export async function requestPasswordReset(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) return { error: "Enter your email." };
+  const parsed = requestPasswordResetSchema.safeParse({
+    email: String(formData.get("email") ?? "").trim(),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
+  const { email } = parsed.data;
 
   let supabase;
   try {
@@ -90,10 +113,12 @@ export async function requestPasswordReset(_prevState: AuthFormState, formData: 
 }
 
 export async function updatePassword(_prevState: AuthFormState, formData: FormData): Promise<AuthFormState> {
-  const password = String(formData.get("password") ?? "");
-  const confirm = String(formData.get("confirm") ?? "");
-  if (password.length < 8) return { error: "Password must be at least 8 characters." };
-  if (password !== confirm) return { error: "Passwords don't match." };
+  const parsed = updatePasswordSchema.safeParse({
+    password: String(formData.get("password") ?? ""),
+    confirm: String(formData.get("confirm") ?? ""),
+  });
+  if (!parsed.success) return { error: firstIssue(parsed.error) };
+  const { password } = parsed.data;
 
   let supabase;
   try {

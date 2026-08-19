@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { assertCanCreateBug, assertCanBulkActOnBugs } from "@/lib/permissions";
 import { createNotification, getBugNumber } from "@/lib/notifications";
+import { createBugSchema, parseOrThrow } from "@/lib/validation";
 import type { BugStatus, BugSeverity, BugPriority, Platform } from "@/generated/prisma/enums";
 
 export type CreateBugInput = {
@@ -27,7 +28,8 @@ async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
   if (!supported) throw new Error(`This game does not support ${platform}.`);
 }
 
-export async function createBug(input: CreateBugInput): Promise<string> {
+export async function createBug(rawInput: CreateBugInput): Promise<string> {
+  const input = parseOrThrow(createBugSchema, rawInput);
   await assertGameSupportsPlatform(input.gameId, input.platform);
   const user = await assertCanCreateBug();
 

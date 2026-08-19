@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getBugNumberMap, getTestCaseNumberMap } from "@/lib/data";
 import { assertCanManageTestCases, assertCanExecuteTests } from "@/lib/permissions";
+import { testCaseInputSchema, logTestRunSchema, executeTestCaseSchema, parseOrThrow } from "@/lib/validation";
 import {
   computeOverallResult,
   TEST_CASE_PRIORITY_TO_BUG_SEVERITY,
@@ -30,7 +31,8 @@ async function assertGameSupportsPlatform(gameId: string, platform: Platform) {
   if (!supported) throw new Error(`This game does not support ${platform}.`);
 }
 
-export async function createTestCase(input: TestCaseInput) {
+export async function createTestCase(rawInput: TestCaseInput) {
+  const input = parseOrThrow(testCaseInputSchema, rawInput);
   await assertCanManageTestCases();
   await assertGameSupportsPlatform(input.gameId, input.platform);
   const testCase = await prisma.testCase.create({
@@ -51,7 +53,8 @@ export async function createTestCase(input: TestCaseInput) {
   return testCase.id;
 }
 
-export async function updateTestCase(id: string, input: TestCaseInput) {
+export async function updateTestCase(id: string, rawInput: TestCaseInput) {
+  const input = parseOrThrow(testCaseInputSchema, rawInput);
   await assertCanManageTestCases();
   await assertGameSupportsPlatform(input.gameId, input.platform);
   await prisma.testCase.update({
@@ -75,7 +78,8 @@ export async function updateTestCase(id: string, input: TestCaseInput) {
 // Saves whichever AI-generated test case variants the tester approved — the
 // approve step happens client-side (checkboxes), so by the time this runs
 // every input here is one the tester explicitly chose to keep.
-export async function createTestCasesBatch(inputs: TestCaseInput[]): Promise<string[]> {
+export async function createTestCasesBatch(rawInputs: TestCaseInput[]): Promise<string[]> {
+  const inputs = rawInputs.map((raw) => parseOrThrow(testCaseInputSchema, raw));
   await assertCanManageTestCases();
   const uniqueGamePlatforms = new Set(inputs.map((i) => `${i.gameId}:${i.platform}`));
   await Promise.all(
@@ -113,17 +117,13 @@ export async function deleteTestCase(id: string) {
   revalidatePath("/test-cases");
 }
 
-export async function logTestRun({
-  testCaseId,
-  sessionId,
-  result,
-  notes,
-}: {
+export async function logTestRun(rawInput: {
   testCaseId: string;
   sessionId: string;
   result: string;
   notes: string;
 }) {
+  const { testCaseId, sessionId, result, notes } = parseOrThrow(logTestRunSchema, rawInput);
   const user = await assertCanExecuteTests();
 
   await prisma.testRun.create({
@@ -142,15 +142,13 @@ export async function logTestRun({
 
 export type StepExecutionInput = { stepIndex: number; stepText: string; result: string; notes: string };
 
-export async function executeTestCase({
-  testCaseId,
-  sessionId,
-  steps,
-}: {
+export async function executeTestCase(rawInput: {
   testCaseId: string;
   sessionId: string;
   steps: StepExecutionInput[];
 }) {
+  const { testCaseId, sessionId, steps } = parseOrThrow(executeTestCaseSchema, rawInput);
+
   const testCase = await prisma.testCase.findUnique({ where: { id: testCaseId } });
   if (!testCase) return null;
 
