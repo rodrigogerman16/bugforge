@@ -1815,24 +1815,28 @@ async function main() {
         const createdAt = new Date(createdAtMs);
 
         const attachThis = Math.random() < 0.08;
+        const followUpCapture = attachThis
+          ? screenshotSvgDataUri({
+              title: bug.title,
+              area: bugArea?.name ?? "",
+              severity: bug.severity,
+              buildVersion: build?.version ?? "",
+            })
+          : null;
         const comment = await prisma.comment.create({
           data: {
             bugId: bug.id,
             body,
             authorId: author.id,
             mentions: mentioned ? { connect: [{ id: mentioned.id }] } : undefined,
-            attachments: attachThis
+            attachments: followUpCapture
               ? {
                   create: [
                     {
                       type: EvidenceType.IMAGE,
-                      url: screenshotSvgDataUri({
-                        title: bug.title,
-                        area: bugArea?.name ?? "",
-                        severity: bug.severity,
-                        buildVersion: build?.version ?? "",
-                      }),
+                      url: followUpCapture,
                       fileName: "follow-up-capture.svg",
+                      fileSizeBytes: Buffer.byteLength(followUpCapture),
                     },
                   ],
                 }
