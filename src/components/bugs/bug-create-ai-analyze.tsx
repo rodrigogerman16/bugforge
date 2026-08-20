@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Sparkles, Loader2 } from "lucide-react";
 import { fadeSlideUp, baseTransition } from "@/lib/utils/motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function BugCreateAiAnalyze({
   onAnalyze,
@@ -26,7 +27,21 @@ export function BugCreateAiAnalyze({
       </button>
 
       <AnimatePresence>
-        {aiFillSummary && (
+        {isAnalyzing && (
+          <motion.div
+            variants={fadeSlideUp}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={baseTransition}
+            className="mt-2 rounded-lg border border-[color:var(--bf-brand)]/25 bg-[color:var(--bf-surface)] p-3"
+          >
+            <p className="mb-2 text-[12px] font-semibold text-[color:var(--bf-brand)]">BugForge AI is analyzing…</p>
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="mt-1.5 h-3 w-1/2" />
+          </motion.div>
+        )}
+        {!isAnalyzing && aiFillSummary && (
           <motion.div
             variants={fadeSlideUp}
             initial="initial"

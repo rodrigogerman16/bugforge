@@ -26,6 +26,7 @@ import { BUG_STATUS_META } from "@/lib/status-labels";
 import { AI_ACTIONS, type AiActionKey, type AiResult } from "@/lib/ai/chat";
 import { runAiAction, getAiBugHeader, type AiBugHeader } from "@/app/ai/actions";
 import { AiResultView } from "@/components/ai/ai-action-results";
+import { AiThinkingState } from "@/components/ai/ai-thinking-state";
 import { cn } from "@/lib/utils";
 import type { BugSeverity, BugStatus } from "@/generated/prisma/enums";
 
@@ -243,7 +244,9 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          {result ? (
+          {runningKey ? (
+            <AiThinkingState actionLabel={AI_ACTIONS.find((a) => a.key === runningKey)?.label ?? "Thinking"} />
+          ) : result ? (
             <motion.div
               key={result.key}
               variants={fadeSlideUp}
@@ -263,7 +266,6 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
             <div className="space-y-1.5">
               {AI_ACTIONS.map((action) => {
                 const Icon = ACTION_ICON[action.key];
-                const running = runningKey === action.key;
                 return (
                   <button
                     key={action.key}
@@ -275,7 +277,7 @@ export function AiAssistantPanel({ aiProviderTagline }: { aiProviderTagline: str
                     )}
                   >
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[color:var(--bf-surface)] text-[color:var(--bf-ink-secondary)]">
-                      {running ? <Loader2 size={13} className="animate-spin" /> : <Icon size={13} />}
+                      <Icon size={13} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[12px] font-medium text-[color:var(--bf-ink-primary)]">{action.label}</span>
