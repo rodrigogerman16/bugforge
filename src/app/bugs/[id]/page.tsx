@@ -2,13 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo, getAreas } from "@/lib/db";
+import { getBugDetail, getBugComments, getTesters, getCurrentUser, getBugActivity, getBugRelationships, getRegressionInfo, getAreas, getBuildsForGame } from "@/lib/db";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { EvidenceGallery } from "@/components/evidence/evidence-gallery";
 import { EvidenceUploader } from "@/components/evidence/evidence-uploader";
 import { CommentSection } from "@/components/comments/comment-section";
-import { BugFieldControls, BugAssigneeControl, BugAreaControl, ALL_BUG_STATUS_OPTIONS } from "@/components/bugs/bug-field-controls";
+import {
+  BugFieldControls,
+  BugAssigneeControl,
+  BugAreaControl,
+  BugFixedBuildControl,
+  BugVerifiedBuildControl,
+} from "@/components/bugs/bug-field-controls";
+import { ALL_BUG_STATUS_OPTIONS } from "@/lib/status-labels";
 import { canEditBugFields, canChangeBugStatus, canAssignBug, hasCapability, DEVELOPER_ALLOWED_STATUSES } from "@/lib/auth/permissions";
 import { AskAiButton } from "@/components/ai/ask-ai-button";
 import { BugAiAnalysisPanel } from "@/components/ai/bug-ai-analysis-panel";
@@ -50,7 +57,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const bug = await getBugDetail(id);
   if (!bug) notFound();
 
-  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas, aiAnalysis, quality] = await Promise.all([
+  const [comments, testers, currentUser, activity, relationships, regressionInfo, areas, builds, aiAnalysis, quality] = await Promise.all([
     getBugComments(id),
     getTesters(),
     getCurrentUser(),
@@ -58,6 +65,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
     getBugRelationships(id),
     bug.isRegression ? getRegressionInfo(id) : Promise.resolve(null),
     getAreas(),
+    getBuildsForGame(bug.gameId),
     getBugQuickAnalysis(id),
     getBugQuality(id),
   ]);
@@ -67,6 +75,8 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
   const canChangeStatus = canChangeBugStatus(currentUser.role, isOwnBug);
   const canAssign = canAssignBug(currentUser.role);
   const statusOptions = currentUser.role === "DEVELOPER" ? DEVELOPER_ALLOWED_STATUSES : ALL_BUG_STATUS_OPTIONS;
+  const canEditFixedBuild = canChangeStatus && statusOptions.includes("FIXED");
+  const canEditVerifiedBuild = canChangeStatus && statusOptions.includes("VERIFIED");
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-8">
@@ -83,6 +93,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           originalBugId={regressionInfo.originalBugId}
           originalBugNumber={regressionInfo.originalBugNumber}
           previouslyFixedBuild={regressionInfo.previouslyFixedBuild}
+          verifiedBuild={regressionInfo.verifiedBuild}
           reproducedBuild={regressionInfo.reproducedBuild}
         />
       )}
@@ -132,6 +143,8 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
           <span className="flex items-center gap-1">
             Area <BugAreaControl bugId={bug.id} areaId={bug.areaId} areas={areas} canEdit={canEditFields} />
           </span>
+          <BugFixedBuildControl bugId={bug.id} buildId={bug.fixedInBuildId} builds={builds} canEdit={canEditFixedBuild} />
+          <BugVerifiedBuildControl bugId={bug.id} buildId={bug.verifiedInBuildId} builds={builds} canEdit={canEditVerifiedBuild} />
           {bug.session && <span>{bug.session.name}</span>}
           <span>Updated {formatRelativeTime(bug.updatedAt)} · {updatedFormatter.format(bug.createdAt)} reported</span>
         </div>
@@ -238,7 +251,7 @@ export default async function BugDetailPage({ params }: { params: Promise<{ id: 
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">
         <h2 className="mb-3 text-[13px] font-semibold text-[color:var(--bf-ink-primary)]">Relationships</h2>
-        <BugRelationships bugId={bug.id} relationships={relationships} />
+        <BugRelationships bugId={bug.id} relationships={relationships} canEdit={canEditFields} />
       </section>
 
       <section className="mt-8 border-t border-[color:var(--bf-border)] pt-6">

@@ -18,13 +18,41 @@ function revalidateBug(bugId: string) {
 export async function updateBugStatus(bugId: string, status: BugStatus) {
   const bug = await prisma.bug.findUnique({
     where: { id: bugId },
-    select: { number: true, status: true, title: true, reportedById: true, game: { select: { name: true } } },
+    select: {
+      number: true,
+      status: true,
+      title: true,
+      reportedById: true,
+      gameId: true,
+      fixedInBuildId: true,
+      verifiedInBuildId: true,
+      game: { select: { name: true } },
+    },
   });
   if (!bug || bug.status === status) return;
   const user = await assertCanChangeBugStatus(bug, status);
 
+  // Reaching Fixed/Verified for the first time captures which build that
+  // happened in — defaulting to the game's current latest build, since
+  // that's what "fixed"/"verified" almost always means in practice. Stays
+  // editable afterward (see updateBugFixedBuild/updateBugVerifiedBuild)
+  // for the cases where that guess is wrong.
+  const buildUpdate: { fixedInBuildId?: string; verifiedInBuildId?: string } = {};
+  if (status === "FIXED" && !bug.fixedInBuildId) {
+    const latestBuild = await prisma.build.findFirst({ where: { gameId: bug.gameId }, orderBy: { releasedAt: "desc" } });
+    if (latestBuild) buildUpdate.fixedInBuildId = latestBuild.id;
+  }
+  if (status === "VERIFIED" && !bug.verifiedInBuildId) {
+    if (bug.fixedInBuildId || buildUpdate.fixedInBuildId) {
+      buildUpdate.verifiedInBuildId = buildUpdate.fixedInBuildId ?? bug.fixedInBuildId!;
+    } else {
+      const latestBuild = await prisma.build.findFirst({ where: { gameId: bug.gameId }, orderBy: { releasedAt: "desc" } });
+      if (latestBuild) buildUpdate.verifiedInBuildId = latestBuild.id;
+    }
+  }
+
   await prisma.$transaction([
-    prisma.bug.update({ where: { id: bugId }, data: { status, statusRank: BUG_STATUS_RANK[status] } }),
+    prisma.bug.update({ where: { id: bugId }, data: { status, statusRank: BUG_STATUS_RANK[status], ...buildUpdate } }),
     prisma.activityEvent.create({
       data: { type: "STATUS_CHANGED", fromValue: bug.status, toValue: status, bugId, actorId: user.id },
     }),
@@ -111,5 +139,27 @@ export async function updateBugAssignee(bugId: string, assigneeId: string | null
     });
   }
 
+  revalidateBug(bugId);
+}
+
+// Corrects the build a fix/verification was auto-attributed to (see
+// updateBugStatus's default) — gated the same way setting that status
+// would be, so a Developer can fix their own "fixed in" guess but can't
+// touch "verified in" (Developers can't reach Verified at all), and a QA
+// Tester/Lead can fix either at any time, matching who actually owns each
+// half of the workflow.
+export async function updateBugFixedBuild(bugId: string, buildId: string | null) {
+  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { reportedById: true } });
+  if (!bug) return;
+  await assertCanChangeBugStatus(bug, "FIXED");
+  await prisma.bug.update({ where: { id: bugId }, data: { fixedInBuildId: buildId } });
+  revalidateBug(bugId);
+}
+
+export async function updateBugVerifiedBuild(bugId: string, buildId: string | null) {
+  const bug = await prisma.bug.findUnique({ where: { id: bugId }, select: { reportedById: true } });
+  if (!bug) return;
+  await assertCanChangeBugStatus(bug, "VERIFIED");
+  await prisma.bug.update({ where: { id: bugId }, data: { verifiedInBuildId: buildId } });
   revalidateBug(bugId);
 }

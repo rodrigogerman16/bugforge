@@ -4,6 +4,8 @@ import { reproductionQualityPercent } from "@/lib/tester";
 import { groupActivityByDay, type ActivityEventRow } from "@/lib/activity";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/auth/supabase/server";
+import { getPreviewRole } from "@/lib/preview-role.server";
+import { OPEN_STATUSES } from "./bugs";
 
 // "Confirmed" here means the tester's own reported bugs that were validated
 // as real (anything past NEW that wasn't REJECTED) — a reproduction-quality
@@ -128,6 +130,20 @@ export async function getCurrentUser() {
     }
   }
 
+  // Portfolio/demo-only preview: a visitor with no real session can choose
+  // to see the app as any of the seeded roles (see lib/preview-role.ts and
+  // the profile menu's role switcher). This is purely "which real tester
+  // does getCurrentUser() return" — every permission check downstream still
+  // runs for real against that tester's actual role, unchanged.
+  const previewRole = await getPreviewRole();
+  if (previewRole) {
+    const previewTester = await prisma.tester.findFirst({
+      where: { role: previewRole },
+      orderBy: { createdAt: "asc" },
+    });
+    if (previewTester) return previewTester;
+  }
+
   const tester = await prisma.tester.findFirst({
     where: { role: "QA_LEAD" },
     orderBy: { createdAt: "asc" },
@@ -146,5 +162,44 @@ export async function getTesters() {
   return prisma.tester.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true, role: true },
+  });
+}
+
+export type DeveloperWorkload = {
+  id: string;
+  name: string;
+  email: string;
+  assignedOpenCount: number;
+  inProgressCount: number;
+  fixedAwaitingQaCount: number;
+};
+
+// The Developers page's whole reason to exist: not a leaderboard, just
+// "who's got what open right now" — the same shape a standup would ask for.
+export async function getDeveloperWorkload(): Promise<DeveloperWorkload[]> {
+  const developers = await prisma.tester.findMany({
+    where: { role: "DEVELOPER" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true },
+  });
+  if (developers.length === 0) return [];
+
+  const counts = await prisma.bug.groupBy({
+    by: ["assignedToId", "status"],
+    where: { assignedToId: { in: developers.map((d) => d.id) } },
+    _count: { _all: true },
+  });
+
+  return developers.map((dev) => {
+    let assignedOpenCount = 0;
+    let inProgressCount = 0;
+    let fixedAwaitingQaCount = 0;
+    for (const row of counts) {
+      if (row.assignedToId !== dev.id) continue;
+      if (OPEN_STATUSES.includes(row.status)) assignedOpenCount += row._count._all;
+      if (row.status === BugStatus.IN_PROGRESS) inProgressCount += row._count._all;
+      if (row.status === BugStatus.FIXED) fixedAwaitingQaCount += row._count._all;
+    }
+    return { ...dev, assignedOpenCount, inProgressCount, fixedAwaitingQaCount };
   });
 }

@@ -6,15 +6,18 @@ import { Brand } from "@/components/layout/brand";
 import { NotificationsMenu } from "@/components/layout/notifications-menu";
 import { UserMenu } from "@/components/layout/user-menu";
 import type { NotificationSummary } from "@/lib/db";
+import type { TesterRole } from "@/generated/prisma/enums";
 
 export function TopBar({
   user,
   notifications,
   authConfigured,
+  previewRole,
 }: {
   user: { id: string; name: string; email: string; role: string };
   notifications: NotificationSummary[];
   authConfigured: boolean;
+  previewRole: TesterRole | null;
 }) {
   const { setMobileNavOpen, setCommandPaletteOpen, setAiPanelOpen, openShortcutsHelp } = useShellUI();
 
@@ -71,7 +74,7 @@ export function TopBar({
       </button>
 
       <NotificationsMenu notifications={notifications} userId={user.id} />
-      <UserMenu user={user} authConfigured={authConfigured} />
+      <UserMenu user={user} authConfigured={authConfigured} previewRole={previewRole} />
     </header>
   );
 }

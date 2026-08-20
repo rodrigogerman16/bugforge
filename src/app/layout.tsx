@@ -14,9 +14,11 @@ import { ToastStack } from "@/components/layout/toast-stack";
 import { PageTransition } from "@/components/layout/page-transition";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { MobileNotificationsSheet } from "@/components/notifications/mobile-notifications-sheet";
+import { PreviewModeBanner } from "@/components/layout/preview-mode-banner";
 import { getShellGames, getCurrentUser, getNotifications } from "@/lib/db";
 import { isSupabaseAuthConfigured } from "@/lib/auth";
 import { createClient as createSupabaseServerClient } from "@/lib/auth/supabase/server";
+import { getPreviewRole } from "@/lib/preview-role.server";
 import { getAiProviderName, AI_PROVIDER_META } from "@/lib/ai/provider";
 import "./globals.css";
 
@@ -55,7 +57,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     );
   }
 
-  const user = await getCurrentUser();
+  const [user, previewRole] = await Promise.all([
+    getCurrentUser(),
+    authConfigured ? Promise.resolve(null) : getPreviewRole(),
+  ]);
   const [games, notifications] = await Promise.all([getShellGames(), getNotifications(user.id)]);
 
   return (
@@ -72,7 +77,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             Skip to main content
           </a>
           <div className="flex h-dvh flex-col">
-            <TopBar user={user} notifications={notifications} authConfigured={authConfigured} />
+            <TopBar user={user} notifications={notifications} authConfigured={authConfigured} previewRole={previewRole} />
+            {previewRole && <PreviewModeBanner role={previewRole} />}
             <div className="flex min-h-0 flex-1">
               <Suspense fallback={null}>
                 <Sidebar games={games} />

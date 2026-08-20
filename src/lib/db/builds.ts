@@ -104,6 +104,17 @@ export async function getBuildOptions() {
   });
 }
 
+// Just id/version, newest first, for the "which build was this fixed/
+// verified in" pickers on a bug's own page — a bug can only ever be
+// fixed/verified in a build of the same game it belongs to.
+export async function getBuildsForGame(gameId: string) {
+  return prisma.build.findMany({
+    where: { gameId },
+    orderBy: { releasedAt: "desc" },
+    select: { id: true, version: true },
+  });
+}
+
 // The real, current latest build for a game — what "recommended next test"
 // actually tells a tester to retest against, never a guessed version string.
 export async function getLatestBuildVersion(gameId: string): Promise<string | null> {

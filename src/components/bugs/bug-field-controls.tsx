@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { motion } from "motion/react";
 import { changeHighlight, changeHighlightTransition } from "@/lib/utils/motion";
-import { BUG_STATUS_META, BUG_WORKFLOW_MAIN, BUG_WORKFLOW_EXITS } from "@/lib/status-labels";
+import { BUG_STATUS_META } from "@/lib/status-labels";
 import { PRIORITY_META, PRIORITY_ORDER } from "@/lib/priority";
 import { SEVERITY_META, SEVERITY_ORDER } from "@/lib/severity";
 import {
@@ -12,10 +12,10 @@ import {
   updateBugSeverity,
   updateBugAssignee,
   updateBugArea,
+  updateBugFixedBuild,
+  updateBugVerifiedBuild,
 } from "@/app/bugs/[id]/bug-field-actions";
 import type { BugStatus, BugPriority, BugSeverity } from "@/generated/prisma/enums";
-
-const STATUS_OPTIONS: BugStatus[] = [...BUG_WORKFLOW_MAIN, ...BUG_WORKFLOW_EXITS];
 
 const selectClass =
   "appearance-none rounded-md border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] py-0.5 pl-2 pr-6 text-[13px] font-medium outline-none hover:border-[color:var(--bf-border-strong)] disabled:opacity-50";
@@ -139,8 +139,6 @@ export function BugFieldControls({
   );
 }
 
-export { STATUS_OPTIONS as ALL_BUG_STATUS_OPTIONS };
-
 type Tester = { id: string; name: string };
 
 export function BugAssigneeControl({
@@ -213,4 +211,64 @@ export function BugAreaControl({
       ))}
     </select>
   );
+}
+
+type Build = { id: string; version: string };
+
+// Shared by BugFixedBuildControl/BugVerifiedBuildControl below — both are
+// "which build" pickers that only ever appear once there's a real value to
+// show (set automatically the first time the bug reaches Fixed/Verified,
+// see updateBugStatus), never a way to set one before that happens.
+function BuildField({
+  label,
+  bugId,
+  buildId,
+  builds,
+  canEdit,
+  onChange,
+}: {
+  label: string;
+  bugId: string;
+  buildId: string | null;
+  builds: Build[];
+  canEdit: boolean;
+  onChange: (bugId: string, buildId: string | null) => Promise<void>;
+}) {
+  const [isPending, startTransition] = useTransition();
+  if (!buildId) return null;
+  const version = builds.find((b) => b.id === buildId)?.version ?? "—";
+
+  if (!canEdit) {
+    return (
+      <span className="flex items-center gap-1 text-[13px] text-[color:var(--bf-ink-muted)]">
+        {label} <span className="font-mono font-medium text-[color:var(--bf-ink-secondary)]">{version}</span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1 text-[13px] text-[color:var(--bf-ink-muted)]">
+      {label}
+      <select
+        value={buildId}
+        disabled={isPending}
+        onChange={(e) => startTransition(() => onChange(bugId, e.target.value))}
+        className="appearance-none rounded-md border border-transparent bg-transparent py-0 pr-4 font-mono text-[13px] font-medium text-[color:var(--bf-ink-secondary)] outline-none hover:border-[color:var(--bf-border)] disabled:opacity-50"
+      >
+        {builds.map((b) => (
+          <option key={b.id} value={b.id}>
+            {b.version}
+          </option>
+        ))}
+      </select>
+    </span>
+  );
+}
+
+export function BugFixedBuildControl(props: { bugId: string; buildId: string | null; builds: Build[]; canEdit: boolean }) {
+  return <BuildField label="Fixed in" onChange={updateBugFixedBuild} {...props} />;
+}
+
+export function BugVerifiedBuildControl(props: { bugId: string; buildId: string | null; builds: Build[]; canEdit: boolean }) {
+  return <BuildField label="Verified in" onChange={updateBugVerifiedBuild} {...props} />;
 }

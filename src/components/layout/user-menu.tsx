@@ -5,6 +5,7 @@ import { User, Settings, LogOut } from "lucide-react";
 import { Dropdown } from "@/components/ui/dropdown";
 import { TESTER_ROLE_META } from "@/lib/tester";
 import { signOut } from "@/app/auth/actions";
+import { PreviewRoleSwitcher } from "@/components/layout/preview-role-switcher";
 import type { TesterRole } from "@/generated/prisma/enums";
 
 function initials(name: string) {
@@ -19,9 +20,11 @@ function initials(name: string) {
 export function UserMenu({
   user,
   authConfigured,
+  previewRole,
 }: {
   user: { name: string; email: string; role: string };
   authConfigured: boolean;
+  previewRole: TesterRole | null;
 }) {
   const roleMeta = TESTER_ROLE_META[user.role as TesterRole];
 
@@ -56,6 +59,7 @@ export function UserMenu({
               {roleMeta?.label ?? user.role}
             </span>
           </div>
+          {!authConfigured && <PreviewRoleSwitcher activeRole={previewRole} />}
           <div className="py-1">
             <button
               disabled

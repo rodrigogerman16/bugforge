@@ -44,8 +44,14 @@ export const BUG_WORKFLOW_MAIN: BugStatus[] = [
 export const BUG_WORKFLOW_EXITS: BugStatus[] = [BugStatus.REJECTED, BugStatus.DUPLICATE];
 
 // The full sort order used everywhere a bug list is ordered "by workflow
-// progress" — the main pipeline in order, then the two exits.
+// progress" — the main pipeline in order, then the two exits. Also doubles
+// as "every status a bug can be in" for the status-change dropdown — same
+// underlying list, read for a different purpose. Deliberately kept in this
+// plain (non-"use client") module: a Server Component reading this value
+// directly (not just forwarding it as a prop to a Client Component) needs
+// the real array, not an RSC client-reference stub.
 export const BUG_STATUS_SORT_ORDER: BugStatus[] = [...BUG_WORKFLOW_MAIN, ...BUG_WORKFLOW_EXITS];
+export const ALL_BUG_STATUS_OPTIONS: BugStatus[] = BUG_STATUS_SORT_ORDER;
 
 // Mirrors SEVERITY_RANK/PRIORITY_RANK — the Bug.statusRank column stores
 // this 0-based position so status can be sorted/filtered at the database

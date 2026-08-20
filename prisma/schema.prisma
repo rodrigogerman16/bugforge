@@ -117,6 +117,8 @@ model Build {
 
   sessions    QASession[]
   bugs        Bug[]
+  bugsFixedIn    Bug[] @relation("BugFixedInBuild")
+  bugsVerifiedIn Bug[] @relation("BugVerifiedInBuild")
 
   @@unique([gameId, version])
 }
@@ -212,6 +214,17 @@ model Bug {
 
   buildId     String
   build       Build       @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  // Which build the fix actually shipped in, and which build QA confirmed
+  // it in — distinct from buildId above (the build the bug was *reported*
+  // against). Both are set automatically the first time a Developer/QA
+  // moves the bug to Fixed/Verified (see updateBugStatus), and stay
+  // editable afterward if the guess was wrong. Nullable because most bugs
+  // never reach either stage.
+  fixedInBuildId    String?
+  fixedInBuild      Build?  @relation("BugFixedInBuild", fields: [fixedInBuildId], references: [id], onDelete: SetNull)
+  verifiedInBuildId String?
+  verifiedInBuild   Build?  @relation("BugVerifiedInBuild", fields: [verifiedInBuildId], references: [id], onDelete: SetNull)
 
   sessionId   String?
   session     QASession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)

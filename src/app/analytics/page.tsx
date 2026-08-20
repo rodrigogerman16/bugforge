@@ -87,7 +87,7 @@ export default async function AnalyticsPage({
               value: r.avgDays ?? 0,
               color: SEVERITY_META[r.severity].color,
             }))}
-          valueLabel={(v) => `${v}d`}
+          valueUnit="d"
           emptyMessage="No bugs resolved in this range yet."
         />
 
@@ -110,7 +110,7 @@ export default async function AnalyticsPage({
         <CategoryBarChart
           title="Tester activity"
           data={data.testerActivity.map((t) => ({ label: t.tester, value: t.total }))}
-          valueLabel={(v) => `${v} actions`}
+          valueUnit=" actions"
           emptyMessage="No tester activity in this range yet."
         />
 

@@ -62,6 +62,8 @@ export type BugListOptions = {
   dateTo?: Date;
   tagId?: string;
   q?: string;
+  /** Only bugs flagged as a regression of an earlier fixed bug — see isRegression. */
+  regression?: boolean;
   sort?: BugSortField;
   dir?: "asc" | "desc";
   page?: number;
@@ -133,7 +135,7 @@ export function buildBugWhere(
   options: Omit<BugListOptions, "page" | "sort" | "dir">,
   gameIds: string[]
 ): Prisma.BugWhereInput {
-  const { severity, priority, status, areaId, build, platform, reporterId, assigneeId, dateFrom, dateTo, tagId, q } = options;
+  const { severity, priority, status, areaId, build, platform, reporterId, assigneeId, dateFrom, dateTo, tagId, q, regression } = options;
   return {
     gameId: { in: gameIds },
     ...(severity ? { severity } : {}),
@@ -145,6 +147,7 @@ export function buildBugWhere(
     ...(reporterId ? { reportedById: reporterId } : {}),
     ...(assigneeId ? { assignedToId: assigneeId === "unassigned" ? null : assigneeId } : {}),
     ...(tagId ? { tags: { some: { id: tagId } } } : {}),
+    ...(regression ? { isRegression: true } : {}),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } }
       : {}),
@@ -239,6 +242,32 @@ export async function getBugList(options: BugListOptions) {
   return { bugs, totalCount, page: safePage, pageCount };
 }
 
+export type QaWorkQueue = {
+  readyForQaCount: number;
+  assignedToMeCount: number;
+  regressionCount: number;
+  reportedByMeOpenCount: number;
+};
+
+// The four counts a QA Tester/Lead actually needs to answer "what needs my
+// attention today" — see the dashboard's QaWorkQueue card. Each count maps
+// directly onto a bugs-list filter (see buildBugWhere/hrefFor* below) so
+// clicking through never lands on an unfiltered list the tester then has
+// to filter themselves.
+export async function getQaWorkQueue(gameSlug: string | undefined, userId: string): Promise<QaWorkQueue> {
+  const gameIds = await resolveGameIds(gameSlug);
+  const baseWhere: Prisma.BugWhereInput = { gameId: { in: gameIds } };
+
+  const [readyForQaCount, assignedToMeCount, regressionCount, reportedByMeOpenCount] = await Promise.all([
+    prisma.bug.count({ where: { ...baseWhere, status: BugStatus.READY_FOR_QA } }),
+    prisma.bug.count({ where: { ...baseWhere, assignedToId: userId, status: { in: OPEN_STATUSES } } }),
+    prisma.bug.count({ where: { ...baseWhere, isRegression: true, status: { in: OPEN_STATUSES } } }),
+    prisma.bug.count({ where: { ...baseWhere, reportedById: userId, status: { in: OPEN_STATUSES } } }),
+  ]);
+
+  return { readyForQaCount, assignedToMeCount, regressionCount, reportedByMeOpenCount };
+}
+
 // The unpaginated counterpart of getBugList, for exporting the full set of
 // bugs matching the current filters (CSV/JSON) rather than one page of
 // them — the filtering and sorting still happen in the database, this just
@@ -261,6 +290,8 @@ export const getBugDetail = cache(async (id: string) => {
     include: {
       game: { select: { name: true, slug: true, coverColor: true } },
       build: { select: { version: true, branch: true } },
+      fixedInBuild: { select: { id: true, version: true } },
+      verifiedInBuild: { select: { id: true, version: true } },
       session: { select: { name: true } },
       area: { select: { id: true, name: true } },
       reportedBy: { select: { id: true, name: true, email: true } },
@@ -361,7 +392,16 @@ export async function getRegressionInfo(bugId: string) {
     orderBy: { createdAt: "asc" },
     include: {
       sourceBug: { select: { build: { select: { version: true } } } },
-      targetBug: { select: { id: true, number: true, title: true, build: { select: { version: true } } } },
+      targetBug: {
+        select: {
+          id: true,
+          number: true,
+          title: true,
+          build: { select: { version: true } },
+          fixedInBuild: { select: { version: true } },
+          verifiedInBuild: { select: { version: true } },
+        },
+      },
     },
   });
   if (!relationship) return null;
@@ -370,7 +410,11 @@ export async function getRegressionInfo(bugId: string) {
     originalBugId: relationship.targetBug.id,
     originalBugTitle: relationship.targetBug.title,
     originalBugNumber: relationship.targetBug.number,
-    previouslyFixedBuild: relationship.targetBug.build.version,
+    // Falls back to the build the original bug was reported against for
+    // bugs fixed before fixedInBuild existed — everything reported since
+    // has a real, explicit "fixed in" build instead of this approximation.
+    previouslyFixedBuild: relationship.targetBug.fixedInBuild?.version ?? relationship.targetBug.build.version,
+    verifiedBuild: relationship.targetBug.verifiedInBuild?.version ?? null,
     reproducedBuild: relationship.sourceBug.build.version,
   };
 }

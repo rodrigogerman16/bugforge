@@ -8,11 +8,13 @@ import {
   ListChecks,
   HeartPulse,
 } from "lucide-react";
-import { getDashboardData, getQualityTrend } from "@/lib/db";
+import { getDashboardData, getQualityTrend, getQaWorkQueue, getCurrentUser } from "@/lib/db";
+import { hasCapability } from "@/lib/auth/permissions";
 import { StatTile } from "@/components/ui/stat-tile";
 import { GameCard } from "@/components/dashboard/game-card";
 import { QualityScoreCard } from "@/components/dashboard/quality-score-card";
 import { QualityTrendChart } from "@/components/dashboard/quality-trend-chart";
+import { QaWorkQueueCard } from "@/components/dashboard/qa-work-queue";
 import { TrendRangeToggle } from "@/components/ui/trend-range-toggle";
 import { SeverityMeter } from "@/components/dashboard/severity-meter";
 import { QUALITY_BAND_META } from "@/lib/quality-score";
@@ -27,12 +29,22 @@ export default async function DashboardPage({
   const parsedRange = Number(rangeParam);
   const range: TrendRangeDays = isTrendRangeDays(parsedRange) ? parsedRange : 30;
 
-  const [{ games, stats }, trendPoints] = await Promise.all([
+  const currentUser = await getCurrentUser();
+  // Ready-for-QA / assigned-to-me / regression / reported-by-me only means
+  // something for the people whose job is actually working the bug list —
+  // reusing EXECUTE_TESTS as the gate keeps this tied to the real
+  // permission model instead of a hardcoded role list (QA Tester, QA Lead,
+  // and Admin all have it; Developer/Producer/Viewer don't).
+  const showQaQueue = hasCapability(currentUser.role, "EXECUTE_TESTS");
+
+  const [{ games, stats }, trendPoints, qaQueue] = await Promise.all([
     getDashboardData(gameSlug),
     getQualityTrend(gameSlug, range),
+    showQaQueue ? getQaWorkQueue(gameSlug, currentUser.id) : Promise.resolve(null),
   ]);
 
   const headerGame = games.length === 1 ? games[0] : null;
+  const effectiveGameSlug = headerGame?.slug ?? "all";
   const heroScore = headerGame ? headerGame.qualityScore : stats.aggregateQualityScore;
   const heroOpenCounts = headerGame ? headerGame.openSeverityCounts : stats.aggregateOpenSeverityCounts;
   const heroFactors = headerGame ? headerGame.qualityFactors : stats.aggregateQualityFactors;
@@ -53,6 +65,8 @@ export default async function DashboardPage({
           QA Health
         </p>
       </header>
+
+      {qaQueue && <QaWorkQueueCard queue={qaQueue} gameSlug={effectiveGameSlug} userId={currentUser.id} />}
 
       <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-[340px_1fr]">
         <QualityScoreCard score={heroScore} openSeverityCounts={heroOpenCounts} factors={heroFactors} />

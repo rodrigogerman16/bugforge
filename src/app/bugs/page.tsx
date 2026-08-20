@@ -49,6 +49,7 @@ export default async function BugsPage({
     dateTo?: string;
     tag?: string;
     q?: string;
+    regression?: string;
     sort?: string;
     dir?: string;
     page?: string;
@@ -67,6 +68,7 @@ export default async function BugsPage({
   const dateFrom = params.dateFrom ? new Date(`${params.dateFrom}T00:00:00`) : undefined;
   const dateTo = params.dateTo ? new Date(`${params.dateTo}T23:59:59.999`) : undefined;
   const q = params.q || undefined;
+  const regression = params.regression === "1" ? true : undefined;
   const sort = isBugSortField(params.sort) ? params.sort : "updatedAt";
   const dir = params.dir === "asc" ? "asc" : "desc";
   const page = Number(params.page) > 0 ? Number(params.page) : 1;
@@ -86,6 +88,7 @@ export default async function BugsPage({
       dateTo,
       tagId,
       q,
+      regression,
       sort,
       dir,
       page,
@@ -112,6 +115,7 @@ export default async function BugsPage({
       dateTo: params.dateTo,
       tag: tagId,
       q,
+      regression: regression ? "1" : undefined,
       sort: sort !== "updatedAt" ? sort : undefined,
       dir: dir !== "desc" ? dir : undefined,
       ...overrides,
@@ -158,6 +162,7 @@ export default async function BugsPage({
     activeFilters.push({ key: "date", label });
   }
   if (q) activeFilters.push({ key: "q", label: `"${q}"` });
+  if (regression) activeFilters.push({ key: "regression", label: "Regression", color: "var(--bf-status-warning)" });
 
   function hrefWithout(key: string) {
     if (key === "date") return buildHref({ dateFrom: undefined, dateTo: undefined });

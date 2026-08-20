@@ -13,17 +13,22 @@ export function CategoryBarChart({
   title,
   data,
   color = "var(--bf-brand)",
-  valueLabel,
+  valueUnit = "",
   emptyMessage = "No data yet for this range.",
 }: {
   title: string;
   data: CategoryBarDatum[];
   color?: string;
-  valueLabel?: (v: number) => string;
+  // A suffix appended after the raw number (e.g. "d" for days, " actions")
+  // — a plain string rather than a formatter function, since a Server
+  // Component can't pass a function prop across the Client Component
+  // boundary (nothing but a Server Action can cross that boundary as a
+  // function).
+  valueUnit?: string;
   emptyMessage?: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
-  const format = (v: number) => (valueLabel ? valueLabel(v) : String(v));
+  const format = (v: number) => `${v}${valueUnit}`;
 
   return (
     <div className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] p-5">

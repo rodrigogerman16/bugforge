@@ -23,7 +23,15 @@ function StatusDot({ status }: { status: string }) {
   return <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: meta.color }} />;
 }
 
-export function BugRelationships({ bugId, relationships }: { bugId: string; relationships: RelationshipItem[] }) {
+export function BugRelationships({
+  bugId,
+  relationships,
+  canEdit,
+}: {
+  bugId: string;
+  relationships: RelationshipItem[];
+  canEdit: boolean;
+}) {
   const [pickerLabel, setPickerLabel] = useState(RELATIONSHIP_PICKER_OPTIONS[3].label);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchBug[]>([]);
@@ -83,19 +91,22 @@ export function BugRelationships({ bugId, relationships }: { bugId: string; rela
                   <span className="truncate">{rel.bug.title}</span>
                 </Link>
               </div>
-              <button
-                onClick={() => handleDelete(rel.id)}
-                disabled={isPending}
-                aria-label="Remove relationship"
-                className="shrink-0 text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-status-critical)] disabled:opacity-50"
-              >
-                <X size={14} />
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => handleDelete(rel.id)}
+                  disabled={isPending}
+                  aria-label="Remove relationship"
+                  className="shrink-0 text-[color:var(--bf-ink-muted)] hover:text-[color:var(--bf-status-critical)] disabled:opacity-50"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </li>
           ))}
         </ul>
       )}
 
+      {canEdit && (
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <select
           value={pickerLabel}
@@ -171,6 +182,7 @@ export function BugRelationships({ bugId, relationships }: { bugId: string; rela
           Link
         </button>
       </div>
+      )}
     </div>
   );
 }

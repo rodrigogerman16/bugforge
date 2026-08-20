@@ -1475,6 +1475,18 @@ async function main() {
       BugStatus.CONFIRMED,
       BugStatus.IN_PROGRESS,
     ];
+    // A bug can't reach any of these without a fix having landed somewhere
+    // first — the seed only stores one status snapshot per bug, not real
+    // history, so every one of these gets a real fixedInBuildId (and
+    // Verified/Closed also a verifiedInBuildId) rather than leaving the new
+    // build-tracking fields empty on most of the demo data.
+    const alreadyFixedStatuses: BugStatus[] = [
+      BugStatus.FIXED,
+      BugStatus.READY_FOR_QA,
+      BugStatus.VERIFIED,
+      BugStatus.CLOSED,
+    ];
+    const alreadyVerifiedStatuses: BugStatus[] = [BugStatus.VERIFIED, BugStatus.CLOSED];
 
     const gameBugs: Bug[] = [];
     const bugCount = 60 + Math.floor(Math.random() * 20);
@@ -1615,6 +1627,8 @@ async function main() {
           status,
           statusRank: BUG_STATUS_RANK[status],
           isRegression: false,
+          ...(alreadyFixedStatuses.includes(status) ? { fixedInBuildId: build.id } : {}),
+          ...(alreadyVerifiedStatuses.includes(status) ? { verifiedInBuildId: build.id } : {}),
           areaId: area.id,
           reportedById,
           assignedToId,
