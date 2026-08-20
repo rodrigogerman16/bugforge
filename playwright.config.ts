@@ -1,9 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // E2E smoke tests for the golden paths — reading/filtering/sorting the bug
-// list and creating a bug end-to-end. Runs against a real `next dev` server
-// on real seeded demo data (see prisma/seed.ts); Playwright starts and
-// tears that server down itself, so `npm run test:e2e` works standalone.
+// list, creating a bug end-to-end, and executing test cases — on real
+// seeded demo data (see prisma/seed.ts); Playwright starts and tears that
+// server down itself, so `npm run test:e2e` works standalone. Runs against
+// a real `next dev` server.
 export default defineConfig({
   testDir: "./e2e",
   // All specs share one real dev server backed by one real SQLite file
