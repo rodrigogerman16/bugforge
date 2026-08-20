@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { GitCompare } from "lucide-react";
+import { GitCompare, Package } from "lucide-react";
 import { getBuilds } from "@/lib/db";
 import { BuildCard } from "@/components/builds/build-card";
 import { ExportLinks } from "@/components/ui/export-links";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Builds — BugForge" };
 
@@ -37,7 +38,11 @@ export default async function BuildsPage({
       </header>
 
       {builds.length === 0 ? (
-        <p className="text-sm text-[color:var(--bf-ink-muted)]">No builds found.</p>
+        <EmptyState
+          icon={Package}
+          title="No builds yet"
+          description="Builds show up here once they're published for this game — check back after the next one ships."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {builds.map((build) => (

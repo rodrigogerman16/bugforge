@@ -214,13 +214,7 @@ export function BugTable({
         </Dropdown>
       </div>
 
-      {bugs.length === 0 ? (
-        <p className="rounded-lg border border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] px-4 py-10 text-center text-sm text-[color:var(--bf-ink-muted)]">
-          No bugs match this filter.
-        </p>
-      ) : (
-        <>
-          {/* Cards on mobile — a 900px-min table forced into a phone-width
+      {/* Cards on mobile — a 900px-min table forced into a phone-width
               viewport is unreadable no matter how it scrolls, and "bug
               review" is a named mobile priority. Same data, same selection
               state, same bulk actions bar above; just a layout that fits. */}
@@ -414,8 +408,6 @@ export function BugTable({
             </tbody>
           </table>
         </div>
-        </>
-      )}
     </div>
   );
 }

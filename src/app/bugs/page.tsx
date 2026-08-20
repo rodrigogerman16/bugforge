@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Bug as BugIcon } from "lucide-react";
 import { getBugList, getBugFilterOptions, isBugSortField, BUG_PAGE_SIZE, getCurrentUser } from "@/lib/db";
 import { hasCapability } from "@/lib/auth/permissions";
 import { SEVERITY_META } from "@/lib/severity";
@@ -12,6 +12,7 @@ import { BugToolbar } from "@/components/bugs/bug-toolbar";
 import { BugTable } from "@/components/bugs/bug-table";
 import { ReportBugButton } from "@/components/bugs/report-bug-button";
 import { ExportLinks } from "@/components/ui/export-links";
+import { EmptyState } from "@/components/ui/empty-state";
 import { BugSeverity, BugPriority, BugStatus, Platform } from "@/generated/prisma/enums";
 
 function isBugSeverity(value: string | undefined): value is BugSeverity {
@@ -231,7 +232,26 @@ export default async function BugsPage({
         </div>
       )}
 
-      <BugTable bugs={bugs} sort={sort} dir={dir} showGameColumn={showGameColumn} />
+      {bugs.length === 0 ? (
+        activeFilters.length > 0 ? (
+          <EmptyState
+            icon={BugIcon}
+            title="No bugs found"
+            description="Your current filters don't match any reported issues."
+            action={{ label: "Clear filters", href: baseHref, variant: "secondary" }}
+          />
+        ) : (
+          <EmptyState
+            icon={BugIcon}
+            title="No bugs yet"
+            description="Nothing has been reported for this game yet. Once bugs come in, they'll show up here."
+          >
+            {canCreateBug && <ReportBugButton gameSlug={params.game} />}
+          </EmptyState>
+        )
+      ) : (
+        <BugTable bugs={bugs} sort={sort} dir={dir} showGameColumn={showGameColumn} />
+      )}
 
       {totalCount > 0 && (
         <div className="mt-4 flex items-center justify-between text-[12px] text-[color:var(--bf-ink-muted)]">

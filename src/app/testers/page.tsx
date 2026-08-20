@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Users } from "lucide-react";
 import { getTesterProfiles } from "@/lib/db";
 import { TesterCard } from "@/components/testers/tester-card";
 import { ExportLinks } from "@/components/ui/export-links";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Testers — BugForge" };
 
@@ -21,7 +23,11 @@ export default async function TestersPage() {
       </header>
 
       {testers.length === 0 ? (
-        <p className="text-sm text-[color:var(--bf-ink-muted)]">No testers found.</p>
+        <EmptyState
+          icon={Users}
+          title="No testers yet"
+          description="Team members show up here once they've signed in at least once."
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {testers.map((tester) => (

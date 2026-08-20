@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Tags } from "lucide-react";
 import { getAreas, getAreaUsageCounts, getCurrentUser } from "@/lib/db";
 import { QA_DISCIPLINE_META } from "@/lib/coverage";
 import { AreaForm } from "@/components/areas/area-form";
 import { DeleteAreaButton } from "@/components/areas/delete-area-button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { hasCapability } from "@/lib/auth/permissions";
 
 export const metadata: Metadata = { title: "Areas — BugForge" };
@@ -28,37 +30,49 @@ export default async function AreasPage() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-[color:var(--bf-border)]">
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] text-left text-[12px] text-[color:var(--bf-ink-muted)]">
-              <th className="px-4 py-2.5 font-medium">Name</th>
-              <th className="px-4 py-2.5 font-medium">Discipline</th>
-              <th className="px-4 py-2.5 font-medium">Bugs</th>
-              <th className="px-4 py-2.5 font-medium">Test Cases</th>
-              <th className="px-4 py-2.5 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {areas.map((area) => {
-              const counts = usage.get(area.id) ?? { bugs: 0, testCases: 0 };
-              return (
-                <tr key={area.id} className="border-b border-[color:var(--bf-border)] last:border-b-0 hover:bg-[color:var(--bf-surface)]">
-                  <td className="px-4 py-3 font-medium text-[color:var(--bf-ink-primary)]">{area.name}</td>
-                  <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">
-                    {area.discipline ? QA_DISCIPLINE_META[area.discipline].label : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.bugs}</td>
-                  <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.testCases}</td>
-                  <td className="px-4 py-3 text-right">
-                    {canManageAreas && <DeleteAreaButton areaId={area.id} areaName={area.name} />}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      {areas.length === 0 ? (
+        <EmptyState
+          icon={Tags}
+          title="No areas yet"
+          description={
+            canManageAreas
+              ? "Add your first area above to start categorizing bugs and test cases."
+              : "No one has set up the area taxonomy for this game yet."
+          }
+        />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-[color:var(--bf-border)]">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[color:var(--bf-border)] bg-[color:var(--bf-surface)] text-left text-[12px] text-[color:var(--bf-ink-muted)]">
+                <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Discipline</th>
+                <th className="px-4 py-2.5 font-medium">Bugs</th>
+                <th className="px-4 py-2.5 font-medium">Test Cases</th>
+                <th className="px-4 py-2.5 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {areas.map((area) => {
+                const counts = usage.get(area.id) ?? { bugs: 0, testCases: 0 };
+                return (
+                  <tr key={area.id} className="border-b border-[color:var(--bf-border)] last:border-b-0 hover:bg-[color:var(--bf-surface)]">
+                    <td className="px-4 py-3 font-medium text-[color:var(--bf-ink-primary)]">{area.name}</td>
+                    <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">
+                      {area.discipline ? QA_DISCIPLINE_META[area.discipline].label : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.bugs}</td>
+                    <td className="px-4 py-3 text-[color:var(--bf-ink-secondary)]">{counts.testCases}</td>
+                    <td className="px-4 py-3 text-right">
+                      {canManageAreas && <DeleteAreaButton areaId={area.id} areaName={area.name} />}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

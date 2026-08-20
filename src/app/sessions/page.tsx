@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ClipboardList } from "lucide-react";
 import { getSessions, getCurrentUser } from "@/lib/db";
 import { SessionCard } from "@/components/sessions/session-card";
 import { ExportLinks } from "@/components/ui/export-links";
+import { EmptyState } from "@/components/ui/empty-state";
 import { hasCapability } from "@/lib/auth/permissions";
 
 export const metadata: Metadata = { title: "Test Sessions — BugForge" };
@@ -43,7 +44,16 @@ export default async function SessionsPage({
       </header>
 
       {sessions.length === 0 ? (
-        <p className="text-sm text-[color:var(--bf-ink-muted)]">No test sessions found.</p>
+        <EmptyState
+          icon={ClipboardList}
+          title="No test sessions yet"
+          description="Start your first QA session to begin tracking test runs and bugs against a build."
+          action={
+            canManageSessions
+              ? { label: "New Session", href: `/sessions/new${gameSlug ? `?game=${gameSlug}` : ""}` }
+              : undefined
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sessions.map((session) => (

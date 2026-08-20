@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, ListChecks } from "lucide-react";
 import { getTestCases, getCurrentUser } from "@/lib/db";
 import { TEST_CASE_PRIORITY_META, TEST_CASE_STATUS_META } from "@/lib/test-case";
 import { PLATFORM_LABEL } from "@/lib/platform";
 import { formatRelativeTime } from "@/lib/utils/relative-time";
 import { ExportLinks } from "@/components/ui/export-links";
+import { EmptyState } from "@/components/ui/empty-state";
 import { hasCapability } from "@/lib/auth/permissions";
 
 export const metadata: Metadata = { title: "Test Cases — BugForge" };
@@ -45,7 +46,16 @@ export default async function TestCasesPage({
       </header>
 
       {testCases.length === 0 ? (
-        <p className="text-sm text-[color:var(--bf-ink-muted)]">No test cases found.</p>
+        <EmptyState
+          icon={ListChecks}
+          title="No test cases yet"
+          description="Create your first test case to begin building your QA coverage."
+          action={
+            canManageTestCases
+              ? { label: "New Test Case", href: `/test-cases/new${gameSlug ? `?game=${gameSlug}` : ""}` }
+              : undefined
+          }
+        />
       ) : (
         <>
           <ul className="space-y-2 md:hidden">
